@@ -1,0 +1,16 @@
+{
+  // Exclude heavy or third-party folders from searches and watchers so analysis tools
+  // don't attempt strict JSON.parse on dependency files.
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.next": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.next/**": true
+  }
+}
