@@ -17,6 +17,10 @@ const nextConfig = {
       },
     ],
   },
+  // Static export for GitHub Pages
+  output: 'export',
+  // Ensure exported files use trailing slash for directory indexes
+  trailingSlash: true,
 }
 
 module.exports = nextConfig
