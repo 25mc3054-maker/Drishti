@@ -1,5 +1,7 @@
 // Custom type definitions extend the base types
 
+import type { GeminiAnalysisResult } from './index';
+
 export interface ExtendedMetadata {
   timestamp: string;
   userId?: string;
