@@ -1,3 +1,6 @@
+// Ensure this API route is treated as dynamic so static export won't try to include it
+export const dynamic = 'force-dynamic';
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { GeminiAnalysisResult } from '@/types';
 import { NextRequest, NextResponse } from 'next/server';

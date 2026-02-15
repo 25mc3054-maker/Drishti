@@ -10,28 +10,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "Gemini API Key is missing" }, { status: 500 });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
+    
+    const systemPrompt = `You are an Expert Solution Architect. Analyze this image of a real-world business scenario (handwritten notes, messy shelves, or diagrams). Output a structured JSON containing:
+    A) The problem identified (key: "problem").
+    B) A mathematical optimization plan (key: "optimizationPlan").
+    C) The exact code/structure needed to build a dashboard for this business (key: "dashboardStructure").`;
+
     // Using gemini-1.5-flash for high speed and efficiency
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash-latest",
+      model: "gemini-1.5-flash",
+      systemInstruction: systemPrompt,
       generationConfig: { responseMimeType: "application/json" }
     });
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const systemPrompt = `You are an Expert Solution Architect. Analyze this image of a real-world business scenario (handwritten notes, messy shelves, or diagrams). Output a structured JSON containing:
-    A) The problem identified (key: "problem").
-    B) A mathematical optimization plan (key: "optimizationPlan").
-    C) The exact code/structure needed to build a dashboard for this business (key: "dashboardStructure").`;
-
     const result = await model.generateContent([
-      systemPrompt,
       {
         inlineData: {
           data: buffer.toString("base64"),
