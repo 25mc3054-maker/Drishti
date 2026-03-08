@@ -2,7 +2,7 @@
 
 <div align="center">
   <img src="https://img.shields.io/badge/Amazon-Hackathon-FF9900?style=for-the-badge&logo=amazon&logoColor=white" alt="Amazon Hackathon"/>
-  <img src="https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Google Gemini"/>
+  <img src="https://img.shields.io/badge/Powered%20by-AWS%20Bedrock-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white" alt="AWS Bedrock"/>
   <img src="https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js"/>
   <img src="https://img.shields.io/badge/TypeScript-5.3-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
   <img src="https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind"/>
@@ -22,9 +22,10 @@
 ## ✨ Key Features
 
 ### 🧠 AI-Powered Analysis
-- **Google Gemini 1.5 Flash** integration for lightning-fast vision analysis
+ - **Amazon Bedrock (Claude 3 Sonnet)** integration for high-intelligence vision analysis
+ - **Amazon Rekognition** for object detection
+ - **Amazon Textract** for document understanding
 - Expert solution architect-level insights from visual inputs
-- Supports images (JPEG, PNG, WebP) and videos (MP4, MOV)
 
 ### 📊 Comprehensive Solutions
 1. **Problem Identification**
@@ -45,7 +46,7 @@
    - Technology stack suggestions
 
 ### 🎨 Beautiful UI/UX
-- **Google AI Studio-inspired design** with deep blue gradients
+- **Enterprise-grade design** with deep blue gradients
 - Smooth animations powered by Framer Motion
 - Fully responsive and mobile-optimized
 - Real-time progress tracking
@@ -53,10 +54,12 @@
 
 ## 🚀 Getting Started
 
+For complete AWS hackathon setup (Amplify + Bedrock + Rekognition + Textract + DynamoDB + Cognito + SES + Step Functions), see `AWS_HACKATHON_SETUP.md`.
+
 ### Prerequisites
 
 - Node.js 18+ installed
-- Google Gemini API key (free tier available)
+- AWS Account with Bedrock access (Claude 3 Sonnet enabled)
 - A modern web browser
 
 ### Installation
@@ -75,7 +78,17 @@ npm install
 
 Your `.env.local` file should already contain:
 ```env
-NEXT_PUBLIC_GEMINI_API_KEY=your_api_key_here
+# AWS Credentials
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=eu-north-1
+AWS_BEDROCK_REGION=eu-west-1
+
+# Storage
+AWS_S3_BUCKET=drishti-assets-yourname
+
+# Other Services
+AWS_DYNAMODB_TABLE_ANALYSIS=Drishti_Analysis
 ```
 
 4. **Run the development server:**
@@ -104,7 +117,6 @@ http://localhost:3000
 
 **Backend:**
 - Next.js API Routes
-- Google Generative AI SDK (@google/generative-ai)
 
 **Deployment:**
 - Vercel / AWS Amplify (Free Tier)
@@ -117,7 +129,7 @@ Drishti/
 ├── app/
 │   ├── api/
 │   │   └── vision/
-│   │       └── route.ts         # Gemini API integration
+│   │       └── route.ts         # AWS Service Orchestration
 │   ├── globals.css              # Global styles
 │   ├── layout.tsx               # Root layout
 │   └── page.tsx                 # Main dashboard
@@ -145,7 +157,7 @@ Drishti/
    - Automatic file validation (type, size)
 
 2. **Analyze** 🧠
-   - Image sent to Google Gemini 1.5 Flash API
+   - Image sent to AWS Bedrock (Claude 3 Sonnet)
    - AI processes visual data with expert system prompt
    - Structured JSON response generation
    - Real-time progress tracking
@@ -158,7 +170,7 @@ Drishti/
 
 ## 🎨 UI/UX Highlights
 
-### Color Palette (Google AI Studio Inspired)
+### Color Palette (Enterprise Inspired)
 - **Primary Background:** `#001429` (Deep navy)
 - **Accent Blue:** `#1a91ff` - `#4da9ff`
 - **Glass Effect:** Frosted glass with blur
@@ -206,9 +218,6 @@ npm i -g vercel
 
 # Deploy
 vercel
-
-# Set environment variable
-vercel env add NEXT_PUBLIC_GEMINI_API_KEY
 ```
 
 ### AWS Amplify (Free Tier)

@@ -17,12 +17,20 @@ export default function LoadingSpinner({ size = 'md', text }: LoadingSpinnerProp
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-      >
-        <Loader2 className={`${sizeClasses[size]} text-gemini-blue-400`} />
-      </motion.div>
+      <div className="relative flex items-center justify-center">
+        <motion.div
+          animate={{ scale: [1, 1.12, 1] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute inset-0 rounded-full bg-gemini-blue-500/20 blur-md"
+        />
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          className="relative"
+        >
+          <Loader2 className={`${sizeClasses[size]} text-gemini-blue-400`} />
+        </motion.div>
+      </div>
       {text && (
         <motion.p
           initial={{ opacity: 0 }}

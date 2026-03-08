@@ -20,6 +20,18 @@ const config: Config = {
           700: '#003d7a',
           800: '#002952',
           900: '#001429',
+        },
+        'drishti-blue': {
+          50: '#e6f1ff',
+          100: '#b3d9ff',
+          200: '#80c1ff',
+          300: '#4da9ff',
+          400: '#1a91ff',
+          500: '#0066CC',
+          600: '#0052a3',
+          700: '#003d7a',
+          800: '#002952',
+          900: '#001429',
         }
       },
       animation: {
@@ -54,6 +66,7 @@ const config: Config = {
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gemini-gradient': 'linear-gradient(135deg, #001429 0%, #003d7a 50%, #0052a3 100%)',
+        'drishti-gradient': 'linear-gradient(135deg, #001429 0%, #003d7a 50%, #0052a3 100%)',
       },
     },
   },

@@ -15,6 +15,17 @@ interface AnalysisMetricsProps {
 }
 
 export default function AnalysisMetrics({ metrics }: AnalysisMetricsProps) {
+  const handleGlowMove = (event: React.MouseEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty('--mx', `${event.clientX - rect.left}px`);
+    event.currentTarget.style.setProperty('--my', `${event.clientY - rect.top}px`);
+  };
+
+  const handleGlowLeave = (event: React.MouseEvent<HTMLElement>) => {
+    event.currentTarget.style.setProperty('--mx', '50%');
+    event.currentTarget.style.setProperty('--my', '50%');
+  };
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {metrics.map((metric, index) => (
@@ -23,7 +34,9 @@ export default function AnalysisMetrics({ metrics }: AnalysisMetricsProps) {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: index * 0.1 }}
-          className="glass-effect rounded-xl p-5"
+          className="glass-effect neon-panel interactive-glow rounded-xl p-5"
+          onMouseMove={handleGlowMove}
+          onMouseLeave={handleGlowLeave}
         >
           <div className="text-gemini-blue-300 text-sm mb-2">{metric.label}</div>
           <div className="flex items-end justify-between">

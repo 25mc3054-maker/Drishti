@@ -1,0 +1,38 @@
+[
+  {
+    "id": "1772558120926",
+    "name": "Mukunda",
+    "phone": "9398863107",
+    "email": "",
+    "address": "",
+    "loyaltyPoints": 0,
+    "totalSpent": 0,
+    "purchaseCount": 0,
+    "createdAt": "2026-03-03T17:15:20.926Z",
+    "updatedAt": "2026-03-03T17:15:20.926Z"
+  },
+  {
+    "id": "1772558165162",
+    "name": "Bhargav",
+    "phone": "6309630559",
+    "email": "",
+    "address": "",
+    "loyaltyPoints": 0,
+    "totalSpent": 0,
+    "purchaseCount": 0,
+    "createdAt": "2026-03-03T17:16:05.162Z",
+    "updatedAt": "2026-03-03T17:16:05.163Z"
+  },
+  {
+    "id": "1772906276880",
+    "name": "Koushik V",
+    "phone": "9972766730",
+    "email": "",
+    "address": "",
+    "loyaltyPoints": 0,
+    "totalSpent": 0,
+    "purchaseCount": 0,
+    "createdAt": "2026-03-07T17:57:56.880Z",
+    "updatedAt": "2026-03-07T17:57:56.880Z"
+  }
+]

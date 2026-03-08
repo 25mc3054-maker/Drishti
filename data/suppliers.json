@@ -1,0 +1,29 @@
+[
+  {
+    "id": "1772558665760",
+    "name": "MTR",
+    "phone": "1234567897",
+    "products": "Powders     ",
+    "leadTimeDays": 0,
+    "notes": "",
+    "createdAt": "2026-03-03T17:24:25.760Z"
+  },
+  {
+    "id": "1772558625997",
+    "name": "ITC",
+    "phone": "1234567899",
+    "products": "Biscuits",
+    "leadTimeDays": 0,
+    "notes": "",
+    "createdAt": "2026-03-03T17:23:45.997Z"
+  },
+  {
+    "id": "1772558591798",
+    "name": "Britania",
+    "phone": "1234567891",
+    "products": "Biscuits",
+    "leadTimeDays": 0,
+    "notes": "",
+    "createdAt": "2026-03-03T17:23:11.798Z"
+  }
+]

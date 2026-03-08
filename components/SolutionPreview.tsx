@@ -25,6 +25,17 @@ interface SolutionPreviewProps {
 }
 
 export default function SolutionPreview({ result }: SolutionPreviewProps) {
+  const handleGlowMove = (event: React.MouseEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty('--mx', `${event.clientX - rect.left}px`);
+    event.currentTarget.style.setProperty('--my', `${event.clientY - rect.top}px`);
+  };
+
+  const handleGlowLeave = (event: React.MouseEvent<HTMLElement>) => {
+    event.currentTarget.style.setProperty('--mx', '50%');
+    event.currentTarget.style.setProperty('--my', '50%');
+  };
+
   const safeResult = {
     problem: result.problem ?? {
       title: 'Unspecified problem',
@@ -81,6 +92,8 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
           actionPlan={result.actionPlan}
           financialImpact={problem.financialImpact}
           estimatedCost={optimization.estimatedCost}
+          storefront={result.storefront}
+          generatedCredentials={result.generatedCredentials}
         />
       )}
 
@@ -90,7 +103,9 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass-effect rounded-xl p-6"
+          className="glass-effect neon-panel interactive-glow rounded-xl p-6"
+          onMouseMove={handleGlowMove}
+          onMouseLeave={handleGlowLeave}
         >
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-gemini-blue-200 text-sm font-medium">Confidence Score</h3>
@@ -111,7 +126,9 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass-effect rounded-xl p-6"
+          className="glass-effect neon-panel interactive-glow rounded-xl p-6"
+          onMouseMove={handleGlowMove}
+          onMouseLeave={handleGlowLeave}
         >
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-gemini-blue-200 text-sm font-medium">Severity</h3>
@@ -127,7 +144,9 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass-effect rounded-xl p-6"
+          className="glass-effect neon-panel interactive-glow rounded-xl p-6"
+          onMouseMove={handleGlowMove}
+          onMouseLeave={handleGlowLeave}
         >
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-gemini-blue-200 text-sm font-medium">Processing Time</h3>
@@ -143,7 +162,9 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="glass-effect rounded-xl p-6"
+          className="glass-effect neon-panel interactive-glow rounded-xl p-6"
+          onMouseMove={handleGlowMove}
+          onMouseLeave={handleGlowLeave}
         >
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-gemini-blue-200 text-sm font-medium">Impact Areas</h3>
@@ -159,7 +180,9 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="glass-effect rounded-2xl p-8"
+        className="glass-effect neon-panel interactive-glow rounded-2xl p-8"
+        onMouseMove={handleGlowMove}
+        onMouseLeave={handleGlowLeave}
       >
         <div className="flex items-center space-x-3 mb-6">
           <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
@@ -200,7 +223,9 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="glass-effect rounded-2xl p-8"
+        className="glass-effect neon-panel interactive-glow rounded-2xl p-8"
+        onMouseMove={handleGlowMove}
+        onMouseLeave={handleGlowLeave}
       >
         <div className="flex items-center space-x-3 mb-6">
           <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
@@ -268,9 +293,13 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
               <h3 className="text-lg font-semibold text-white mb-4">Expected Impact</h3>
               <div className="grid md:grid-cols-2 gap-4">
                 {optimization.expectedImpact.map((impact, index) => {
-                  const improvement = calculateImprovementPercentage(impact.currentValue, impact.projectedValue);
+                  const currentValueNumber = Number(impact.currentValue);
+                  const projectedValueNumber = Number(impact.projectedValue);
+                  const improvement = Number.isFinite(currentValueNumber) && Number.isFinite(projectedValueNumber)
+                    ? calculateImprovementPercentage(currentValueNumber, projectedValueNumber)
+                    : 0;
                   return (
-                    <div key={index} className="bg-black/30 rounded-xl p-5 border border-gemini-blue-500/20">
+                    <div key={index} className="bg-black/30 rounded-xl p-5 border border-gemini-blue-500/20 interactive-glow hover:border-gemini-blue-300/50 transition-all duration-300" onMouseMove={handleGlowMove} onMouseLeave={handleGlowLeave}>
                       <h4 className="text-white font-semibold mb-3">{impact.metric}</h4>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
@@ -312,7 +341,7 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
           )}
 
           {optimization.timeline && (
-            <div className="flex items-center space-x-3 p-4 bg-gemini-blue-500/10 rounded-lg border border-gemini-blue-500/30">
+            <div className="flex items-center space-x-3 p-4 bg-gemini-blue-500/10 rounded-lg border border-gemini-blue-500/30 interactive-glow" onMouseMove={handleGlowMove} onMouseLeave={handleGlowLeave}>
               <CheckCircle2 className="w-5 h-5 text-green-400" />
               <div>
                 <span className="text-gemini-blue-200 text-sm">Implementation Timeline:</span>
@@ -328,7 +357,9 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="glass-effect rounded-2xl p-8"
+        className="glass-effect neon-panel interactive-glow rounded-2xl p-8"
+        onMouseMove={handleGlowMove}
+        onMouseLeave={handleGlowLeave}
       >
         <div className="flex items-center space-x-3 mb-6">
           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
@@ -346,7 +377,7 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
               <h3 className="text-lg font-semibold text-white mb-4">Architecture</h3>
               <div className="grid md:grid-cols-2 gap-4">
                 {Object.entries(implementation.architecture).map(([key, values], index) => (
-                  <div key={index} className="bg-black/30 rounded-xl p-5 border border-gemini-blue-500/20">
+                  <div key={index} className="bg-black/30 rounded-xl p-5 border border-gemini-blue-500/20 interactive-glow hover:border-gemini-blue-300/50 transition-all duration-300" onMouseMove={handleGlowMove} onMouseLeave={handleGlowLeave}>
                     <div className="flex items-center space-x-2 mb-3">
                       {key === 'frontend' && <Layers className="w-5 h-5 text-blue-400" />}
                       {key === 'backend' && <Database className="w-5 h-5 text-green-400" />}
@@ -373,7 +404,7 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
               <h3 className="text-lg font-semibold text-white mb-4">Code Structure</h3>
               <div className="space-y-4">
                 {implementation.codeStructure.map((component, index) => (
-                  <div key={index} className="bg-black/30 rounded-xl border border-gemini-blue-500/20 overflow-hidden">
+                  <div key={index} className="bg-black/30 rounded-xl border border-gemini-blue-500/20 overflow-hidden interactive-glow hover:border-gemini-blue-300/50 transition-all duration-300" onMouseMove={handleGlowMove} onMouseLeave={handleGlowLeave}>
                     <div className="p-4 bg-gemini-blue-950/30 border-b border-gemini-blue-500/20">
                       <h4 className="text-white font-semibold">{component.component}</h4>
                       <p className="text-gemini-blue-200 text-sm mt-1">{component.purpose}</p>
@@ -394,7 +425,7 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
               <h3 className="text-lg font-semibold text-white mb-4">Dashboard Widgets</h3>
               <div className="grid md:grid-cols-2 gap-4">
                 {implementation.dashboard.widgets.map((widget, index) => (
-                  <div key={index} className="bg-black/30 rounded-xl p-5 border border-gemini-blue-500/20">
+                  <div key={index} className="bg-black/30 rounded-xl p-5 border border-gemini-blue-500/20 interactive-glow hover:border-gemini-blue-300/50 transition-all duration-300" onMouseMove={handleGlowMove} onMouseLeave={handleGlowLeave}>
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-white font-semibold">{widget.title}</h4>
                       <span className="px-2 py-1 bg-gemini-blue-500/20 rounded text-xs text-gemini-blue-300">
@@ -417,7 +448,9 @@ export default function SolutionPreview({ result }: SolutionPreviewProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="glass-effect rounded-2xl p-8"
+          className="glass-effect neon-panel interactive-glow rounded-2xl p-8"
+          onMouseMove={handleGlowMove}
+          onMouseLeave={handleGlowLeave}
         >
           <div className="flex items-center space-x-3 mb-6">
             <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center">

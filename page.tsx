@@ -102,7 +102,6 @@ export default function DrishtiDashboard() {
                     </svg>
                   </div>
                   <p className="text-lg font-medium text-slate-300">Drop your business image here</p>
-                  <p className="text-sm text-slate-500 mt-2">Supports JPG, PNG, MP4</p>
                 </>
               ) : (
                 <div className="relative w-full aspect-video max-h-64 rounded-lg overflow-hidden bg-black">

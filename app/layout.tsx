@@ -20,7 +20,13 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={inter.className}>
         {children}
-        <Toaster position="top-right" theme="dark" />
+        <Toaster
+          position="top-right"
+          theme="dark"
+          toastOptions={{
+            className: 'neon-panel border border-gemini-blue-500/35 text-gemini-blue-100',
+          }}
+        />
       </body>
     </html>
   )

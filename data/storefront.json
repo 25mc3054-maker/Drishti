@@ -1,0 +1,72 @@
+{
+  "shopId": "1772944706479-wtw4e9",
+  "shopName": "My Digital Store",
+  "tagline": "Your neighborhood shop, now online!",
+  "ownerLogin": "shopkeeper_t4swh@drishti.demo",
+  "generatedAt": "2026-03-08T04:38:35.749Z",
+  "storefrontUrl": "/customer-shop/1772944706479-wtw4e9",
+  "catalogHighlights": [
+    "Rice",
+    "Sugar",
+    "Biscuits",
+    "Cold Drink",
+    "Soap"
+  ],
+  "operationGuide": [
+    "Login to admin panel using your credentials sent via email",
+    "Open your customer website at /customer-shop/{shopId}",
+    "Update product prices and quantities from the admin dashboard",
+    "Share your customer website URL with customers on WhatsApp",
+    "Monitor daily sales and inventory from the dashboard",
+    "Set low-stock alerts for automatic reordering"
+  ],
+  "shelfStrategy": [
+    {
+      "recommendation": "Place Rice at eye level - High visibility zone",
+      "probability": 85
+    },
+    {
+      "recommendation": "Place Sugar at eye level - High visibility zone",
+      "probability": 81
+    },
+    {
+      "recommendation": "Place Biscuits at eye level - High visibility zone",
+      "probability": 77
+    },
+    {
+      "recommendation": "Place Cold Drink at eye level - High visibility zone",
+      "probability": 73
+    },
+    {
+      "recommendation": "Place Soap at eye level - High visibility zone",
+      "probability": 69
+    }
+  ],
+  "reorderStrategy": [
+    {
+      "product": "Rice",
+      "probability": 75,
+      "trigger": "30% stock remaining"
+    },
+    {
+      "product": "Sugar",
+      "probability": 71,
+      "trigger": "28% stock remaining"
+    },
+    {
+      "product": "Biscuits",
+      "probability": 67,
+      "trigger": "26% stock remaining"
+    },
+    {
+      "product": "Cold Drink",
+      "probability": 63,
+      "trigger": "24% stock remaining"
+    },
+    {
+      "product": "Soap",
+      "probability": 59,
+      "trigger": "22% stock remaining"
+    }
+  ]
+}

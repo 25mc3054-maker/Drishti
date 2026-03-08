@@ -12,5 +12,10 @@
   "files.watcherExclude": {
     "**/node_modules/**": true,
     "**/.next/**": true
-  }
+  },
+  // Tailwind directives like @tailwind and @apply are valid via PostCSS/Tailwind.
+  // Ignore unknown at-rule warnings from the base CSS language service.
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore"
 }

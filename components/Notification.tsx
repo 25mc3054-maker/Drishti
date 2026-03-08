@@ -57,7 +57,7 @@ export default function Notification({
           exit={{ opacity: 0, y: -20, scale: 0.9 }}
           className="fixed top-4 right-4 z-50 max-w-md"
         >
-          <div className="glass-effect rounded-xl p-4 shadow-xl border border-gemini-blue-500/30">
+          <div className="glass-effect neon-panel interactive-glow rounded-xl p-4 shadow-xl border border-gemini-blue-500/30">
             <div className="flex items-start space-x-3">
               <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${colors[type]} flex items-center justify-center flex-shrink-0`}>
                 <Icon className="w-5 h-5 text-white" />
@@ -73,7 +73,7 @@ export default function Notification({
                   setIsVisible(false);
                   setTimeout(() => onClose?.(), 300);
                 }}
-                className="text-gemini-blue-300 hover:text-white transition-colors flex-shrink-0"
+                className="float-on-hover text-gemini-blue-300 hover:text-white transition-colors flex-shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>

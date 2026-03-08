@@ -14,6 +14,20 @@ export interface GeminiAnalysisResult {
     shortTerm: string[];
     longTerm: string[];
   };
+  productCatalog?: Array<{
+    name: string;
+    price: number;
+    qty: number;
+    category: string;
+    description: string;
+    image: string;
+  }>;
+  shopInfo?: {
+    shopName: string;
+    tagline: string;
+    categories: string[];
+  };
+  operationGuide?: string[];
   optimization: {
     strategy: string;
     mathematicalModel: {
@@ -68,7 +82,21 @@ export interface GeminiAnalysisResult {
       sceneDescription: string;
     };
   };
+  generatedCredentials?: {
+    username: string;
+    password: string;
+  };
+  storefront?: {
+    url?: string;
+    customerUrl?: string;
+    adminUrl?: string;
+    shopName: string;
+    catalogSize: number;
+    operationGuide: string[];
+  };
 }
+
+export type AnalysisResult = GeminiAnalysisResult;
 
 export interface AnalysisState {
   status: 'idle' | 'uploading' | 'analyzing' | 'completed' | 'error';

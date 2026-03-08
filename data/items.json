@@ -1,0 +1,134 @@
+[
+  {
+    "id": "1772541282256",
+    "name": "sugar",
+    "price": 50,
+    "qty": 9981,
+    "image": "",
+    "description": ""
+  },
+  {
+    "id": "1772541387698",
+    "name": "Rice ",
+    "price": 1100,
+    "qty": 130,
+    "image": "",
+    "description": ""
+  },
+  {
+    "id": "1772541477094",
+    "name": "Hi-fi",
+    "price": 720,
+    "qty": 75,
+    "image": "",
+    "description": ""
+  },
+  {
+    "id": "1772541521682",
+    "name": "Good day",
+    "price": 1000,
+    "qty": 80,
+    "image": "",
+    "description": ""
+  },
+  {
+    "id": "1772541546401",
+    "name": "Maggi",
+    "price": 1450,
+    "qty": 34,
+    "image": "",
+    "description": ""
+  },
+  {
+    "id": "1772541560071",
+    "name": "Yippie",
+    "price": 1500,
+    "qty": 36,
+    "image": "",
+    "description": ""
+  },
+  {
+    "id": "1772541600605",
+    "name": "Marie Gold",
+    "price": 1000,
+    "qty": 48,
+    "image": "",
+    "description": ""
+  },
+  {
+    "id": "1772905928855",
+    "name": "wheat",
+    "price": 40,
+    "qty": 450,
+    "image": "",
+    "description": ""
+  },
+  {
+    "id": "1772906483482",
+    "name": "Deniver",
+    "price": 400,
+    "qty": 5,
+    "image": "",
+    "description": ""
+  },
+  {
+    "id": "1772944715749-1",
+    "name": "Rice",
+    "description": "Premium quality rice",
+    "price": 1200,
+    "qty": 100,
+    "image": "",
+    "category": "Groceries",
+    "source": "ai-generated"
+  },
+  {
+    "id": "1772944715749-2",
+    "name": "Sugar",
+    "description": "White sugar 1kg",
+    "price": 45,
+    "qty": 150,
+    "image": "",
+    "category": "Groceries",
+    "source": "ai-generated"
+  },
+  {
+    "id": "1772944715749-3",
+    "name": "Biscuits",
+    "description": "Assorted biscuits",
+    "price": 20,
+    "qty": 200,
+    "image": "",
+    "category": "Snacks",
+    "source": "ai-generated"
+  },
+  {
+    "id": "1772944715749-4",
+    "name": "Cold Drink",
+    "description": "Soft drinks",
+    "price": 40,
+    "qty": 80,
+    "image": "",
+    "category": "Beverages",
+    "source": "ai-generated"
+  },
+  {
+    "id": "1772944715749-5",
+    "name": "Soap",
+    "description": "Bathing soap",
+    "price": 35,
+    "qty": 120,
+    "image": "",
+    "category": "Personal Care",
+    "source": "ai-generated"
+  },
+  {
+    "id": "1772944715749-6",
+    "name": "Detergent",
+    "description": "Washing powder",
+    "price": 180,
+    "qty": 60,
+    "image": "",
+    "category": "Household",
+    "source": "ai-generated"
+  }
+]
