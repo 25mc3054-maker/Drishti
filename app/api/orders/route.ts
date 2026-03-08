@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import {
+  listShopEntities,
+  newEntityId,
+  putShopEntity,
+} from '@/lib/dynamodb-shop';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// Use /tmp for Vercel, data folder for local
-const isProduction = process.env.VERCEL === '1';
-const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
-const ORDERS_DATA_PATH = path.join(DATA_DIR, 'orders.json');
+const ENTITY = 'order';
 
 interface Order {
   id: string;
@@ -28,25 +28,12 @@ interface Order {
   createdAt: string;
 }
 
-async function readOrders(): Promise<Order[]> {
-  try {
-    const raw = await fs.readFile(ORDERS_DATA_PATH, 'utf8');
-    return JSON.parse(raw) as Order[];
-  } catch {
-    return [];
-  }
-}
-
-async function saveOrders(orders: Order[]): Promise<void> {
-  await fs.writeFile(ORDERS_DATA_PATH, JSON.stringify(orders, null, 2), 'utf8');
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
     const newOrder: Order = {
-      id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      id: newEntityId(),
       shopId: body.shopId,
       shopName: body.shopName,
       customerName: body.customerName,
@@ -58,9 +45,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    const orders = await readOrders();
-    orders.push(newOrder);
-    await saveOrders(orders);
+    await putShopEntity(ENTITY, newOrder.id, newOrder as any);
 
     console.log('Order saved:', newOrder.id);
 
@@ -80,7 +65,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const orders = await readOrders();
+    const orders = await listShopEntities<Order>(ENTITY);
     return NextResponse.json({ orders });
   } catch (error) {
     console.error('Error fetching orders:', error);
@@ -103,25 +88,24 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const orders = await readOrders();
-    const orderIndex = orders.findIndex(order => order.id === orderId);
-
-    if (orderIndex === -1) {
-      return NextResponse.json(
-        { error: 'Order not found' },
-        { status: 404 }
-      );
+    const orders = await listShopEntities<Order>(ENTITY);
+    const existing = orders.find((order) => order.id === orderId);
+    if (!existing) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    orders[orderIndex].status = status;
-    await saveOrders(orders);
+    const updated = {
+      ...existing,
+      status,
+    };
+    await putShopEntity(ENTITY, orderId, updated as any);
 
     console.log('Order status updated:', orderId, 'to', status);
 
     return NextResponse.json({
       success: true,
       message: 'Order status updated successfully',
-      order: orders[orderIndex],
+      order: updated,
     });
   } catch (error) {
     console.error('Error updating order:', error);

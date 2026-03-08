@@ -1,47 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import {
+  getShopEntityById,
+  listShopEntities,
+  newEntityId,
+  putShopEntity,
+} from '@/lib/dynamodb-shop';
 
-// Use /tmp for Vercel, data folder for local
-const isProduction = process.env.VERCEL === '1';
-const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
-const DATA_PATH = path.join(DATA_DIR, 'invoices.json');
-const ITEMS_PATH = path.join(DATA_DIR, 'items.json');
-
-async function readInvoices() {
-  try {
-    const raw = await fs.readFile(DATA_PATH, 'utf8');
-    return JSON.parse(raw || '[]');
-  } catch (e) {
-    return [];
-  }
-}
-
-async function writeInvoices(items: any[]) {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(items, null, 2), 'utf8');
-}
-
-async function readItems() {
-  try {
-    const raw = await fs.readFile(ITEMS_PATH, 'utf8');
-    return JSON.parse(raw || '[]');
-  } catch (e) {
-    return [];
-  }
-}
-
-async function writeItems(items: any[]) {
-  await fs.mkdir(path.dirname(ITEMS_PATH), { recursive: true });
-  await fs.writeFile(ITEMS_PATH, JSON.stringify(items, null, 2), 'utf8');
-}
+const INVOICE_ENTITY = 'invoice';
+const ITEM_ENTITY = 'item';
 
 export async function GET(req: NextRequest) {
-  const invoices = await readInvoices();
+  const invoices = await listShopEntities(INVOICE_ENTITY);
   const invoiceId = new URL(req.url).searchParams.get('invoiceId');
 
   if (invoiceId) {
-    const invoice = invoices.find((entry: any) => entry.id === invoiceId);
+    const invoice = await getShopEntityById(invoiceId);
     if (!invoice) {
       return NextResponse.json({ success: false, error: 'Invoice not found' }, { status: 404 });
     }
@@ -60,7 +33,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No bill items provided' }, { status: 400 });
     }
 
-    const items = await readItems();
+    const items = await listShopEntities<any>(ITEM_ENTITY);
     const itemMap = new Map<string, any>(items.map((item: any) => [item.id, item]));
 
     for (const billItem of cartItems) {
@@ -102,8 +75,7 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const invoices = await readInvoices();
-    const id = Date.now().toString();
+    const id = newEntityId();
     const subtotal = normalizedItems.reduce((sum: number, entry: any) => sum + entry.lineTotal, 0);
     const discount = Number(body.discount || 0);
     const tax = Number(body.tax || 0);
@@ -122,8 +94,10 @@ export async function POST(req: NextRequest) {
       customer: body.customer || null,
     };
 
-    invoices.push(invoice);
-    await Promise.all([writeInvoices(invoices), writeItems(updatedItems)]);
+    await Promise.all([
+      putShopEntity(INVOICE_ENTITY, invoice.id, invoice),
+      ...updatedItems.map((entry: any) => putShopEntity(ITEM_ENTITY, entry.id, entry)),
+    ]);
 
     return NextResponse.json({ success: true, invoice });
   } catch (e: any) {

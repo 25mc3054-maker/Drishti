@@ -1,28 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import {
+  deleteShopEntity,
+  listShopEntities,
+  newEntityId,
+  putShopEntity,
+} from '@/lib/dynamodb-shop';
 
-// Use /tmp for Vercel, data folder for local
-const isProduction = process.env.VERCEL === '1';
-const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
-const DATA_PATH = path.join(DATA_DIR, 'suppliers.json');
-
-async function readSuppliers() {
-  try {
-    const raw = await fs.readFile(DATA_PATH, 'utf8');
-    return JSON.parse(raw || '[]');
-  } catch {
-    return [];
-  }
-}
-
-async function writeSuppliers(suppliers: any[]) {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(suppliers, null, 2), 'utf8');
-}
+const ENTITY = 'supplier';
 
 export async function GET() {
-  const suppliers = await readSuppliers();
+  const suppliers = await listShopEntities(ENTITY);
   return NextResponse.json({ success: true, suppliers });
 }
 
@@ -33,9 +20,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'name and phone are required' }, { status: 400 });
     }
 
-    const suppliers = await readSuppliers();
     const supplier = {
-      id: Date.now().toString(),
+      id: newEntityId(),
       name: String(body.name).trim(),
       phone: String(body.phone).trim(),
       products: body.products || '',
@@ -43,9 +29,9 @@ export async function POST(req: NextRequest) {
       notes: body.notes || '',
       createdAt: new Date().toISOString(),
     };
-    suppliers.unshift(supplier);
-    await writeSuppliers(suppliers);
-    return NextResponse.json({ success: true, supplier });
+
+    const saved = await putShopEntity(ENTITY, supplier.id, supplier);
+    return NextResponse.json({ success: true, supplier: saved });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -55,8 +41,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, error: 'Missing id' }, { status: 400 });
-    const suppliers = await readSuppliers();
-    await writeSuppliers(suppliers.filter((s: any) => s.id !== id));
+    await deleteShopEntity(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -1,32 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import {
+  deleteShopEntity,
+  getShopEntityById,
+  listShopEntities,
+  newEntityId,
+  putShopEntity,
+} from '@/lib/dynamodb-shop';
 
-// Use /tmp for Vercel, data folder for local
-const isProduction = process.env.VERCEL === '1';
-const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
-const DATA_PATH = path.join(DATA_DIR, 'customers.json');
-
-async function readCustomers() {
-  try {
-    const raw = await fs.readFile(DATA_PATH, 'utf8');
-    return JSON.parse(raw || '[]');
-  } catch (e) {
-    return [];
-  }
-}
-
-async function writeCustomers(customers: any[]) {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(customers, null, 2), 'utf8');
-}
+const ENTITY = 'customer';
 
 export async function GET(req: NextRequest) {
-  const customers = await readCustomers();
+  const customers = await listShopEntities(ENTITY);
   const customerId = new URL(req.url).searchParams.get('id');
 
   if (customerId) {
-    const customer = customers.find((entry: any) => entry.id === customerId);
+    const customer = await getShopEntityById(customerId);
     if (!customer) {
       return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
     }
@@ -43,7 +31,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Name and phone are required' }, { status: 400 });
     }
 
-    const customers = await readCustomers();
+    const customers = await listShopEntities(ENTITY);
     const existing = customers.find((entry: any) => entry.phone === body.phone);
 
     if (existing) {
@@ -51,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     const customer = {
-      id: Date.now().toString(),
+      id: newEntityId(),
       name: String(body.name).trim(),
       phone: String(body.phone).trim(),
       email: body.email ? String(body.email).trim() : '',
@@ -60,13 +48,11 @@ export async function POST(req: NextRequest) {
       totalSpent: Number(body.totalSpent || 0),
       purchaseCount: Number(body.purchaseCount || 0),
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
-    customers.push(customer);
-    await writeCustomers(customers);
+    const saved = await putShopEntity(ENTITY, customer.id, customer);
 
-    return NextResponse.json({ success: true, customer });
+    return NextResponse.json({ success: true, customer: saved });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -79,22 +65,12 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Customer id is required' }, { status: 400 });
     }
 
-    const customers = await readCustomers();
-    const index = customers.findIndex((entry: any) => entry.id === body.id);
-
-    if (index === -1) {
+    const existing = await getShopEntityById(body.id);
+    if (!existing) {
       return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
     }
-
-    customers[index] = {
-      ...customers[index],
-      ...body,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await writeCustomers(customers);
-
-    return NextResponse.json({ success: true, customer: customers[index] });
+    const updated = await putShopEntity(ENTITY, body.id, { ...existing, ...body });
+    return NextResponse.json({ success: true, customer: updated });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -107,9 +83,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Customer id is required' }, { status: 400 });
     }
 
-    const customers = await readCustomers();
-    const filtered = customers.filter((entry: any) => entry.id !== id);
-    await writeCustomers(filtered);
+    await deleteShopEntity(id);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -1,12 +1,5 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-// Use /tmp for Vercel, data folder for local
-const isProduction = process.env.VERCEL === '1';
-const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
-const ITEMS_DATA_PATH = path.join(DATA_DIR, 'items.json');
-const STOREFRONT_DATA_PATH = path.join(DATA_DIR, 'storefront.json');
+import { getSingletonEntity, listShopEntities } from '@/lib/dynamodb-shop';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -16,21 +9,10 @@ interface ShopData {
   shopInfo: any;
 }
 
-async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
-  try {
-    const raw = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
 export async function GET() {
   try {
-    // For now, return data from shared files
-    // In production, you'd filter by shopId from database
-    const items = await readJsonFile<any[]>(ITEMS_DATA_PATH, []);
-    const storefront = await readJsonFile<any>(STOREFRONT_DATA_PATH, null);
+    const items = await listShopEntities<any>('item');
+    const storefront = await getSingletonEntity<any>('storefront');
 
     const shopData: ShopData = {
       products: items.map(item => ({

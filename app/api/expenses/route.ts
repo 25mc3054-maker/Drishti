@@ -1,28 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import {
+  deleteShopEntity,
+  listShopEntities,
+  newEntityId,
+  putShopEntity,
+} from '@/lib/dynamodb-shop';
 
-// Use /tmp for Vercel, data folder for local
-const isProduction = process.env.VERCEL === '1';
-const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
-const DATA_PATH = path.join(DATA_DIR, 'expenses.json');
-
-async function readExpenses() {
-  try {
-    const raw = await fs.readFile(DATA_PATH, 'utf8');
-    return JSON.parse(raw || '[]');
-  } catch {
-    return [];
-  }
-}
-
-async function writeExpenses(expenses: any[]) {
-  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
-  await fs.writeFile(DATA_PATH, JSON.stringify(expenses, null, 2), 'utf8');
-}
+const ENTITY = 'expense';
 
 export async function GET() {
-  const expenses = await readExpenses();
+  const expenses = await listShopEntities(ENTITY);
   return NextResponse.json({ success: true, expenses });
 }
 
@@ -33,9 +20,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'title, amount, category are required' }, { status: 400 });
     }
 
-    const expenses = await readExpenses();
     const expense = {
-      id: Date.now().toString(),
+      id: newEntityId(),
       title: String(body.title).trim(),
       amount: Number(body.amount),
       category: String(body.category).trim(),
@@ -43,9 +29,9 @@ export async function POST(req: NextRequest) {
       note: body.note || '',
       createdAt: new Date().toISOString(),
     };
-    expenses.unshift(expense);
-    await writeExpenses(expenses);
-    return NextResponse.json({ success: true, expense });
+
+    const saved = await putShopEntity(ENTITY, expense.id, expense);
+    return NextResponse.json({ success: true, expense: saved });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -55,8 +41,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, error: 'Missing id' }, { status: 400 });
-    const expenses = await readExpenses();
-    await writeExpenses(expenses.filter((e: any) => e.id !== id));
+    await deleteShopEntity(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

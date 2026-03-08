@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { putShopEntity } from '@/lib/dynamodb-shop';
 
 export const dynamic = 'force-dynamic';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-
-async function writeJsonFile(fileName: string, payload: any[]) {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(path.join(DATA_DIR, fileName), JSON.stringify(payload, null, 2), 'utf8');
+async function importEntity(entityType: string, payload: any[]) {
+  await Promise.all(
+    payload
+      .filter((entry) => entry && entry.id)
+      .map((entry) => putShopEntity(entityType, entry.id, entry))
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -24,12 +24,12 @@ export async function POST(request: NextRequest) {
     const tasks = Array.isArray(source?.tasks) ? source.tasks : [];
 
     await Promise.all([
-      writeJsonFile('items.json', items),
-      writeJsonFile('customers.json', customers),
-      writeJsonFile('invoices.json', invoices),
-      writeJsonFile('expenses.json', expenses),
-      writeJsonFile('suppliers.json', suppliers),
-      writeJsonFile('tasks.json', tasks),
+      importEntity('item', items),
+      importEntity('customer', customers),
+      importEntity('invoice', invoices),
+      importEntity('expense', expenses),
+      importEntity('supplier', suppliers),
+      importEntity('task', tasks),
     ]);
 
     return NextResponse.json({ success: true, message: 'Backup restored successfully' });

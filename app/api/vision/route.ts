@@ -15,6 +15,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { NextRequest, NextResponse } from 'next/server';
 import { createShopkeeperAccount } from '@/lib/cognito';
+import { listShopEntities, putShopEntity, putSingletonEntity } from '@/lib/dynamodb-shop';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -741,20 +742,17 @@ async function persistGeneratedStorefront(params: {
 
   // Persist to data files
   try {
-    // Read existing items
-    let existingItems: CatalogItem[] = [];
-    try {
-      const itemsData = await fs.readFile(ITEMS_DATA_PATH, 'utf8');
-      existingItems = JSON.parse(itemsData);
-    } catch (e) {
-      // File doesn't exist or is empty, start fresh
-    }
-
-    // Merge: keep manual items, add AI-generated ones
+    // Merge: keep manual items, replace AI-generated items with latest run.
+    const existingItems = await listShopEntities<CatalogItem>('item');
     const manualItems = existingItems.filter(item => item.source !== 'ai-generated');
     const mergedItems = [...manualItems, ...catalogItems];
 
-    // Save items.json
+    await Promise.all([
+      ...mergedItems.map((item) => putShopEntity('item', item.id, item as any)),
+      putSingletonEntity('storefront', storefrontConfig as any),
+    ]);
+
+    // Keep JSON files as backup snapshots for demos/debugging.
     await fs.writeFile(ITEMS_DATA_PATH, JSON.stringify(mergedItems, null, 2), 'utf8');
     console.log(`Saved ${catalogItems.length} products to ${ITEMS_DATA_PATH}`);
 

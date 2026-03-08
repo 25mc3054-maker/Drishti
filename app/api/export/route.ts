@@ -1,22 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { listShopEntities } from '@/lib/dynamodb-shop';
 
 export const dynamic = 'force-dynamic';
-
-// Use /tmp for Vercel, data folder for local
-const isProduction = process.env.VERCEL === '1';
-const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
-
-async function readJsonFile(fileName: string) {
-  const filePath = path.join(DATA_DIR, fileName);
-  try {
-    const raw = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(raw || '[]');
-  } catch {
-    return [];
-  }
-}
 
 function toCsv(rows: any[]) {
   if (!rows.length) return '';
@@ -38,12 +23,12 @@ export async function GET(req: NextRequest) {
     const format = new URL(req.url).searchParams.get('format') || 'json';
 
     const [items, customers, invoices, expenses, suppliers, tasks] = await Promise.all([
-      readJsonFile('items.json'),
-      readJsonFile('customers.json'),
-      readJsonFile('invoices.json'),
-      readJsonFile('expenses.json'),
-      readJsonFile('suppliers.json'),
-      readJsonFile('tasks.json'),
+      listShopEntities('item'),
+      listShopEntities('customer'),
+      listShopEntities('invoice'),
+      listShopEntities('expense'),
+      listShopEntities('supplier'),
+      listShopEntities('task'),
     ]);
 
     if (format === 'csv') {
