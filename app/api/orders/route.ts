@@ -5,7 +5,10 @@ import path from 'path';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const ORDERS_DATA_PATH = path.join(process.cwd(), 'data', 'orders.json');
+// Use /tmp for Vercel, data folder for local
+const isProduction = process.env.VERCEL === '1';
+const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
+const ORDERS_DATA_PATH = path.join(DATA_DIR, 'orders.json');
 
 interface Order {
   id: string;

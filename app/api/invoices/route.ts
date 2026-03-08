@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const DATA_PATH = path.join(process.cwd(), 'data', 'invoices.json');
-const ITEMS_PATH = path.join(process.cwd(), 'data', 'items.json');
+// Use /tmp for Vercel, data folder for local
+const isProduction = process.env.VERCEL === '1';
+const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
+const DATA_PATH = path.join(DATA_DIR, 'invoices.json');
+const ITEMS_PATH = path.join(DATA_DIR, 'items.json');
 
 async function readInvoices() {
   try {

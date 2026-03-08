@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const ITEMS_DATA_PATH = path.join(process.cwd(), 'data', 'items.json');
-const STOREFRONT_DATA_PATH = path.join(process.cwd(), 'data', 'storefront.json');
+// Use /tmp for Vercel, data folder for local
+const isProduction = process.env.VERCEL === '1';
+const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
+const ITEMS_DATA_PATH = path.join(DATA_DIR, 'items.json');
+const STOREFRONT_DATA_PATH = path.join(DATA_DIR, 'storefront.json');
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';

@@ -4,8 +4,12 @@ import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
+// Use /tmp for Vercel, data folder for local
+const isProduction = process.env.VERCEL === '1';
+const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
+
 async function readJsonFile(fileName: string) {
-  const filePath = path.join(process.cwd(), 'data', fileName);
+  const filePath = path.join(DATA_DIR, fileName);
   try {
     const raw = await fs.readFile(filePath, 'utf8');
     return JSON.parse(raw || '[]');

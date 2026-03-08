@@ -63,8 +63,12 @@ const SENDER_EMAIL = process.env.AWS_SES_SENDER_EMAIL || 'drishti-demo@example.c
 const SECRET_NAME = process.env.AWS_SECRET_NAME || 'Drishti/AppSecret';
 const STATE_MACHINE_ARN = process.env.AWS_SFN_ARN; // Optional: ARN of your Step Function
 const ANALYZE_LAMBDA_ARN = process.env.AWS_LAMBDA_ANALYZE_ARN; // Optional: ARN of post-processing Lambda
-const ITEMS_DATA_PATH = path.join(process.cwd(), 'data', 'items.json');
-const STOREFRONT_DATA_PATH = path.join(process.cwd(), 'data', 'storefront.json');
+
+// Use /tmp for Vercel, data folder for local
+const isProduction = process.env.VERCEL === '1';
+const DATA_DIR = isProduction ? '/tmp' : path.join(process.cwd(), 'data');
+const ITEMS_DATA_PATH = path.join(DATA_DIR, 'items.json');
+const STOREFRONT_DATA_PATH = path.join(DATA_DIR, 'storefront.json');
 
 type CatalogItem = {
   id: string;
