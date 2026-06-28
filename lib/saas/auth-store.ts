@@ -24,6 +24,8 @@ type AuthUser = {
   role: TenantRole;
   createdAt: string;
   updatedAt: string;
+  securityQuestion?: string;
+  securityAnswerHash?: string;
 };
 
 let keySchemaCache: Promise<{ partitionKey: string; sortKey?: string }> | null = null;
@@ -81,7 +83,7 @@ export async function findTenantUserByMobile(mobile: string): Promise<AuthUser |
 
   const rows = await scanAll({
     TableName: tableName,
-    FilterExpression: '#entityType = :entityType AND #mobile = :mobile',
+    FilterExpression: 'attribute_exists(#mobile) AND #entityType = :entityType AND #mobile = :mobile',
     ExpressionAttributeNames: {
       '#entityType': 'entityType',
       '#mobile': 'mobile',
@@ -116,12 +118,14 @@ export async function findTenantUserById(tenantId: string, userId: string): Prom
   return (rows[0] as AuthUser | undefined) || null;
 }
 
-export async function createTenantUser(input: { name: string; shopName: string; mobile: string; email: string; password: string }) {
+export async function createTenantUser(input: { name: string; shopName: string; mobile: string; email: string; password: string; securityQuestion: string; securityAnswer: string; }) {
   const mobile = normalizeMobile(input.mobile);
   const email = String(input.email || '').trim().toLowerCase();
   if (!mobile || mobile.length !== 10) throw new Error('Enter a valid 10 digit mobile number.');
   if (!email || !email.includes('@')) throw new Error('Enter a valid email address.');
   if (!input.password || input.password.length < 6) throw new Error('Password must be at least 6 characters.');
+  if (!input.securityQuestion || input.securityQuestion.length < 5) throw new Error('Security question must be at least 5 characters.');
+  if (!input.securityAnswer || input.securityAnswer.length < 3) throw new Error('Security answer must be at least 3 characters.');
 
   const existing = await findTenantUserByMobile(mobile);
   if (existing) throw new Error('A shopkeeper account already exists for this mobile number.');
@@ -141,6 +145,8 @@ export async function createTenantUser(input: { name: string; shopName: string; 
     mobile,
     email,
     passwordHash: hashPassword(input.password),
+    securityQuestion: input.securityQuestion,
+    securityAnswerHash: hashPassword(input.securityAnswer),
     role: 'admin',
     createdAt: now,
     updatedAt: now,
@@ -202,6 +208,7 @@ export async function updateTenantUserProfile(input: {
   await docClient.send(new PutCommand({ TableName: tableName, Item: updated }));
   return updated;
 }
+
 
 export function publicUser(user: AuthUser) {
   return {

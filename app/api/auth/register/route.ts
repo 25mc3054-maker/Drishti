@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
       mobile: body.mobile,
       email: body.email,
       password: body.password,
+      securityQuestion: body.securityQuestion,
+      securityAnswer: body.securityAnswer,
     });
     return sessionResponse(user, 'Shopkeeper account created.');
   } catch (error: any) {
