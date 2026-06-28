@@ -1379,7 +1379,10 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {activeSection === 'stock' && <StockManagement items={items} onAddToBill={addToCart} onRefresh={loadItems} />}
+                {activeSection === 'stock' && <StockManagement items={items} onAddToBill={addToCart} onRefresh={loadItems} onAddProduct={() => {
+                  setActiveSection('products');
+                  setProductsSlide('add');
+                }} />}
 
                 {activeSection === 'invoices' && (
                   <div className="premium-card neon-panel p-5">
