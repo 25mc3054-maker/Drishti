@@ -130,5 +130,13 @@
     "image": "",
     "category": "Household",
     "source": "ai-generated"
+  },
+  {
+    "id": "1772952753892",
+    "name": "Freedom",
+    "price": 3000,
+    "qty": 5000,
+    "image": "",
+    "description": ""
   }
 ]

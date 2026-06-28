@@ -1,12 +1,15 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { Toaster } from 'sonner'
+import ClientToaster from '../components/ClientToaster'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+})
 
 export const metadata: Metadata = {
-  title: 'Drishti Agent - Vision to Value Orchestrator',
+  title: 'EasyTrader - Vision to Value Orchestrator',
   description: 'AI-powered solution architect for businesses in Bharat. Upload images to get instant business insights and optimization plans.',
   keywords: ['AI', 'Business Intelligence', 'Computer Vision', 'Gemini', 'Amazon Hackathon'],
 }
@@ -17,16 +20,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={inter.className}>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
         {children}
-        <Toaster
-          position="top-right"
-          theme="dark"
-          toastOptions={{
-            className: 'neon-panel border border-gemini-blue-500/35 text-gemini-blue-100',
-          }}
-        />
+        <ClientToaster />
       </body>
     </html>
   )

@@ -9,15 +9,17 @@ type StockItem = {
   name: string;
   price: number;
   qty: number;
+  category?: string;
 };
 
 interface StockManagementProps {
   items: StockItem[];
   onAddToBill: (item: StockItem) => void;
   onRefresh: () => Promise<void>;
+  onAddProduct: () => void;
 }
 
-export default function StockManagement({ items, onAddToBill, onRefresh }: StockManagementProps) {
+export default function StockManagement({ items, onAddToBill, onRefresh, onAddProduct }: StockManagementProps) {
   const [draftQty, setDraftQty] = useState<Record<string, number>>({});
   const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,10 +41,10 @@ export default function StockManagement({ items, onAddToBill, onRefresh }: Stock
 
     setIsSaving((previous) => ({ ...previous, [item.id]: true }));
     try {
-      const response = await fetch('/api/items', {
+      const response = await fetch(`/api/items?id=${item.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: item.id, qty: nextQty }),
+        body: JSON.stringify({ qty: nextQty }),
       });
       const data = await response.json();
 
@@ -70,10 +72,16 @@ export default function StockManagement({ items, onAddToBill, onRefresh }: Stock
           <Package className="w-5 h-5 text-gemini-blue-300" />
           Stock Management
         </h2>
-        <button type="button" onClick={() => void onRefresh()} className="premium-button-ghost float-on-hover text-xs">
-          <RefreshCw className="h-4 w-4 mr-1" />
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button type="button" onClick={onAddProduct} className="premium-button-ghost float-on-hover text-xs">
+              <Plus className="h-4 w-4 mr-1" />
+              Add Product
+          </button>
+          <button type="button" onClick={() => void onRefresh()} className="premium-button-ghost float-on-hover text-xs">
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4 text-sm">

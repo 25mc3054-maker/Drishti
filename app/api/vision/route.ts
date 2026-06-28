@@ -32,7 +32,7 @@ const awsConfig = {
       }
     : {}),
 };
-console.log('Drishti Vision API initialized with region:', awsConfig.region);
+console.log('EasyTrader Vision API initialized with region:', awsConfig.region);
 
 // Bedrock configuration: keep us-east-1 by default for Claude availability
 const bedrockRegion = process.env.AWS_BEDROCK_REGION || 'us-east-1';
@@ -368,7 +368,7 @@ function tryParseWithRepairs(text: string): any {
   }
 }
 
-const EXPERT_SYSTEM_PROMPT = `You are Drishti, an expert AI Business Consultant for Indian SMBs. Analyze this shop/business image.
+const EXPERT_SYSTEM_PROMPT = `You are EasyTrader, an expert AI Business Consultant for Indian SMBs. Analyze this shop/business image.
 
 I have already run AWS Rekognition and Textract on this image. 
 Detected Objects: {{LABELS}}
@@ -606,7 +606,7 @@ function buildFallbackAnalysis(detectedLabels: string, detectedText: string): An
       architecture: {
         frontend: ['Next.js storefront', 'Admin dashboard', 'AWS Amplify Hosting'],
         backend: ['Next.js API routes', 'AWS Lambda AnalyzeShopImagesFn', 'AWS Step Functions orchestration'],
-        database: ['Amazon DynamoDB: drishti-analysis, drishti-billing, drishti-recommendations, drishti-shops'],
+        database: ['Amazon DynamoDB: easytrader-analysis, easytrader-billing, easytrader-recommendations, easytrader-shops'],
         apis: ['S3 upload', 'Rekognition', 'Textract', 'Bedrock', 'Cognito', 'SES'],
       },
       codeStructure: [
@@ -623,9 +623,9 @@ function buildFallbackAnalysis(detectedLabels: string, detectedText: string): An
       ],
       dashboard: {
         widgets: [
-          { type: 'kpi', title: 'Conversion Potential', dataSource: 'drishti-analysis', visualization: 'stat-card' },
-          { type: 'table', title: 'Shelf Probabilities', dataSource: 'drishti-recommendations', visualization: 'data-table' },
-          { type: 'table', title: 'Reorder Triggers', dataSource: 'drishti-billing', visualization: 'data-table' },
+          { type: 'kpi', title: 'Conversion Potential', dataSource: 'easytrader-analysis', visualization: 'stat-card' },
+          { type: 'table', title: 'Shelf Probabilities', dataSource: 'easytrader-recommendations', visualization: 'data-table' },
+          { type: 'table', title: 'Reorder Triggers', dataSource: 'easytrader-billing', visualization: 'data-table' },
           { type: 'list', title: 'Priority Action Plan', dataSource: 'analysis.actionPlan', visualization: 'checklist' },
         ],
         layout: 'Responsive two-column operations layout',
@@ -990,9 +990,9 @@ export async function POST(request: NextRequest) {
             Source: process.env.AWS_SES_SENDER_EMAIL,
             Destination: { ToAddresses: [credentials.username] }, // Assuming username is email
             Message: {
-              Subject: { Data: "Your Drishti Shop Credentials" },
+              Subject: { Data: "Your EasyTrader Shop Credentials" },
               Body: {
-                Text: { Data: `Welcome to Drishti!\n\nYour E-commerce store is ready.\nUsername: ${credentials.username}\nPassword: ${credentials.password}\n\nLogin to manage your store.` }
+                Text: { Data: `Welcome to EasyTrader!\n\nYour E-commerce store is ready.\nUsername: ${credentials.username}\nPassword: ${credentials.password}\n\nLogin to manage your store.` }
               }
             }
           }));
@@ -1105,7 +1105,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: 'healthy',
-    service: 'Drishti Vision API',
+    service: 'EasyTrader Vision API',
     version: '1.0.0',
     model: 'aws-bedrock-claude-3',
   });

@@ -43,6 +43,23 @@ export const formatTimestamp = (timestamp: number): string => {
   });
 };
 
+export const formatNumber = (value: number): string => {
+  try {
+    return new Intl.NumberFormat('en-IN').format(value);
+  } catch (e) {
+    return String(value);
+  }
+};
+
+export const formatISODate = (input: string | number | Date): string => {
+  try {
+    const d = new Date(input);
+    return d.toISOString().split('T')[0];
+  } catch (e) {
+    return String(input);
+  }
+};
+
 export const calculateImprovementPercentage = (current: number, projected: number): number => {
   if (current === 0) return 0;
   return ((projected - current) / current) * 100;

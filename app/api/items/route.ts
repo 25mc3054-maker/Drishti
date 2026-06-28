@@ -26,9 +26,11 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
     const body = await req.json();
-    if (!body.id) return NextResponse.json({ success: false, error: 'Missing id' }, { status: 400 });
-    const updated = await putShopEntity(ENTITY, body.id, body);
+    if (!id) return NextResponse.json({ success: false, error: 'Missing id' }, { status: 400 });
+    const updated = await putShopEntity(ENTITY, id, body);
     return NextResponse.json({ success: true, item: updated });
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });

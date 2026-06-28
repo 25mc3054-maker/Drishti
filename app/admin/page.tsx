@@ -80,6 +80,7 @@ export default function AdminPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
 
   const [productForm, setProductForm] = useState({ name: '', price: '', qty: '', image: '', description: '' });
+  const [productImageFile, setProductImageFile] = useState<File | null>(null);
   const [customerForm, setCustomerForm] = useState({ name: '', phone: '', email: '', address: '' });
   const [billingState, setBillingState] = useState({ search: '', paymentMethod: 'cash', discount: '0', tax: '0', notes: '' });
   const [productsSlide, setProductsSlide] = useState<ProductsSlide>('add');
@@ -523,12 +524,29 @@ export default function AdminPage() {
       toast.error('Name, price and quantity are required');
       return;
     }
+
+    let imageUrl = productForm.image;
+    if (productImageFile) {
+      const formData = new FormData();
+      formData.append('file', productImageFile);
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const uploadData = await uploadResponse.json();
+      if (!uploadData.success) {
+        return void toast.error(uploadData.error || 'Image upload failed');
+      }
+      imageUrl = uploadData.url;
+    }
+
     const response = await fetch('/api/items', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...productForm, price: Number(productForm.price), qty: Number(productForm.qty) }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...productForm, image: imageUrl, price: Number(productForm.price), qty: Number(productForm.qty) }),
     });
     const data = await response.json();
     if (!data.success) return void toast.error(data.error || 'Could not add product');
     setProductForm({ name: '', price: '', qty: '', image: '', description: '' });
+    setProductImageFile(null);
     await loadItems();
     toast.success('Product added');
   }
@@ -579,20 +597,6 @@ export default function AdminPage() {
 
   async function createBill() {
     if (cart.length === 0) return void toast.error('Add items to billing cart first');
-    
-    // Handle Credit Payment
-    if (billingState.paymentMethod === 'credit' && selectedCustomer) {
-      const newBalance = (selectedCustomer.balance || 0) + grandTotal;
-      
-      // Update customer balance
-      await fetch('/api/customers', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedCustomer.id, balance: newBalance })
-      });
-      
-      toast.info(`Added ₹${grandTotal} to ${selectedCustomer.name}'s credit`);
-    }
 
     const response = await fetch('/api/invoices', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1152,9 +1156,26 @@ export default function AdminPage() {
                       <div className="rounded-2xl border border-gemini-blue-500/30 bg-black/30 p-4 space-y-3">
                         <p className="text-sm text-gemini-blue-200">Select customer and add products.</p>
                         <div className="flex gap-2">
-                          <select className="premium-input flex-1" value={selectedCustomerId} onChange={(e) => setSelectedCustomerId(e.target.value)}>
+                          <select
+                            className="premium-input flex-1"
+                            value={selectedCustomerId}
+                            onChange={(e) => {
+                              if (e.target.value === 'add_new_customer') {
+                                setActiveSection('customers');
+                                setCustomersSlide('add');
+                                setSelectedCustomerId('');
+                              } else {
+                                setSelectedCustomerId(e.target.value);
+                              }
+                            }}
+                          >
                             <option value="">Walk-in customer</option>
-                            {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} • {customer.phone}</option>)}
+                            <option value="add_new_customer">-- Add New Customer --</option>
+                            {customers.map((customer) => (
+                              <option key={customer.id} value={customer.id}>
+                                {customer.name} • {customer.phone}
+                              </option>
+                            ))}
                           </select>
                           {selectedCustomer && (
                             <div className={`px-3 py-2 rounded-lg border flex items-center ${selectedCustomer.balance && selectedCustomer.balance > 0 ? 'border-red-500/50 bg-red-500/10 text-red-200' : 'border-green-500/50 bg-green-500/10 text-green-200'}`}>
@@ -1261,7 +1282,13 @@ export default function AdminPage() {
                             <input className="premium-input md:col-span-2" placeholder="Product name" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} />
                             <input className="premium-input" type="number" min="0" placeholder="Price" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} />
                             <input className="premium-input" type="number" min="0" placeholder="Stock qty" value={productForm.qty} onChange={(e) => setProductForm({ ...productForm, qty: e.target.value })} />
-                            <input className="premium-input md:col-span-2" placeholder="Image URL" value={productForm.image} onChange={(e) => setProductForm({ ...productForm, image: e.target.value })} />
+                            <div className="premium-input md:col-span-2">
+                              <label htmlFor="product-image-upload" className="flex items-center justify-between">
+                                <span>{productImageFile ? productImageFile.name : 'Upload Image'}</span>
+                                <span className="premium-button-ghost text-xs">Select File</span>
+                              </label>
+                              <input id="product-image-upload" className="hidden" type="file" accept="image/*" onChange={(e) => setProductImageFile(e.target.files ? e.target.files[0] : null)} />
+                            </div>
                             <textarea className="premium-input md:col-span-2 min-h-20" placeholder="Description" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} />
                             <button className="premium-button-primary float-on-hover md:col-span-2" type="submit"><Plus className="h-4 w-4 mr-2" />Add Product</button>
                           </form>

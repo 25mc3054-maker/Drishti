@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { ShoppingBag, Package, IndianRupee, Search, MapPin, Phone, User, TrendingUp } from 'lucide-react';
+import { formatNumber, formatISODate } from '@/lib/utils';
 
 export default function StorefrontPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -92,7 +93,7 @@ export default function StorefrontPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gemini-blue-300 text-sm mb-1">Total Revenue</p>
-                <p className="text-3xl font-bold text-white">₹{totalRevenue.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-white">₹{formatNumber(totalRevenue)}</p>
               </div>
               <TrendingUp className="h-10 w-10 text-green-400" />
             </div>
@@ -221,7 +222,7 @@ export default function StorefrontPage() {
                     </div>
                     <div>
                       <p className="text-gemini-blue-300 text-sm mb-1">Date</p>
-                      <p className="text-white font-semibold">{new Date(order.createdAt).toLocaleDateString()}</p>
+                      <p className="text-white font-semibold">{formatISODate(order.createdAt)}</p>
                     </div>
                     <div>
                       <p className="text-gemini-blue-300 text-sm mb-1">Total</p>
