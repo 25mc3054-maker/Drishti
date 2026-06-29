@@ -58,21 +58,37 @@ export default function EasyTraderPlatform() {
     let cancelled = false;
 
     const checkSession = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        if (!cancelled) {
+          console.error('Session check timed out.');
+          setAuthUser(null);
+          setData(initialData);
+          setIsCheckingSession(false);
+        }
+      }, 5000); // 5 second timeout
+
       try {
-        const response = await fetch('/api/auth/session');
+        const response = await fetch('/api/auth/session', { signal: controller.signal });
+        clearTimeout(timeoutId);
         const result = await response.json();
-        if (!response.ok || !result.success) throw new Error('No session');
+        if (!response.ok || !result.success) throw new Error(result.error || 'No session');
         if (cancelled) return;
         setAuthUser(result.user);
         const nextData = await loadData();
         if (!cancelled) setData(nextData);
-      } catch {
+      } catch (error) {
         if (!cancelled) {
+          console.error('Failed to check session:', error);
           setAuthUser(null);
           setData(initialData);
         }
       } finally {
-        if (!cancelled) setIsCheckingSession(false);
+        if (!cancelled) {
+          clearTimeout(timeoutId);
+          setIsCheckingSession(false);
+        }
       }
     };
 
