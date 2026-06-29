@@ -210,6 +210,46 @@ export async function updateTenantUserProfile(input: {
 }
 
 
+export async function findUserByEmail(email: string): Promise<AuthUser | null> {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return null;
+
+  const rows = await scanAll({
+    TableName: tableName,
+    FilterExpression: 'attribute_exists(#email) AND #entityType = :entityType AND #email = :email',
+    ExpressionAttributeNames: {
+      '#entityType': 'entityType',
+      '#email': 'email',
+    },
+    ExpressionAttributeValues: {
+      ':entityType': 'tenant_user',
+      ':email': normalized,
+    },
+  });
+
+  return (rows[0] as AuthUser | undefined) || null;
+}
+
+export async function updateUserPassword(email: string, newPassword: string): Promise<AuthUser> {
+  const user = await findUserByEmail(email);
+  if (!user) throw new Error('User not found.');
+
+  if (newPassword.length < 6) throw new Error('New password must be at least 6 characters.');
+  const passwordHash = hashPassword(newPassword);
+
+  const { partitionKey, sortKey } = await getTableKeySchema();
+  const updated: AuthUser = {
+    ...user,
+    ...tenantKeyValues(partitionKey, sortKey, user.tenant_id, 'tenant_user', user.id),
+    passwordHash,
+    updatedAt: new Date().toISOString(),
+  } as AuthUser;
+
+  await docClient.send(new PutCommand({ TableName: tableName, Item: updated }));
+  return updated;
+}
+
+
 export function publicUser(user: AuthUser) {
   return {
     id: user.id,

@@ -18,7 +18,7 @@ type AuthScreenProps = {
   onAuthenticated: (user: AuthUser) => void;
 };
 
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'forgot';
 
 export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const [mode, setMode] = useState<Mode>('login');
@@ -28,7 +28,16 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     email: '',
     mobile: '',
     password: '',
+    securityQuestion: '',
+    securityAnswer: '',
   });
+
+  const securityQuestions = [
+    "What was the name of the bank where you opened your very first business checking account?",
+    "What was the street name of your business's first physical office or storefront?",
+    "What was the last name of your first boss or supervisor?",
+    "What was the first trade show or professional conference you ever attended?",
+  ];
   const [status, setStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({ type: 'idle', message: '' });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -66,6 +75,29 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     if (result?.user) onAuthenticated(result.user);
   };
 
+  const [securityQuestion, setSecurityQuestion] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
+  const getSecurityQuestion = async () => {
+    const result = await submit('/api/auth/forgot-password', { email: form.email });
+    if (result?.securityQuestion) {
+      setSecurityQuestion(result.securityQuestion);
+    }
+  };
+
+  const resetPassword = async () => {
+    const result = await submit('/api/auth/reset-password', {
+      email: form.email,
+      securityAnswer: form.securityAnswer,
+      newPassword,
+    });
+    if (result?.success) {
+      setMode('login');
+      setStatus({ type: 'success', message: 'Password reset successfully. Please login.' });
+    }
+  };
+
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,156,42,0.18),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(59,168,255,0.20),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_38%)]" />
@@ -102,16 +134,72 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
           </div>
 
           <div className="mt-5 space-y-3">
+          {mode === 'forgot' ? (
+              <>
+                <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
+                {securityQuestion ? (
+                  <>
+                    <p>{securityQuestion}</p>
+                    <AuthInput
+                      icon={Lock}
+                      placeholder="Security answer"
+                      value={form.securityAnswer}
+                      onChange={(value) => updateForm('securityAnswer', value)}
+                    />
+                    <AuthInput
+                      icon={Lock}
+                      placeholder="New Password"
+                      type="password"
+                      value={newPassword}
+                      onChange={setNewPassword}
+                    />
+                  </>
+                ) : null}
+              </>
+            ) : null}
+
             {mode === 'register' ? (
               <>
                 <AuthInput icon={UserPlus} placeholder="Shopkeeper name" value={form.name} onChange={(value) => updateForm('name', value)} />
                 <AuthInput icon={Store} placeholder="Shop name" value={form.shopName} onChange={(value) => updateForm('shopName', value)} />
                 <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
+                 <div className="flex flex-col gap-3">
+                  <select
+                    value={form.securityQuestion}
+                    onChange={(e) => updateForm('securityQuestion', e.target.value)}
+                    className="w-full h-12 rounded-full border border-white/12 bg-black/45 px-4 text-white/50 transition focus-within:border-[#78B7FF]"
+                  >
+                    <option value="" disabled>Select a security question</option>
+                    {securityQuestions.map((q, i) => (
+                      <option key={i} value={q}>{q}</option>
+                    ))}
+                  </select>
+                  <AuthInput
+                    icon={Lock}
+                    placeholder="Security answer"
+                    value={form.securityAnswer}
+                    onChange={(value) => updateForm('securityAnswer', value)}
+                  />
+                  {form.securityAnswer.length > 0 && form.securityAnswer.length < 5 && (
+                    <p className="text-red-500 text-xs mt-1">Security question must be at least 5 characters.</p>
+                  )}
+                </div>
+              </>
+            ) : mode === 'login' ? (
+              <>
+                <AuthInput icon={Phone} placeholder="Mobile number" value={form.mobile} onChange={(value) => updateForm('mobile', value)} />
+                <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
+                {mode === 'login' && (
+                    <button
+                    type="button"
+                    onClick={() => setMode('forgot')}
+                    className="text-white/50 text-sm text-right mt-2 hover:text-white"
+                    >
+                    Forgot Password?
+                    </button>
+                )}
               </>
             ) : null}
-
-            <AuthInput icon={Phone} placeholder="Mobile number" value={form.mobile} onChange={(value) => updateForm('mobile', value)} />
-            <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
           </div>
 
           {status.message ? (
@@ -124,12 +212,19 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
             type="button"
             onClick={() => {
               if (mode === 'register') void register();
-              else void loginWithPassword();
+              else if (mode === 'login') void loginWithPassword();
+              else if (mode === 'forgot') {
+                if (securityQuestion) {
+                  void resetPassword();
+                } else {
+                  void getSecurityQuestion();
+                }
+              }
             }}
             disabled={isLoading}
             className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-full bg-white px-5 text-[14px] font-semibold text-black shadow-[0_0_34px_rgba(255,255,255,0.18)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {isLoading ? 'Please wait...' : mode === 'register' ? 'Create Shop Workspace' : 'Login with Password'}
+            {isLoading ? 'Please wait...' : mode === 'register' ? 'Create Shop Workspace' : mode === 'login' ? 'Login with Password' : securityQuestion ? 'Reset Password' : 'Get Security Question'}
           </button>
         </motion.section>
       </div>
