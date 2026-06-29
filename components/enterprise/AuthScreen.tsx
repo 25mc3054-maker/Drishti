@@ -163,6 +163,8 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                 <AuthInput icon={UserPlus} placeholder="Shopkeeper name" value={form.name} onChange={(value) => updateForm('name', value)} />
                 <AuthInput icon={Store} placeholder="Shop name" value={form.shopName} onChange={(value) => updateForm('shopName', value)} />
                 <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
+                <AuthInput icon={Phone} placeholder="Mobile number" value={form.mobile} onChange={(value) => updateForm('mobile', value)} />
+                <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
                  <div className="flex flex-col gap-3">
                   <select
                     value={form.securityQuestion}
