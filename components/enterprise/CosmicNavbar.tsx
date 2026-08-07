@@ -84,8 +84,8 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
           {/* Vertical Divider line on Mobile */}
           <div className="h-5 w-px shrink-0 bg-zinc-800/80 lg:hidden" />
 
-          {/* Horizontally Scrollable Segment Chips Track (Phone & Desktop) */}
-          <div className="flex flex-1 items-center gap-1 overflow-x-auto scrollbar-none scroll-smooth py-0.5 px-0.5">
+          {/* Segment Chips Track: Scrollable on Mobile, Evenly Distributed 7-Grid on Desktop/Laptop */}
+          <div className="flex flex-1 items-center gap-1 overflow-x-auto scrollbar-none scroll-smooth py-0.5 px-0.5 lg:grid lg:grid-cols-7 lg:gap-1.5 lg:overflow-visible">
             {navItems.map((item) => (
               <NavButton
                 key={item.key}
@@ -183,7 +183,7 @@ function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; is
       onClick={onClick}
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.96 }}
-      className={`group relative flex h-8.5 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-left transition border-0 ${
+      className={`group relative flex h-8.5 items-center justify-center gap-1.5 rounded-full px-3.5 text-center transition border-0 shrink-0 lg:shrink lg:w-full ${
         isActive
           ? 'text-white font-bold'
           : isLight
@@ -207,7 +207,7 @@ function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; is
           isLight ? 'bg-zinc-100' : 'bg-zinc-900/60'
         }`} />
       )}
-      <span className="relative flex items-center gap-1.5 shrink-0 z-10 whitespace-nowrap">
+      <span className="relative flex items-center justify-center gap-1.5 shrink-0 z-10 whitespace-nowrap">
         <Icon className={`h-3.5 w-3.5 shrink-0 ${
           isActive
             ? 'text-white'
