@@ -839,30 +839,52 @@ function BillingDesk({
     }`}>
       <div className="relative space-y-2">
         {/* Mobile Phone Segment Control (< xl ONLY) */}
-        <div className="flex xl:hidden items-center justify-between gap-1.5 rounded-xl border border-zinc-800 bg-black p-1 shadow-md">
+        <div className={`flex xl:hidden items-center justify-between gap-1 rounded-xl p-1 border shadow-sm transition-colors ${
+          isLight
+            ? 'border-zinc-200 bg-zinc-100 text-black'
+            : 'border-zinc-800 bg-zinc-950 text-white'
+        }`}>
           <button
             type="button"
             onClick={() => setMobileBillingTab('products')}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-[12.5px] font-bold transition-all touch-manipulation ${
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 px-2 text-[12px] sm:text-[12.5px] font-extrabold transition-all touch-manipulation border ${
               mobileBillingTab === 'products'
-                ? isLight ? 'bg-black text-white shadow' : 'bg-white text-black shadow'
-                : isLight ? 'text-zinc-600 hover:text-black' : 'text-zinc-400 hover:text-white'
+                ? isLight
+                  ? 'bg-white text-black border-zinc-200 shadow-md'
+                  : 'bg-zinc-800 text-white border-zinc-700 shadow-md'
+                : isLight
+                  ? 'border-transparent text-zinc-600 hover:text-black hover:bg-zinc-200/60'
+                  : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/60'
             }`}
           >
-            <Boxes className="h-4 w-4" />
+            <Boxes className={`h-4 w-4 shrink-0 ${mobileBillingTab === 'products' ? (isLight ? 'text-black' : 'text-blue-400') : 'text-zinc-500'}`} />
             <span>Products & Customer</span>
           </button>
+
+          <div className={`h-4 w-px shrink-0 ${isLight ? 'bg-zinc-300' : 'bg-zinc-800'}`} />
+
           <button
             type="button"
             onClick={() => setMobileBillingTab('cart')}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-[12.5px] font-bold transition-all touch-manipulation ${
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 px-2 text-[12px] sm:text-[12.5px] font-extrabold transition-all touch-manipulation border ${
               mobileBillingTab === 'cart'
-                ? isLight ? 'bg-black text-white shadow' : 'bg-white text-black shadow'
-                : isLight ? 'text-zinc-600 hover:text-black' : 'text-zinc-400 hover:text-white'
+                ? isLight
+                  ? 'bg-white text-black border-zinc-200 shadow-md'
+                  : 'bg-zinc-800 text-white border-zinc-700 shadow-md'
+                : isLight
+                  ? 'border-transparent text-zinc-600 hover:text-black hover:bg-zinc-200/60'
+                  : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/60'
             }`}
           >
-            <ReceiptText className="h-4 w-4" />
-            <span>Cart ({itemCount}) • ₹{formatMoney(grandTotal)}</span>
+            <ReceiptText className={`h-4 w-4 shrink-0 ${mobileBillingTab === 'cart' ? (isLight ? 'text-black' : 'text-emerald-400') : 'text-zinc-500'}`} />
+            <span className="truncate">Cart ({itemCount})</span>
+            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-extrabold ${
+              mobileBillingTab === 'cart'
+                ? isLight ? 'bg-black text-white' : 'bg-emerald-500 text-black'
+                : isLight ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-900 text-zinc-300'
+            }`}>
+              ₹{formatMoney(grandTotal)}
+            </span>
           </button>
         </div>
 
