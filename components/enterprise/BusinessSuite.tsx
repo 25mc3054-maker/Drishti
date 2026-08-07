@@ -257,16 +257,80 @@ export function BusinessSuite({
     window.print();
   };
 
-  const shareLastBill = () => {
-    if (!lastInvoice) return;
-    const customerPhone = lastInvoice.customer?.phone ? String(lastInvoice.customer.phone).replace(/\D/g, '') : '';
+  const shareInvoiceOnWhatsApp = async (invoice: any) => {
+    if (!invoice) return;
+
+    const customerPhone = invoice.customer?.phone ? String(invoice.customer.phone).replace(/\D/g, '') : '';
+    const customerName = invoice.customer?.name || 'Walk-in Customer';
+    const invoiceId = String(invoice.id).slice(0, 8).toUpperCase();
+    const formattedDate = formatDate(invoice.createdAt);
+    const paymentMethod = String(invoice.paymentMethod || 'cash').toUpperCase();
+
+    // 1. Build Itemized Text List
+    const itemsList = (invoice.items || []).map((item: any) => (
+      `• *${item.name || 'Item'}*\n  ${item.qty || 1} ${item.unit || 'pcs'} × ₹${formatMoney(Number(item.price || 0))} = ₹${formatMoney(Number(item.lineTotal || 0))}`
+    )).join('\n');
+
+    // 2. Build Full Structured Bill Message
     const billText = [
-      `EasyTrader bill ${String(lastInvoice.id).slice(0, 10)}`,
-      ...lastInvoice.items.map((item: any) => `${item.name} x ${item.qty} = ₹${formatMoney(Number(item.lineTotal || 0))}`),
-      `Total: ₹${formatMoney(Number(lastInvoice.total || 0))}`,
-    ].join('\n');
+      `🧾 *INVOICE RECEIPT - EASYTRADER*`,
+      `────────────────────────`,
+      `📄 *Invoice No:* #${invoiceId}`,
+      `📅 *Date:* ${formattedDate}`,
+      `👤 *Customer:* ${customerName}${customerPhone ? ` (${customerPhone})` : ''}`,
+      `💳 *Payment Method:* ${paymentMethod}`,
+      `────────────────────────`,
+      `📦 *ITEMS PURCHASED:*`,
+      itemsList,
+      `────────────────────────`,
+      `Subtotal: ₹${formatMoney(Number(invoice.subtotal || 0))}`,
+      Number(invoice.discount || 0) > 0 ? `Discount: -₹${formatMoney(Number(invoice.discount || 0))}` : '',
+      Number(invoice.tax || 0) > 0 ? `Tax (GST): +₹${formatMoney(Number(invoice.tax || 0))}` : '',
+      `------------------------`,
+      `💰 *TOTAL PAID:* ₹${formatMoney(Number(invoice.total || 0))}`,
+      invoice.notes ? `📝 *Notes:* ${invoice.notes}` : '',
+      `────────────────────────`,
+      `✨ *Thank you for shopping with us!*`,
+    ].filter(Boolean).join('\n');
+
+    // 3. Prepare Invoice Text/Document File
+    const fileName = `EasyTrader_Invoice_${customerName.replace(/\s+/g, '_')}_${invoiceId}.txt`;
+    const invoiceBlob = new Blob([billText], { type: 'text/plain;charset=utf-8' });
+
+    // 4. Try Web Share API (Mobile Phones) for attaching document file + text together
+    if (typeof navigator !== 'undefined' && (navigator as any).share && (navigator as any).canShare) {
+      try {
+        const invoiceFile = new File([invoiceBlob], fileName, { type: 'text/plain' });
+        if ((navigator as any).canShare({ files: [invoiceFile] })) {
+          await (navigator as any).share({
+            title: `Invoice #${invoiceId}`,
+            text: billText,
+            files: [invoiceFile],
+          });
+          return;
+        }
+      } catch (err: any) {
+        // Fall back to wa.me if share canceled or unhandled
+      }
+    }
+
+    // 5. Fallback for Desktop/Web Browsers: Trigger invoice file download & open WhatsApp web
+    const blobUrl = URL.createObjectURL(invoiceBlob);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.href = blobUrl;
+    downloadAnchor.download = fileName;
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    document.body.removeChild(downloadAnchor);
+    URL.revokeObjectURL(blobUrl);
+
     const phoneParam = customerPhone ? `91${customerPhone.slice(-10)}` : '';
     window.open(`https://wa.me/${phoneParam}?text=${encodeURIComponent(billText)}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const shareLastBill = () => {
+    if (!lastInvoice) return;
+    void shareInvoiceOnWhatsApp(lastInvoice);
   };
 
   const downloadInvoice = (invoice: any) => {
@@ -624,6 +688,7 @@ export function BusinessSuite({
                 onGeneratePromo={generatePromo}
                 onMarketingFormChange={setMarketingForm}
                 onPlaceSupplierOrder={placeSupplierOrder}
+                onShareInvoice={shareInvoiceOnWhatsApp}
                 onSharePromo={sharePromoOnWhatsApp}
                 onSyncGoogleBusiness={syncGoogleBusiness}
               />
@@ -1333,6 +1398,7 @@ function ModuleGallery({
   onDeleteSupplier,
   onDeleteStock,
   onPlaceSupplierOrder,
+  onShareInvoice,
   onSharePromo,
   onSyncGoogleBusiness,
 }: {
@@ -1340,6 +1406,7 @@ function ModuleGallery({
   data: DashboardData;
   theme?: 'dark' | 'light';
   onDownloadInvoice: (invoice: any) => void;
+  onShareInvoice?: (invoice: any) => void;
   onAddCustomer: () => void;
   onAddSupplier: () => void;
   onAddStock: () => void;
@@ -1631,14 +1698,27 @@ function ModuleGallery({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-[15px] font-extrabold ${isLight ? 'text-black' : 'text-white'}`}>
                       ₹{formatMoney(Number(invoice.total || 0))}
                     </span>
                     <button
                       type="button"
+                      onClick={() => onShareInvoice?.(invoice)}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
+                        isLight
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          : 'bg-emerald-500 text-black hover:bg-emerald-400 font-bold'
+                      }`}
+                      title="Share invoice breakdown and document via WhatsApp"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      <span>WhatsApp</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => onDownloadInvoice(invoice)}
-                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12px] font-bold transition border-0 ${
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
                         isLight
                           ? 'bg-black text-white hover:bg-zinc-800'
                           : 'bg-white text-black hover:bg-zinc-200'
