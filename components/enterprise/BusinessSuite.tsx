@@ -702,7 +702,7 @@ function BillingDesk({
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
   return (
-    <div className="relative overflow-hidden rounded-[8px] border border-white/12 bg-black/45 p-3 shadow-[0_28px_120px_rgba(0,0,0,0.46)] backdrop-blur-2xl md:p-4">
+    <div className="relative overflow-hidden rounded-[8px] border border-border bg-card/45 p-3 shadow-sm backdrop-blur-2xl md:p-4">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_8%,rgba(255,156,42,0.18),transparent_26%),radial-gradient(circle_at_76%_24%,rgba(59,168,255,0.20),transparent_30%)]" />
       <div className="relative space-y-3">
         <div className="grid gap-3 md:grid-cols-3">
@@ -716,7 +716,7 @@ function BillingDesk({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.28, ease: 'easeOut' }}
-            className="rounded-[8px] border border-white/10 bg-[#05070A]/82 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+            className="rounded-[8px] border border-border bg-card/82 p-4 shadow-sm"
           >
             <PanelHeader icon={Search} title="Product Command" meta={`${filteredProducts.length} available`} />
             <select
@@ -728,7 +728,7 @@ function BillingDesk({
                   onCustomerChange(event.target.value);
                 }
               }}
-              className="mt-4 h-12 w-full rounded-full border border-white/12 bg-black/55 px-4 text-[14px] font-semibold text-white outline-none transition focus:border-[#78B7FF]"
+              className="mt-4 h-12 w-full rounded-full border border-border bg-background/55 px-4 text-[14px] font-semibold text-foreground outline-none transition focus:border-primary"
             >
               <option value="walk-in">Walk-in customer</option>
               <option value="add-new-customer">-- Add New Customer --</option>
@@ -737,13 +737,13 @@ function BillingDesk({
               ))}
             </select>
 
-            <label className="mt-3 flex h-12 items-center gap-2 rounded-full border border-white/12 bg-black/55 px-4 text-white/55 transition focus-within:border-[#78B7FF]">
+            <label className="mt-3 flex h-12 items-center gap-2 rounded-full border border-border bg-background/55 px-4 text-foreground/55 transition focus-within:border-primary">
               <Search className="h-4 w-4" />
               <input
                 value={productQuery}
                 onChange={(event) => onProductQueryChange(event.target.value)}
                 placeholder="Search products, category, description"
-                className="w-full bg-transparent text-[14px] text-white outline-none placeholder:text-white/35"
+                className="w-full bg-transparent text-[14px] text-foreground outline-none placeholder:text-foreground/35"
               />
             </label>
 
@@ -757,18 +757,18 @@ function BillingDesk({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.22, delay: index * 0.018, ease: 'easeOut' }}
                   whileHover={{ y: -2, scale: 1.006 }}
-                  className="group relative flex min-h-[86px] w-full items-center justify-between gap-3 overflow-hidden rounded-[8px] border border-white/10 bg-white/[0.045] px-4 py-3 text-left transition hover:border-white/22 hover:bg-white/[0.075]"
+                  className="group relative flex min-h-[86px] w-full items-center justify-between gap-3 overflow-hidden rounded-[8px] border border-border bg-card/[0.045] px-4 py-3 text-left transition hover:border-border/22 hover:bg-card/[0.075]"
                 >
                   <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[#FF9C2A] to-[#3BA8FF] opacity-0 transition group-hover:opacity-100" />
                   <span>
-                    <span className="block text-[14px] font-semibold text-white">{item.name || 'Unnamed item'}</span>
-                    <span className="mt-1 block text-[12px] text-white/48">Stock {Number(item.qty || 0)} • {item.category || 'General'}</span>
+                    <span className="block text-[14px] font-semibold text-foreground">{item.name || 'Unnamed item'}</span>
+                    <span className="mt-1 block text-[12px] text-foreground/48">Stock {Number(item.qty || 0)} • {item.category || 'General'}</span>
                   </span>
-                  <span className="rounded-full border border-white/10 bg-black/45 px-3 py-1 text-[13px] font-semibold text-white">₹{formatMoney(Number(item.price || 0))}</span>
+                  <span className="rounded-full border border-border bg-background/45 px-3 py-1 text-[13px] font-semibold text-foreground">₹{formatMoney(Number(item.price || 0))}</span>
                 </motion.button>
               ))}
               {filteredProducts.length === 0 ? (
-                <div className="rounded-[8px] border border-white/10 bg-white/[0.045] px-4 py-10 text-center text-[14px] text-white/52">
+                <div className="rounded-[8px] border border-border bg-card/[0.045] px-4 py-10 text-center text-[14px] text-foreground/52">
                   No in-stock products match your search.
                 </div>
               ) : null}
@@ -779,43 +779,43 @@ function BillingDesk({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.28, delay: 0.05, ease: 'easeOut' }}
-            className="rounded-[8px] border border-white/10 bg-[#05070A]/82 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+            className="rounded-[8px] border border-border bg-card/82 p-4 shadow-sm"
           >
             <PanelHeader icon={ReceiptText} title="Smart Invoice Composer" meta={selectedCustomer ? selectedCustomer.name : 'Walk-in'} />
-            <div className="mt-4 min-h-[240px] rounded-[8px] border border-white/10 bg-black/45 p-3">
+            <div className="mt-4 min-h-[240px] rounded-[8px] border border-border bg-background/45 p-3">
               {cart.length === 0 ? (
-                <div className="flex h-[216px] items-center justify-center rounded-[6px] border border-dashed border-white/14 text-center text-[14px] leading-6 text-white/48">
+                <div className="flex h-[216px] items-center justify-center rounded-[6px] border border-dashed border-border/14 text-center text-[14px] leading-6 text-foreground/48">
                   Add products to begin a stock-linked bill.
                 </div>
               ) : (
                 <div className="grid gap-2 lg:grid-cols-2">
                   {cart.map((item) => (
-                    <div key={item.id} className="rounded-[8px] border border-white/10 bg-white/[0.045] p-3">
+                    <div key={item.id} className="rounded-[8px] border border-border bg-card/[0.045] p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-[14px] font-semibold text-white">{item.name}</div>
-                          <div className="mt-1 text-[12px] text-white/45">₹{formatMoney(item.price)} each • {item.availableQty} available</div>
+                          <div className="text-[14px] font-semibold text-foreground">{item.name}</div>
+                          <div className="mt-1 text-[12px] text-foreground/45">₹{formatMoney(item.price)} each • {item.availableQty} available</div>
                         </div>
-                        <button type="button" onClick={() => onRemoveFromCart(item.id)} className="rounded-full p-2 text-white/42 transition hover:bg-white/10 hover:text-white" aria-label={`Remove ${item.name}`}>
+                        <button type="button" onClick={() => onRemoveFromCart(item.id)} className="rounded-full p-2 text-foreground/42 transition hover:bg-card/10 hover:text-foreground" aria-label={`Remove ${item.name}`}>
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                       <div className="mt-3 flex items-center justify-between gap-3">
-                        <div className="flex items-center rounded-full border border-white/12 bg-black/45">
-                          <button type="button" onClick={() => onUpdateCartQty(item.id, item.qty - 1)} className="p-2.5 text-white/52 hover:text-white" aria-label={`Decrease ${item.name}`}>
+                        <div className="flex items-center rounded-full border border-border bg-background/45">
+                          <button type="button" onClick={() => onUpdateCartQty(item.id, item.qty - 1)} className="p-2.5 text-foreground/52 hover:text-foreground" aria-label={`Decrease ${item.name}`}>
                             <Minus className="h-3.5 w-3.5" />
                           </button>
                           <input
                             value={item.qty}
                             onChange={(event) => onUpdateCartQty(item.id, Number(event.target.value || 1))}
-                            className="h-9 w-12 bg-transparent text-center text-[14px] font-semibold text-white outline-none"
+                            className="h-9 w-12 bg-transparent text-center text-[14px] font-semibold text-foreground outline-none"
                             inputMode="numeric"
                           />
-                          <button type="button" onClick={() => onUpdateCartQty(item.id, item.qty + 1)} className="p-2.5 text-white/52 hover:text-white" aria-label={`Increase ${item.name}`}>
+                          <button type="button" onClick={() => onUpdateCartQty(item.id, item.qty + 1)} className="p-2.5 text-foreground/52 hover:text-foreground" aria-label={`Increase ${item.name}`}>
                             <Plus className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <div className="text-[15px] font-semibold text-white">₹{formatMoney(item.price * item.qty)}</div>
+                        <div className="text-[15px] font-semibold text-foreground">₹{formatMoney(item.price * item.qty)}</div>
                       </div>
                     </div>
                   ))}
@@ -836,11 +836,11 @@ function BillingDesk({
               <button type="button" onClick={() => onTaxChange(String(Math.round(subtotal * 0.18)))} className="chip-button"><Wand2 className="h-3.5 w-3.5" />GST 18%</button>
             </div>
 
-            <div className="mt-4 rounded-[8px] border border-white/10 bg-white/[0.045] p-4 text-[13px]">
+            <div className="mt-4 rounded-[8px] border border-border bg-card/[0.045] p-4 text-[13px]">
               <TotalLine label="Subtotal" value={`₹${formatMoney(subtotal)}`} />
               <TotalLine label="Discount" value={`₹${formatMoney(discountAmount)}`} />
               <TotalLine label="Tax" value={`₹${formatMoney(taxAmount)}`} />
-              <div className="mt-3 flex justify-between border-t border-white/10 pt-3 text-[17px] font-semibold text-white">
+              <div className="mt-3 flex justify-between border-t border-border pt-3 text-[17px] font-semibold text-foreground">
                 <span>Grand Total</span>
                 <span>₹{formatMoney(grandTotal)}</span>
               </div>
@@ -857,7 +857,7 @@ function BillingDesk({
                 type="button"
                 onClick={onCreateBill}
                 disabled={cart.length === 0 || isBilling}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-5 text-[14px] font-semibold text-black shadow-[0_0_34px_rgba(255,255,255,0.18)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[14px] font-semibold text-primary-foreground shadow-sm transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 {isBilling ? 'Creating bill...' : 'Create Bill & Deduct Stock'}
@@ -926,7 +926,7 @@ function ModuleGallery({
   onSyncGoogleBusiness: () => void;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-[8px] border border-white/12 bg-black/45 p-4 shadow-[0_28px_120px_rgba(0,0,0,0.42)] backdrop-blur-2xl">
+    <div className="relative overflow-hidden rounded-[8px] border border-border bg-card/45 p-4 shadow-sm backdrop-blur-2xl">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(255,156,42,0.14),transparent_26%),radial-gradient(circle_at_86%_18%,rgba(59,168,255,0.16),transparent_30%)]" />
       <div className="relative">
         {section === 'customers' ? (
@@ -937,8 +937,8 @@ function ModuleGallery({
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {data.customers.slice(0, 12).map((customer: any, index: number) => (
                 <MotionModuleCard key={customer.id} index={index} title={customer.name || 'Unnamed customer'} meta={customer.phone || 'Customer'}>
-                  <div className="text-[13px] text-white/58">Purchases: <span className="text-white">{customer.purchaseCount || 0}</span></div>
-                  <div className="mt-2 text-[13px] text-white/58">Spent: <span className="text-white">₹{formatMoney(Number(customer.totalSpent || 0))}</span></div>
+                  <div className="text-[13px] text-foreground/58">Purchases: <span className="text-foreground">{customer.purchaseCount || 0}</span></div>
+                  <div className="mt-2 text-[13px] text-foreground/58">Spent: <span className="text-foreground">₹{formatMoney(Number(customer.totalSpent || 0))}</span></div>
                   <div className="mt-3 flex justify-end">
                     <IconAction onClick={() => onDeleteCustomer(customer.id)} icon={Trash2} label="Delete" />
                   </div>
@@ -956,9 +956,9 @@ function ModuleGallery({
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {data.items.slice(0, 12).map((item: any, index: number) => (
                 <MotionModuleCard key={item.id} index={index} title={item.name || 'Unnamed item'} meta={`Qty ${item.qty || 0}`} imageUrl={item.imageUrl}>
-                  <div className="text-[13px] text-white/58">Unit price: <span className="text-white">₹{formatMoney(Number(item.price || 0))}</span></div>
-                  <div className="mt-2 text-[13px] text-white/58">Supplier: <span className="text-white">{item.supplierName || 'Not linked'}</span></div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="text-[13px] text-foreground/58">Unit price: <span className="text-foreground">₹{formatMoney(Number(item.price || 0))}</span></div>
+                  <div className="mt-2 text-[13px] text-foreground/58">Supplier: <span className="text-foreground">{item.supplierName || 'Not linked'}</span></div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-card/10">
                     <div className="h-full rounded-full bg-gradient-to-r from-[#FF9C2A] to-[#3BA8FF]" style={{ width: `${Math.min(100, Math.max(6, Number(item.qty || 0)))}%` }} />
                   </div>
                   {Number(item.qty || 0) <= 0 ? (
@@ -985,12 +985,12 @@ function ModuleGallery({
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.22, delay: index * 0.035, ease: 'easeOut' }}
-                  className="rounded-[8px] border border-white/10 bg-white/[0.045] p-4"
+                  className="rounded-[8px] border border-border bg-card/[0.045] p-4"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3 text-[13px] text-white/58">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3 text-[13px] text-foreground/58">
                     <div>
-                      <span className="font-semibold text-white">{invoice.customer?.name || 'Walk-in Customer'}</span>
-                      <span className="ml-3 text-white/40">INV-{String(invoice.id).slice(0, 6)}</span>
+                      <span className="font-semibold text-foreground">{invoice.customer?.name || 'Walk-in Customer'}</span>
+                      <span className="ml-3 text-foreground/40">INV-{String(invoice.id).slice(0, 6)}</span>
                     </div>
                     <span>{formatDate(invoice.createdAt)}</span>
                   </div>
@@ -1016,7 +1016,7 @@ function ModuleGallery({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.24, ease: 'easeOut' }}
-                className="rounded-[8px] border border-white/10 bg-[#05070A] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                className="rounded-[8px] border border-border bg-card p-4 shadow-sm"
               >
                 <PanelHeader icon={Wand2} title="Promo Inputs" meta={selectedMarketingProduct ? selectedMarketingProduct.name : 'Select product'} />
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -1033,7 +1033,7 @@ function ModuleGallery({
                   <select
                     value={marketingForm.productId}
                     onChange={(event) => onMarketingFormChange({ ...marketingForm, productId: event.target.value })}
-                    className="h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] font-semibold text-white outline-none transition focus:border-[#78B7FF] sm:col-span-2"
+                    className="h-11 rounded-full border border-border bg-background/45 px-4 text-[13px] font-semibold text-foreground outline-none transition focus:border-primary sm:col-span-2"
                   >
                     <option value="">Select product</option>
                     {data.items.map((item: any) => (
@@ -1057,7 +1057,7 @@ function ModuleGallery({
                     type="button"
                     onClick={onGeneratePromo}
                     disabled={isGeneratingPromo}
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-5 text-[14px] font-semibold text-black shadow-[0_0_34px_rgba(255,255,255,0.18)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[14px] font-semibold text-primary-foreground shadow-sm transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <Sparkles className="h-4 w-4" />
                     {isGeneratingPromo ? 'Generating...' : 'Generate Promo'}
@@ -1077,7 +1077,7 @@ function ModuleGallery({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.24, delay: 0.04, ease: 'easeOut' }}
-                className="rounded-[8px] border border-white/10 bg-[#05070A] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                className="rounded-[8px] border border-border bg-card p-4 shadow-sm"
               >
                 <PanelHeader icon={Sparkles} title="Campaign Output" meta={promoResult ? 'Generated' : 'Waiting for promo'} />
                 {promoResult ? (
@@ -1085,16 +1085,16 @@ function ModuleGallery({
                     <img
                       src={promoResult.posterDataUrl}
                       alt="Generated promo poster"
-                      className="aspect-square w-full rounded-[8px] border border-white/12 bg-black/35 object-cover"
+                      className="aspect-square w-full rounded-[8px] border border-border bg-background/35 object-cover"
                     />
                     <div className="space-y-3">
-                      <div className="rounded-[8px] border border-white/10 bg-white/[0.045] p-4">
-                        <div className="text-[11px] uppercase tracking-[0.15em] text-white/38">Caption</div>
-                        <p className="mt-2 text-[14px] leading-6 text-white">{promoResult.caption}</p>
+                      <div className="rounded-[8px] border border-border bg-card/[0.045] p-4">
+                        <div className="text-[11px] uppercase tracking-[0.15em] text-foreground/38">Caption</div>
+                        <p className="mt-2 text-[14px] leading-6 text-foreground">{promoResult.caption}</p>
                       </div>
-                      <div className="rounded-[8px] border border-white/10 bg-white/[0.045] p-4">
-                        <div className="text-[11px] uppercase tracking-[0.15em] text-white/38">Hashtags</div>
-                        <p className="mt-2 break-words text-[13px] leading-6 text-white/68">{promoHashtags}</p>
+                      <div className="rounded-[8px] border border-border bg-card/[0.045] p-4">
+                        <div className="text-[11px] uppercase tracking-[0.15em] text-foreground/38">Hashtags</div>
+                        <p className="mt-2 break-words text-[13px] leading-6 text-foreground/68">{promoHashtags}</p>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <IconAction onClick={onCopyCaption} icon={Copy} label="Copy Caption" />
@@ -1108,11 +1108,11 @@ function ModuleGallery({
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-4 grid min-h-[360px] place-items-center rounded-[8px] border border-dashed border-white/14 bg-white/[0.035] p-6 text-center">
+                  <div className="mt-4 grid min-h-[360px] place-items-center rounded-[8px] border border-dashed border-border/14 bg-card/[0.035] p-6 text-center">
                     <div>
                       <Sparkles className="mx-auto h-8 w-8 text-[#FFB866]" />
-                      <div className="mt-3 text-[16px] font-semibold text-white">No campaign generated yet</div>
-                      <p className="mt-2 max-w-md text-[13px] leading-6 text-white/54">Choose an inventory item, add the local offer details, and generate a poster with a caption ready for social sharing.</p>
+                      <div className="mt-3 text-[16px] font-semibold text-foreground">No campaign generated yet</div>
+                      <p className="mt-2 max-w-md text-[13px] leading-6 text-foreground/54">Choose an inventory item, add the local offer details, and generate a poster with a caption ready for social sharing.</p>
                     </div>
                   </div>
                 )}
@@ -1128,9 +1128,9 @@ function ModuleGallery({
             ) : (
               <div className="space-y-3">
                 {data.expenses.map((expense: any, index: number) => (
-                  <motion.div key={expense.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: index * 0.03 }} className="rounded-[8px] border border-white/10 bg-white/[0.045] p-4">
-                    <div className="flex items-center justify-between text-[13px] text-white/58"><span className="font-semibold text-white">{expense.title}</span><span>₹{formatMoney(Number(expense.amount || 0))}</span></div>
-                    <div className="mt-2 text-[13px] text-white/38">{expense.category} • {formatDate(expense.date || expense.createdAt)}</div>
+                  <motion.div key={expense.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: index * 0.03 }} className="rounded-[8px] border border-border bg-card/[0.045] p-4">
+                    <div className="flex items-center justify-between text-[13px] text-foreground/58"><span className="font-semibold text-foreground">{expense.title}</span><span>₹{formatMoney(Number(expense.amount || 0))}</span></div>
+                    <div className="mt-2 text-[13px] text-foreground/38">{expense.category} • {formatDate(expense.date || expense.createdAt)}</div>
                   </motion.div>
                 ))}
               </div>
@@ -1146,9 +1146,9 @@ function ModuleGallery({
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {data.suppliers.map((supplier: any, index: number) => (
                 <MotionModuleCard key={supplier.id} index={index} title={supplier.name || 'Unnamed supplier'} meta={supplier.products || 'Supplier'}>
-                  <div className="text-[13px] text-white/58">Lead time: <span className="text-white">{supplier.leadTimeDays || 0} days</span></div>
-                  <div className="mt-2 text-[13px] text-white/58">Phone: <span className="text-white">{supplier.phone || 'Not set'}</span></div>
-                  {supplier.notes ? <div className="mt-2 text-[13px] leading-6 text-white/48">{supplier.notes}</div> : null}
+                  <div className="text-[13px] text-foreground/58">Lead time: <span className="text-foreground">{supplier.leadTimeDays || 0} days</span></div>
+                  <div className="mt-2 text-[13px] text-foreground/58">Phone: <span className="text-foreground">{supplier.phone || 'Not set'}</span></div>
+                  {supplier.notes ? <div className="mt-2 text-[13px] leading-6 text-foreground/48">{supplier.notes}</div> : null}
                   <div className="mt-3 flex justify-end">
                     <IconAction onClick={() => onDeleteSupplier(supplier.id)} icon={Trash2} label="Delete" />
                   </div>
@@ -1170,13 +1170,13 @@ function ModuleSection({ children, description, eyebrow, icon: Icon, title }: { 
     <div className="space-y-5">
       <div className="grid gap-4 lg:grid-cols-[0.45fr_1fr] lg:items-end">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.055] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/52">
-            <Icon className="h-3.5 w-3.5 text-[#7EA7FF]" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/[0.055] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-foreground/52">
+            <Icon className="h-3.5 w-3.5 text-primary" />
             {eyebrow}
           </div>
-          <h3 className="mt-4 text-[38px] font-semibold leading-[1.04] tracking-normal text-white">{title}</h3>
+          <h3 className="mt-4 text-[38px] font-semibold leading-[1.04] tracking-normal text-foreground">{title}</h3>
         </div>
-        <p className="max-w-2xl text-[15px] leading-7 text-white/58">{description}</p>
+        <p className="max-w-2xl text-[15px] leading-7 text-foreground/58">{description}</p>
       </div>
       {children}
     </div>
@@ -1190,18 +1190,18 @@ function MotionModuleCard({ children, index, meta, title, imageUrl }: { children
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, delay: index * 0.035, ease: 'easeOut' }}
       whileHover={{ y: -2, scale: 1.004 }}
-      className="relative min-h-[190px] overflow-hidden rounded-[8px] border border-white/10 bg-[#05070A] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+      className="relative min-h-[190px] overflow-hidden rounded-[8px] border border-border bg-card p-5 shadow-sm"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,156,42,0.14),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(59,168,255,0.16),transparent_32%)]" />
       <div className="relative flex h-full flex-col">
         {imageUrl && (
-            <div className="w-full h-32 mb-4 rounded-md overflow-hidden border border-white/10">
+            <div className="w-full h-32 mb-4 rounded-md overflow-hidden border border-border">
                 <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
             </div>
         )}
         <div className="flex-grow">
-            <div className="text-[11px] uppercase tracking-[0.16em] text-white/38">{meta}</div>
-            <div className="mt-3 text-[20px] font-semibold text-white">{title}</div>
+            <div className="text-[11px] uppercase tracking-[0.16em] text-foreground/38">{meta}</div>
+            <div className="mt-3 text-[20px] font-semibold text-foreground">{title}</div>
             <div className="mt-4">{children}</div>
         </div>
       </div>
@@ -1211,16 +1211,16 @@ function MotionModuleCard({ children, index, meta, title, imageUrl }: { children
 
 function SoftStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[8px] border border-white/10 bg-white/[0.045] p-4">
-      <div className="text-[11px] uppercase tracking-[0.15em] text-white/38">{label}</div>
-      <div className="mt-2 text-[20px] font-semibold text-white">{value}</div>
+    <div className="rounded-[8px] border border-border bg-card/[0.045] p-4">
+      <div className="text-[11px] uppercase tracking-[0.15em] text-foreground/38">{label}</div>
+      <div className="mt-2 text-[20px] font-semibold text-foreground">{value}</div>
     </div>
   );
 }
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-[8px] border border-white/10 bg-white/[0.045] p-6 text-[15px] leading-7 text-white/58">
+    <div className="rounded-[8px] border border-border bg-card/[0.045] p-6 text-[15px] leading-7 text-foreground/58">
       {text}
     </div>
   );
@@ -1230,12 +1230,12 @@ function PanelHeader({ icon: Icon, title, meta }: { icon: any; title: string; me
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/[0.07] text-white">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card/[0.07] text-foreground">
           <Icon className="h-4 w-4" />
         </span>
         <div>
-          <div className="text-[15px] font-semibold text-white">{title}</div>
-          <div className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-white/38">{meta}</div>
+          <div className="text-[15px] font-semibold text-foreground">{title}</div>
+          <div className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-foreground/38">{meta}</div>
         </div>
       </div>
     </div>
@@ -1244,9 +1244,9 @@ function PanelHeader({ icon: Icon, title, meta }: { icon: any; title: string; me
 
 function TotalLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between py-1 text-white/58">
+    <div className="flex justify-between py-1 text-foreground/58">
       <span>{label}</span>
-      <span className="text-white/78">{value}</span>
+      <span className="text-foreground/78">{value}</span>
     </div>
   );
 }
@@ -1257,7 +1257,7 @@ function FormInput({ value, onChange, placeholder }: { value: string; onChange: 
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
+      className="h-11 rounded-full border border-border bg-background/45 px-4 text-[13px] text-foreground outline-none placeholder:text-foreground/34 transition focus:border-primary"
     />
   );
 }
@@ -1267,7 +1267,7 @@ function FormSelect({ value, onChange, options }: { value: string; onChange: (va
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] font-semibold capitalize text-white outline-none transition focus:border-[#78B7FF]"
+      className="h-11 rounded-full border border-border bg-background/45 px-4 text-[13px] font-semibold capitalize text-foreground outline-none transition focus:border-primary"
     >
       {options.map((option) => (
         <option key={option} value={option}>{option}</option>
@@ -1282,7 +1282,7 @@ function IconAction({ disabled = false, icon: Icon, label, onClick }: { disabled
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] font-semibold text-white transition hover:border-white/28 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-border bg-background/45 px-4 text-[13px] font-semibold text-foreground transition hover:border-border/28 hover:bg-card/10 disabled:cursor-not-allowed disabled:opacity-40"
     >
       <Icon className="h-4 w-4" />
       {label}

@@ -71,7 +71,7 @@ export function CosmicNavbar({ activeSection, onSectionChange }: CosmicNavbarPro
             {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
 
-          <div className="hidden min-w-0 flex-1 items-center justify-between gap-1.5 overflow-x-auto rounded-[8px] border border-white/8 bg-black/28 p-1.5 lg:flex">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto rounded-[8px] border border-white/8 bg-black/28 p-1.5 scrollbar-none lg:justify-between">
             {navItems.map((item) => (
               <NavButton
                 key={item.key}
@@ -119,7 +119,7 @@ function NavButton({ isActive, item, mobile, onClick }: { isActive: boolean; ite
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.98 }}
       className={`group relative flex h-12 items-center gap-2 overflow-hidden rounded-[8px] px-3 text-left transition ${
-        mobile ? 'justify-between' : 'min-w-[126px] flex-1 justify-center'
+        mobile ? 'justify-between' : 'min-w-[105px] shrink-0 flex-1 justify-center lg:min-w-[126px]'
       } ${isActive ? 'text-white' : 'text-white/54 hover:text-white'}`}
       aria-current={isActive ? 'page' : undefined}
     >

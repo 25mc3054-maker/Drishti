@@ -99,7 +99,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white">
+    <main className="relative min-h-screen overflow-hidden bg-background px-4 py-8 text-foreground">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,156,42,0.18),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(59,168,255,0.20),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_38%)]" />
       <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-[1180px] gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <section>
@@ -109,14 +109,14 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
             transition={{ duration: 0.42, ease: 'easeOut' }}
             className="max-w-xl"
           >
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 py-1.5 text-[12px] font-semibold text-white/68">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/[0.06] px-3 py-1.5 text-[12px] font-semibold text-foreground/68">
               <ShieldCheck className="h-4 w-4 text-emerald-300" />
               Multi-tenant shopkeeper workspace
             </div>
-            <h1 className="mt-6 text-[48px] font-semibold leading-[1] tracking-normal text-white md:text-[72px]">
+            <h1 className="mt-6 text-[48px] font-semibold leading-[1] tracking-normal text-foreground md:text-[72px]">
               Sign in to your isolated shop.
             </h1>
-            <p className="mt-5 text-[17px] leading-8 text-white/64">
+            <p className="mt-5 text-[17px] leading-8 text-foreground/64">
               Every shopkeeper gets a private tenant workspace. Products, customers, invoices, staff, and settings stay invisible to every other shop.
             </p>
           </motion.div>
@@ -126,9 +126,9 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.42, delay: 0.08, ease: 'easeOut' }}
-          className="rounded-[8px] border border-white/12 bg-[#05070A]/88 p-4 shadow-[0_28px_120px_rgba(0,0,0,0.46)] backdrop-blur-2xl md:p-6"
+          className="rounded-[8px] border border-border bg-card/88 p-4 shadow-sm backdrop-blur-2xl md:p-6"
         >
-          <div className="grid grid-cols-2 gap-2 rounded-[8px] border border-white/10 bg-black/35 p-1">
+          <div className="grid grid-cols-2 gap-2 rounded-[8px] border border-border bg-background/35 p-1">
             <ModeButton active={mode === 'login'} label="Password" onClick={() => setMode('login')} />
             <ModeButton active={mode === 'register'} label="Register" onClick={() => setMode('register')} />
           </div>
@@ -169,7 +169,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                   <select
                     value={form.securityQuestion}
                     onChange={(e) => updateForm('securityQuestion', e.target.value)}
-                    className="w-full h-12 rounded-full border border-white/12 bg-black/45 px-4 text-white/50 transition focus-within:border-[#78B7FF]"
+                    className="w-full h-12 rounded-full border border-border bg-background/45 px-4 text-foreground/50 transition focus-within:border-primary"
                   >
                     <option value="" disabled>Select a security question</option>
                     {securityQuestions.map((q, i) => (
@@ -195,7 +195,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                     <button
                     type="button"
                     onClick={() => setMode('forgot')}
-                    className="text-white/50 text-sm text-right mt-2 hover:text-white"
+                    className="text-foreground/50 text-sm text-right mt-2 hover:text-foreground"
                     >
                     Forgot Password?
                     </button>
@@ -224,7 +224,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               }
             }}
             disabled={isLoading}
-            className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-full bg-white px-5 text-[14px] font-semibold text-black shadow-[0_0_34px_rgba(255,255,255,0.18)] transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+            className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-5 text-[14px] font-semibold text-primary-foreground shadow-sm transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
           >
             {isLoading ? 'Please wait...' : mode === 'register' ? 'Create Shop Workspace' : mode === 'login' ? 'Login with Password' : securityQuestion ? 'Reset Password' : 'Get Security Question'}
           </button>
@@ -239,7 +239,7 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
     <button
       type="button"
       onClick={onClick}
-      className={`h-10 rounded-[8px] text-[12px] font-semibold transition ${active ? 'bg-white text-black' : 'text-white/58 hover:bg-white/8 hover:text-white'}`}
+      className={`h-10 rounded-[8px] text-[12px] font-semibold transition ${active ? 'bg-primary text-primary-foreground' : 'text-foreground/58 hover:bg-card/8 hover:text-foreground'}`}
     >
       {label}
     </button>
@@ -248,14 +248,14 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
 
 function AuthInput({ icon: Icon, onChange, placeholder, type = 'text', value }: { icon: any; onChange: (value: string) => void; placeholder: string; type?: string; value: string }) {
   return (
-    <label className="flex h-12 items-center gap-3 rounded-full border border-white/12 bg-black/45 px-4 text-white/50 transition focus-within:border-[#78B7FF]">
+    <label className="flex h-12 items-center gap-3 rounded-full border border-border bg-background/45 px-4 text-foreground/50 transition focus-within:border-primary">
       <Icon className="h-4 w-4" />
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full bg-transparent text-[14px] text-white outline-none placeholder:text-white/34"
+        className="w-full bg-transparent text-[14px] text-foreground outline-none placeholder:text-foreground/34"
       />
     </label>
   );

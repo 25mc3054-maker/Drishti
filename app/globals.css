@@ -2,23 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @layer base {
+  :root {
+    --background: 0 0% 0%; /* Pure black for dark theme */
+    --foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+  }
+
+  html.dark {
+    --background: 0 0% 0%; /* Pure black for dark theme */
+    --foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+  }
+
+  html.light {
+    --background: 210 20% 96.1%;
+    --foreground: 215 27.9% 16.9%;
+    --muted-foreground: 215 13.8% 51.4%;
+    --primary: 207 100% 50%;
+    --primary-foreground: 210 40% 98%;
+    --accent: 207 100% 50%;
+    --border: 213 19% 91%;
+    --card-background: 0 0% 100%;
+    --card-foreground: 215 27.9% 16.9%;
+    --card-border: 213 19% 91%;
+    --active-background: 210 100% 97.1%;
+    --active-foreground: 207 100% 50%;
+  }
+
   html {
-    background: #000000;
+    background: hsl(var(--background));
   }
 
   body {
-    @apply bg-black text-white antialiased;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   * {
-    border-color: #1a1a1a;
+    border-color: hsl(var(--border));
   }
 
   ::selection {
     background: rgba(99, 102, 241, 0.35);
-    color: #ffffff;
+    color: hsl(var(--foreground));
   }
 }
 
@@ -32,15 +69,7 @@
   }
 
   .surface-shell {
-    background: #000000;
-  }
-
-  .chip-button {
-    @apply inline-flex h-9 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.055] px-3 text-[12px] font-semibold text-white/70 transition hover:border-white/25 hover:bg-white/10 hover:text-white;
-  }
-
-  .action-button {
-    @apply inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-black/45 px-4 text-[13px] font-semibold text-white transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45;
+    background: hsl(var(--background));
   }
 }
 

@@ -28,11 +28,14 @@ const initialData: DashboardData = {
   storefront: null,
 };
 
+import { ThemeOnboardingModal } from '@/components/enterprise/ThemeOnboardingModal';
+
 export default function EasyTraderPlatform() {
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [data, setData] = useState<DashboardData>(initialData);
   const [authUser, setAuthUser] = useState<any | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [showThemeOnboarding, setShowThemeOnboarding] = useState(false);
 
   const loadData = async () => {
     const [itemsRes, customersRes, invoicesRes, suppliersRes] = await Promise.all([
@@ -67,11 +70,21 @@ export default function EasyTraderPlatform() {
           setData(initialData);
           setIsCheckingSession(false);
         }
-      }, 5000); // 5 second timeout
+      }, 8000); // 8 second timeout, increased for very slow networks
 
       try {
         const response = await fetch('/api/auth/session', { signal: controller.signal });
         clearTimeout(timeoutId);
+
+        if (response.status === 401) {
+          if (!cancelled) {
+            setAuthUser(null);
+            setData(initialData);
+            setIsCheckingSession(false);
+          }
+          return;
+        }
+
         const result = await response.json();
         if (!response.ok || !result.success) throw new Error(result.error || 'No session');
         if (cancelled) return;
@@ -123,9 +136,17 @@ export default function EasyTraderPlatform() {
   }, [authUser?.tenantId]);
 
   const handleAuthenticated = async (user: any) => {
+    const themeOnboardingComplete = localStorage.getItem('theme_onboarding_complete');
+    if (!themeOnboardingComplete) {
+      setShowThemeOnboarding(true);
+    }
     setAuthUser(user);
     setData(await loadData());
     setActiveTab('overview');
+  };
+
+  const handleThemeOnboardingComplete = () => {
+    setShowThemeOnboarding(false);
   };
 
   const logout = async () => {
@@ -136,7 +157,7 @@ export default function EasyTraderPlatform() {
   };
 
   if (isCheckingSession) {
-    return <div className="grid min-h-screen place-items-center bg-black text-white">Loading workspace...</div>;
+    return <div className="grid min-h-screen place-items-center bg-background text-foreground">Loading workspace...</div>;
   }
 
   if (!authUser) {
@@ -144,56 +165,59 @@ export default function EasyTraderPlatform() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-70"
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(255,255,255,0.025), transparent 18%), linear-gradient(90deg, rgba(255,156,42,0.06), transparent 28%, transparent 72%, rgba(59,168,255,0.07))',
-        }}
-      />
-      <Navbar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onLogout={() => { void logout(); }}
-        profileUser={authUser}
-        shopName={authUser.shopName || `Tenant ${String(authUser.tenantId || '').slice(0, 8)}`}
-      />
+    <>
+      {showThemeOnboarding && <ThemeOnboardingModal onComplete={handleThemeOnboardingComplete} />}
+      <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-70"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(255,255,255,0.025), transparent 18%), linear-gradient(90deg, rgba(255,156,42,0.06), transparent 28%, transparent 72%, rgba(59,168,255,0.07))',
+          }}
+        />
+        <Navbar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onLogout={() => { void logout(); }}
+          profileUser={authUser}
+          shopName={authUser.shopName || `Tenant ${String(authUser.tenantId || '').slice(0, 8)}`}
+        />
 
-      <motion.main
-        key={activeTab}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.22, ease: 'easeOut' }}
-        className="mx-auto w-full max-w-[1400px] px-4 pb-16 pt-5 md:px-8"
-      >
-        {(() => {
-          switch (activeTab) {
-            case 'overview':
-              return (
-                <div className="space-y-7">
-                  <HeroSection data={data} onNavigate={setActiveTab} />
-                  <MarqueeTicker />
-                </div>
-              );
-            case 'ai-workspace':
-              return <AIWorkspace />;
-            case 'business-suite':
-              return <BusinessSuite data={data} onDataRefresh={async () => setData(await loadData())} />;
-            case 'database-management':
-              return <DatabaseManagementPage data={data} />;
-            case 'storefront':
-              return <StorefrontPage data={data} onNavigate={setActiveTab} />;
-            case 'insights':
-              return <InsightsPage data={data} onDataRefresh={async () => setData(await loadData())} />;
-            case 'saas-admin':
-              return <SaaSAdminPage onDataRefresh={async () => setData(await loadData())} />;
-            default:
-              return null;
-          }
-        })()}
-      </motion.main>
-    </div>
+        <motion.main
+          key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+          className="mx-auto w-full max-w-[1400px] px-4 pb-16 pt-5 md:px-8"
+        >
+          {(() => {
+            switch (activeTab) {
+              case 'overview':
+                return (
+                  <div className="space-y-7">
+                    <HeroSection data={data} onNavigate={setActiveTab} />
+                    <MarqueeTicker />
+                  </div>
+                );
+              case 'ai-workspace':
+                return <AIWorkspace />;
+              case 'business-suite':
+                return <BusinessSuite data={data} onDataRefresh={async () => setData(await loadData())} />;
+              case 'database-management':
+                return <DatabaseManagementPage data={data} />;
+              case 'storefront':
+                return <StorefrontPage data={data} onNavigate={setActiveTab} />;
+              case 'insights':
+                return <InsightsPage data={data} onDataRefresh={async () => setData(await loadData())} />;
+              case 'saas-admin':
+                return <SaaSAdminPage onDataRefresh={async () => setData(await loadData())} />;
+              default:
+                return null;
+            }
+          })()}
+        </motion.main>
+      </div>
+    </>
   );
 }

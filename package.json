@@ -25,6 +25,7 @@
     "@aws-sdk/lib-dynamodb": "^3.500.0",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
+    "@vercel/analytics": "^2.0.1",
     "formidable-serverless": "^1.1.1",
     "framer-motion": "^11.18.2",
     "lucide-react": "^0.344.0",
