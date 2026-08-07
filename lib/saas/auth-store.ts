@@ -1,4 +1,6 @@
 import { pbkdf2Sync, randomBytes, randomUUID } from 'crypto';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 import { DescribeTableCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import type { TenantRole } from './types';
@@ -28,23 +30,54 @@ type AuthUser = {
   securityAnswerHash?: string;
 };
 
-let keySchemaCache: Promise<{ partitionKey: string; sortKey?: string }> | null = null;
+const USERS_FILE = join(process.cwd(), 'data', 'users.json');
 
-async function getTableKeySchema() {
-  if (!keySchemaCache) {
-    keySchemaCache = (async () => {
-      const result = await client.send(new DescribeTableCommand({ TableName: tableName }));
-      const schema = result.Table?.KeySchema || [];
-      const partitionKey = schema.find((entry) => entry.KeyType === 'HASH')?.AttributeName;
-      const sortKey = schema.find((entry) => entry.KeyType === 'RANGE')?.AttributeName;
-      if (!partitionKey) throw new Error(`Could not determine partition key for table ${tableName}`);
-      return { partitionKey, sortKey };
-    })();
-  }
-  return keySchemaCache;
+function loadLocalUsers(): AuthUser[] {
+  try {
+    if (existsSync(USERS_FILE)) {
+      const content = readFileSync(USERS_FILE, 'utf-8');
+      return JSON.parse(content);
+    }
+  } catch {}
+  return [];
 }
 
-function normalizeMobile(mobile: string) {
+function saveLocalUsers(users: AuthUser[]) {
+  try {
+    const dir = join(process.cwd(), 'data');
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+  } catch {}
+}
+
+const g = globalThis as any;
+if (!g.__DRISHTI_USERS__) {
+  g.__DRISHTI_USERS__ = loadLocalUsers();
+}
+const localUsersStore: AuthUser[] = g.__DRISHTI_USERS__;
+
+let keySchemaCache: Promise<{ partitionKey: string; sortKey?: string }> | null = null;
+
+async function getTableKeySchema(): Promise<{ partitionKey: string; sortKey?: string }> {
+  try {
+    if (!keySchemaCache) {
+      keySchemaCache = (async () => {
+        const result = await client.send(new DescribeTableCommand({ TableName: tableName }));
+        const schema = result.Table?.KeySchema || [];
+        const partitionKey = schema.find((entry) => entry.KeyType === 'HASH')?.AttributeName || 'PK';
+        const sortKey = schema.find((entry) => entry.KeyType === 'RANGE')?.AttributeName;
+        return { partitionKey, sortKey };
+      })();
+    }
+    return await keySchemaCache;
+  } catch {
+    return { partitionKey: 'PK', sortKey: 'SK' };
+  }
+}
+
+export function normalizeMobile(mobile: string) {
   return String(mobile || '').replace(/\D/g, '').slice(-10);
 }
 
@@ -81,51 +114,155 @@ export async function findTenantUserByMobile(mobile: string): Promise<AuthUser |
   const normalized = normalizeMobile(mobile);
   if (!normalized) return null;
 
-  const rows = await scanAll({
-    TableName: tableName,
-    FilterExpression: 'attribute_exists(#mobile) AND #entityType = :entityType AND #mobile = :mobile',
-    ExpressionAttributeNames: {
-      '#entityType': 'entityType',
-      '#mobile': 'mobile',
-    },
-    ExpressionAttributeValues: {
-      ':entityType': 'tenant_user',
-      ':mobile': normalized,
-    },
-  });
-
-  return (rows[0] as AuthUser | undefined) || null;
+  try {
+    const rows = await scanAll({
+      TableName: tableName,
+      FilterExpression: 'attribute_exists(#mobile) AND #entityType = :entityType AND #mobile = :mobile',
+      ExpressionAttributeNames: {
+        '#entityType': 'entityType',
+        '#mobile': 'mobile',
+      },
+      ExpressionAttributeValues: {
+        ':entityType': 'tenant_user',
+        ':mobile': normalized,
+      },
+    });
+    return (rows[0] as AuthUser | undefined) || null;
+  } catch {
+    return localUsersStore.find((u) => u.mobile === normalized) || null;
+  }
 }
 
 export async function findTenantUserById(tenantId: string, userId: string): Promise<AuthUser | null> {
   if (!tenantId || !userId) return null;
 
-  const rows = await scanAll({
-    TableName: tableName,
-    FilterExpression: '#entityType = :entityType AND #tenantId = :tenantId AND #id = :id',
-    ExpressionAttributeNames: {
-      '#entityType': 'entityType',
-      '#tenantId': 'tenant_id',
-      '#id': 'id',
-    },
-    ExpressionAttributeValues: {
-      ':entityType': 'tenant_user',
-      ':tenantId': tenantId,
-      ':id': userId,
-    },
-  });
-
-  return (rows[0] as AuthUser | undefined) || null;
+  try {
+    const rows = await scanAll({
+      TableName: tableName,
+      FilterExpression: '#entityType = :entityType AND #tenantId = :tenantId AND #id = :id',
+      ExpressionAttributeNames: {
+        '#entityType': 'entityType',
+        '#tenantId': 'tenant_id',
+        '#id': 'id',
+      },
+      ExpressionAttributeValues: {
+        ':entityType': 'tenant_user',
+        ':tenantId': tenantId,
+        ':id': userId,
+      },
+    });
+    return (rows[0] as AuthUser | undefined) || null;
+  } catch {
+    return localUsersStore.find((u) => u.tenant_id === tenantId && u.id === userId) || null;
+  }
 }
 
-export async function createTenantUser(input: { name: string; shopName: string; mobile: string; email: string; password: string; securityQuestion: string; securityAnswer: string; }) {
-  const mobile = normalizeMobile(input.mobile);
+export async function findTenantUserByEmail(emailInput: string): Promise<AuthUser | null> {
+  const email = String(emailInput || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) return null;
+
+  try {
+    const rows = await scanAll({
+      TableName: tableName,
+      FilterExpression: '#entityType = :entityType AND #email = :email',
+      ExpressionAttributeNames: {
+        '#entityType': 'entityType',
+        '#email': 'email',
+      },
+      ExpressionAttributeValues: {
+        ':entityType': 'tenant_user',
+        ':email': email,
+      },
+    });
+    return (rows[0] as AuthUser | undefined) || null;
+  } catch {
+    return localUsersStore.find((u) => u.email === email) || null;
+  }
+}
+
+export async function upsertOAuthUser(input: {
+  provider: 'google' | 'microsoft';
+  providerAccountId: string;
+  email: string;
+  name: string;
+  picture?: string;
+  mobile?: string;
+  shopName?: string;
+}) {
   const email = String(input.email || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) throw new Error('Valid email address is required.');
+
+  let existingUser = await findTenantUserByEmail(email);
+
+  if (existingUser) {
+    let updated = false;
+    if (input.name && input.name !== existingUser.name) {
+      existingUser.name = input.name;
+      updated = true;
+    }
+    if (input.shopName && input.shopName !== existingUser.shopName) {
+      existingUser.shopName = input.shopName;
+      updated = true;
+    }
+    if (input.mobile && normalizeMobile(input.mobile).length === 10 && !existingUser.mobile) {
+      existingUser.mobile = normalizeMobile(input.mobile);
+      updated = true;
+    }
+    if (updated) {
+      existingUser.updatedAt = new Date().toISOString();
+      try {
+        await docClient.send(new PutCommand({ TableName: tableName, Item: existingUser }));
+      } catch {
+        saveLocalUsers(localUsersStore);
+      }
+    }
+    return existingUser;
+  }
+
+  const tenantId = randomUUID();
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  const { partitionKey, sortKey } = await getTableKeySchema();
+  const finalMobile = input.mobile && normalizeMobile(input.mobile).length === 10
+    ? normalizeMobile(input.mobile)
+    : `${Math.floor(6000000000 + Math.random() * 3999999999)}`;
+
+  const finalShopName = input.shopName?.trim() || `${input.name ? input.name.split(' ')[0] : 'My'}'s ${input.provider.charAt(0).toUpperCase() + input.provider.slice(1)} Shop`;
+
+  const user: AuthUser = {
+    ...tenantKeyValues(partitionKey, sortKey, tenantId, 'tenant_user', id),
+    id,
+    tenant_id: tenantId,
+    shopId: tenantId,
+    entityType: 'tenant_user',
+    name: String(input.name || email.split('@')[0] || 'Shopkeeper').trim(),
+    shopName: finalShopName,
+    mobile: finalMobile,
+    email,
+    passwordHash: hashPassword(randomUUID()),
+    securityQuestion: `Authenticated via ${input.provider.toUpperCase()} OAuth 2.0`,
+    securityAnswerHash: hashPassword(input.providerAccountId),
+    role: 'admin',
+    createdAt: now,
+    updatedAt: now,
+  } as AuthUser;
+
+  try {
+    await docClient.send(new PutCommand({ TableName: tableName, Item: user }));
+  } catch {
+    localUsersStore.push(user);
+    saveLocalUsers(localUsersStore);
+  }
+
+  return user;
+}
+
+export async function createTenantUser(input: { name?: string; shopName?: string; mobile: string; email?: string; password: string; securityQuestion?: string; securityAnswer?: string; }) {
+  const mobile = normalizeMobile(input.mobile);
+  const email = String(input.email || `${mobile}@drishti.local`).trim().toLowerCase();
   if (!mobile || mobile.length !== 10) throw new Error('Enter a valid 10 digit mobile number.');
   if (!email || !email.includes('@')) throw new Error('Enter a valid email address.');
   if (!input.password || input.password.length < 6) throw new Error('Password must be at least 6 characters.');
-  if (!input.securityQuestion || input.securityQuestion.length < 5) throw new Error('Security question must be at least 5 characters.');
-  if (!input.securityAnswer || input.securityAnswer.length < 3) throw new Error('Security answer must be at least 3 characters.');
 
   const existing = await findTenantUserByMobile(mobile);
   if (existing) throw new Error('A shopkeeper account already exists for this mobile number.');
@@ -145,14 +282,112 @@ export async function createTenantUser(input: { name: string; shopName: string; 
     mobile,
     email,
     passwordHash: hashPassword(input.password),
-    securityQuestion: input.securityQuestion,
-    securityAnswerHash: hashPassword(input.securityAnswer),
+    securityQuestion: input.securityQuestion || 'What is your shop name?',
+    securityAnswerHash: hashPassword(input.securityAnswer || 'My Shop'),
     role: 'admin',
     createdAt: now,
     updatedAt: now,
   } as AuthUser;
 
-  await docClient.send(new PutCommand({ TableName: tableName, Item: user }));
+  try {
+    await docClient.send(new PutCommand({ TableName: tableName, Item: user }));
+  } catch (err: any) {
+    localUsersStore.push(user);
+    saveLocalUsers(localUsersStore);
+  }
+
+  return user;
+}
+
+export async function findOrCreateSocialUser(input: {
+  provider: 'google' | 'apple' | 'microsoft';
+  email: string;
+  name?: string;
+  mobile?: string;
+  shopName?: string;
+}) {
+  const email = String(input.email || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) throw new Error('Enter a valid email address.');
+
+  let existingUser: AuthUser | null = null;
+  try {
+    const rows = await scanAll({
+      TableName: tableName,
+      FilterExpression: '#entityType = :entityType AND #email = :email',
+      ExpressionAttributeNames: {
+        '#entityType': 'entityType',
+        '#email': 'email',
+      },
+      ExpressionAttributeValues: {
+        ':entityType': 'tenant_user',
+        ':email': email,
+      },
+    });
+    existingUser = (rows[0] as AuthUser | undefined) || null;
+  } catch {
+    existingUser = localUsersStore.find((u) => u.email === email) || null;
+  }
+
+  if (existingUser) {
+    let updated = false;
+    if (input.name && input.name !== existingUser.name) {
+      existingUser.name = input.name;
+      updated = true;
+    }
+    if (input.shopName && input.shopName !== existingUser.shopName) {
+      existingUser.shopName = input.shopName;
+      updated = true;
+    }
+    if (input.mobile && normalizeMobile(input.mobile).length === 10) {
+      existingUser.mobile = normalizeMobile(input.mobile);
+      updated = true;
+    }
+    if (updated) {
+      existingUser.updatedAt = new Date().toISOString();
+      try {
+        await docClient.send(new PutCommand({ TableName: tableName, Item: existingUser }));
+      } catch (err: any) {
+        saveLocalUsers(localUsersStore);
+      }
+    }
+    return existingUser;
+  }
+
+  const tenantId = randomUUID();
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  const { partitionKey, sortKey } = await getTableKeySchema();
+  const finalMobile = input.mobile && normalizeMobile(input.mobile).length === 10
+    ? normalizeMobile(input.mobile)
+    : `${Math.floor(6000000000 + Math.random() * 3999999999)}`;
+
+  const finalShopName = input.shopName?.trim() || `${input.name ? input.name.split(' ')[0] : 'My'}'s ${input.provider.charAt(0).toUpperCase() + input.provider.slice(1)} Shop`;
+
+  const user: AuthUser = {
+    ...tenantKeyValues(partitionKey, sortKey, tenantId, 'tenant_user', id),
+    id,
+    tenant_id: tenantId,
+    shopId: tenantId,
+    entityType: 'tenant_user',
+    name: String(input.name || email.split('@')[0] || 'Shopkeeper').trim(),
+    shopName: finalShopName,
+    mobile: finalMobile,
+    email,
+    passwordHash: hashPassword(randomUUID()),
+    securityQuestion: 'Authenticated via Social Single Sign-On',
+    securityAnswerHash: hashPassword(input.provider),
+    role: 'admin',
+    createdAt: now,
+    updatedAt: now,
+  } as AuthUser;
+
+  try {
+    await docClient.send(new PutCommand({ TableName: tableName, Item: user }));
+  } catch (err: any) {
+    localUsersStore.push(user);
+    saveLocalUsers(localUsersStore);
+  }
+
   return user;
 }
 
@@ -205,29 +440,39 @@ export async function updateTenantUserProfile(input: {
     updatedAt: new Date().toISOString(),
   } as AuthUser;
 
-  await docClient.send(new PutCommand({ TableName: tableName, Item: updated }));
+  try {
+    await docClient.send(new PutCommand({ TableName: tableName, Item: updated }));
+  } catch {
+    const idx = localUsersStore.findIndex((u) => u.id === user.id);
+    if (idx !== -1) localUsersStore[idx] = updated;
+    else localUsersStore.push(updated);
+    saveLocalUsers(localUsersStore);
+  }
+
   return updated;
 }
-
 
 export async function findUserByEmail(email: string): Promise<AuthUser | null> {
   const normalized = String(email || '').trim().toLowerCase();
   if (!normalized) return null;
 
-  const rows = await scanAll({
-    TableName: tableName,
-    FilterExpression: 'attribute_exists(#email) AND #entityType = :entityType AND #email = :email',
-    ExpressionAttributeNames: {
-      '#entityType': 'entityType',
-      '#email': 'email',
-    },
-    ExpressionAttributeValues: {
-      ':entityType': 'tenant_user',
-      ':email': normalized,
-    },
-  });
-
-  return (rows[0] as AuthUser | undefined) || null;
+  try {
+    const rows = await scanAll({
+      TableName: tableName,
+      FilterExpression: 'attribute_exists(#email) AND #entityType = :entityType AND #email = :email',
+      ExpressionAttributeNames: {
+        '#entityType': 'entityType',
+        '#email': 'email',
+      },
+      ExpressionAttributeValues: {
+        ':entityType': 'tenant_user',
+        ':email': normalized,
+      },
+    });
+    return (rows[0] as AuthUser | undefined) || null;
+  } catch {
+    return localUsersStore.find((u) => u.email === normalized) || null;
+  }
 }
 
 export async function updateUserPassword(email: string, newPassword: string): Promise<AuthUser> {
@@ -245,10 +490,44 @@ export async function updateUserPassword(email: string, newPassword: string): Pr
     updatedAt: new Date().toISOString(),
   } as AuthUser;
 
-  await docClient.send(new PutCommand({ TableName: tableName, Item: updated }));
+  try {
+    await docClient.send(new PutCommand({ TableName: tableName, Item: updated }));
+  } catch {
+    const idx = localUsersStore.findIndex((u) => u.id === user.id);
+    if (idx !== -1) localUsersStore[idx] = updated;
+    else localUsersStore.push(updated);
+    saveLocalUsers(localUsersStore);
+  }
+
   return updated;
 }
 
+export async function updateUserPasswordByMobile(mobile: string, newPassword: string): Promise<AuthUser> {
+  const user = await findTenantUserByMobile(mobile);
+  if (!user) throw new Error('User not found.');
+
+  if (!newPassword || newPassword.length < 6) throw new Error('Password must be at least 6 characters.');
+  const passwordHash = hashPassword(newPassword);
+
+  const { partitionKey, sortKey } = await getTableKeySchema();
+  const updated: AuthUser = {
+    ...user,
+    ...tenantKeyValues(partitionKey, sortKey, user.tenant_id, 'tenant_user', user.id),
+    passwordHash,
+    updatedAt: new Date().toISOString(),
+  } as AuthUser;
+
+  try {
+    await docClient.send(new PutCommand({ TableName: tableName, Item: updated }));
+  } catch {
+    const idx = localUsersStore.findIndex((u) => u.id === user.id);
+    if (idx !== -1) localUsersStore[idx] = updated;
+    else localUsersStore.push(updated);
+    saveLocalUsers(localUsersStore);
+  }
+
+  return updated;
+}
 
 export function publicUser(user: AuthUser) {
   return {

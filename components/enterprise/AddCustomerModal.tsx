@@ -6,7 +6,7 @@ import { UserPlus, X } from 'lucide-react';
 
 interface AddCustomerModalProps {
   onClose: () => void;
-  onCustomerAdded: () => void;
+  onCustomerAdded: (customer?: any) => void;
 }
 
 export function AddCustomerModal({ onClose, onCustomerAdded }: AddCustomerModalProps) {
@@ -19,10 +19,18 @@ export function AddCustomerModal({ onClose, onCustomerAdded }: AddCustomerModalP
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!name || !phone) {
-      setError('Name and phone are required.');
+    const finalPhone = phone.trim();
+    let finalName = name.trim();
+
+    if (!finalPhone && !finalName) {
+      setError('Please enter a phone number or customer name.');
       return;
     }
+
+    if (!finalName) {
+      finalName = `Customer ${finalPhone}`;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -30,13 +38,13 @@ export function AddCustomerModal({ onClose, onCustomerAdded }: AddCustomerModalP
       const response = await fetch('/api/saas/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, email, address }),
+        body: JSON.stringify({ name: finalName, phone: finalPhone, email, address }),
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
         throw new Error(result.error || 'Failed to add customer.');
       }
-      onCustomerAdded();
+      onCustomerAdded(result.customer);
       onClose();
     } catch (err: any) {
       setError(err.message);
@@ -46,12 +54,15 @@ export function AddCustomerModal({ onClose, onCustomerAdded }: AddCustomerModalP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm overflow-y-auto"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0A0C0F] p-6 shadow-2xl"
+        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#0A0C0F] p-5 sm:p-6 shadow-2xl"
       >
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-3 text-xl font-semibold text-white">
@@ -70,16 +81,15 @@ export function AddCustomerModal({ onClose, onCustomerAdded }: AddCustomerModalP
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-white/70">
-              Full Name
+              Full Name (Optional)
             </label>
             <input
               id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              required
-              className="mt-1 block w-full h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
-              placeholder="e.g. Rohan Sharma"
+              className="mt-1 block w-full h-11 rounded-full border border-white/12 bg-black/45 px-4 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
+              placeholder="e.g. Rohan Sharma (Optional)"
             />
           </div>
           <div>
@@ -92,7 +102,7 @@ export function AddCustomerModal({ onClose, onCustomerAdded }: AddCustomerModalP
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
-              className="mt-1 block w-full h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
+              className="mt-1 block w-full h-11 rounded-full border border-white/12 bg-black/45 px-4 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
               placeholder="e.g. 9876543210"
             />
           </div>
@@ -105,7 +115,7 @@ export function AddCustomerModal({ onClose, onCustomerAdded }: AddCustomerModalP
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
+              className="mt-1 block w-full h-11 rounded-full border border-white/12 bg-black/45 px-4 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
               placeholder="e.g. rohan@example.com"
             />
           </div>
