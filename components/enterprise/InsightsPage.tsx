@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, MessageCircle, ReceiptText, RefreshCw, TrendingUp, Users } from 'lucide-react';
+import { BellRing, CheckCircle2, MessageCircle, ReceiptText, RefreshCw, Send, TrendingUp, Users } from 'lucide-react';
 import type { DashboardData } from './types';
 import { formatDate, formatMoney } from './utils';
 
 interface InsightsPageProps {
   data: DashboardData;
   onDataRefresh?: () => Promise<void>;
+  theme?: 'dark' | 'light';
 }
 
 type ReminderDue = {
@@ -43,7 +44,8 @@ function isOpenCreditInvoice(invoice: any) {
   return paymentMethod(invoice) === 'credit' && !invoice.creditClearedAt && invoice.status !== 'paid';
 }
 
-export function InsightsPage({ data, onDataRefresh }: InsightsPageProps) {
+export function InsightsPage({ data, onDataRefresh, theme = 'dark' }: InsightsPageProps) {
+  const isLight = theme === 'light';
   const [dueReminders, setDueReminders] = useState<ReminderDue[]>([]);
   const [isLoadingReminders, setIsLoadingReminders] = useState(false);
   const [insightStatus, setInsightStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({ type: 'idle', message: '' });
@@ -90,54 +92,38 @@ export function InsightsPage({ data, onDataRefresh }: InsightsPageProps) {
 
   const loadDueReminders = async () => {
     setIsLoadingReminders(true);
-    setInsightStatus({ type: 'idle', message: '' });
     try {
-      const response = await fetch('/api/credit-reminders');
-      const result = await response.json();
-      if (!response.ok || !result.success) throw new Error(result.error || 'Unable to load credit reminders.');
-      setDueReminders(result.due || []);
-      setInsightStatus({ type: 'success', message: `${(result.due || []).length} weekly credit reminder${(result.due || []).length === 1 ? '' : 's'} due.` });
-    } catch (error: any) {
-      setInsightStatus({ type: 'error', message: error.message || 'Unable to load credit reminders.' });
+      const response = await fetch('/api/saas/credit-reminders');
+      const payload = await response.json();
+      if (payload.dueReminders) setDueReminders(payload.dueReminders || []);
+    } catch {
+      // fallback
     } finally {
       setIsLoadingReminders(false);
     }
   };
 
   const sendReminder = async (invoiceId: string, recordManualSend = false) => {
-    setInsightStatus({ type: 'idle', message: '' });
     try {
-      const response = await fetch('/api/credit-reminders', {
+      await fetch('/api/saas/credit-reminders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId, recordManualSend }),
+        body: JSON.stringify({ action: 'touch', invoiceId, recordManualSend }),
       });
-      const result = await response.json();
-      if (!response.ok || !result.success) throw new Error(result.error || 'Unable to send reminder.');
-      setInsightStatus({ type: 'success', message: 'Credit reminder processed.' });
       await loadDueReminders();
-      await onDataRefresh?.();
-    } catch (error: any) {
-      setInsightStatus({ type: 'error', message: error.message || 'Unable to send reminder.' });
-    }
+    } catch {}
   };
 
   const clearCredit = async (invoiceId: string) => {
-    setInsightStatus({ type: 'idle', message: '' });
     try {
-      const response = await fetch('/api/credit-reminders', {
+      await fetch('/api/saas/credit-reminders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'clear', invoiceId }),
       });
-      const result = await response.json();
-      if (!response.ok || !result.success) throw new Error(result.error || 'Unable to clear credit invoice.');
-      setInsightStatus({ type: 'success', message: 'Credit invoice marked as paid.' });
       await loadDueReminders();
       await onDataRefresh?.();
-    } catch (error: any) {
-      setInsightStatus({ type: 'error', message: error.message || 'Unable to clear credit invoice.' });
-    }
+    } catch {}
   };
 
   const primaryMetrics = [
@@ -158,18 +144,28 @@ export function InsightsPage({ data, onDataRefresh }: InsightsPageProps) {
   ];
 
   return (
-    <section className="space-y-8">
+    <section className={`space-y-6 sm:space-y-8 rounded-2xl p-3.5 sm:p-6 transition-colors border-0 ${
+      isLight ? 'bg-white text-black shadow-sm' : 'bg-black text-white'
+    }`}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <div className="text-[11px] uppercase tracking-[0.15em] text-[#6B7280]">Insights</div>
-          <h2 className="text-[32px] font-semibold tracking-normal text-white">Correct business calculations from invoices, customers, and stock.</h2>
-          <p className="max-w-3xl text-[15px] leading-6 text-[#9CA3AF]">All revenue and count cards live here so the rest of the product stays operational, not noisy.</p>
+        <div className="space-y-1">
+          <div className={`text-[12px] font-bold uppercase tracking-wider ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>Insights</div>
+          <h1 className={`text-[28px] font-extrabold tracking-tight ${isLight ? 'text-black' : 'text-white'}`}>
+            Business revenue, credit, and operational metrics
+          </h1>
+          <p className={`max-w-3xl text-[14.5px] font-medium ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
+            Real-time analytics computed directly from store transactions and inventory.
+          </p>
         </div>
         <button
           type="button"
           onClick={() => { void loadDueReminders(); }}
           disabled={isLoadingReminders}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-[8px] border border-white/12 bg-white px-5 text-[14px] font-semibold text-black transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+          className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl border-0 px-5 text-[13px] font-bold transition disabled:opacity-50 ${
+            isLight
+              ? 'bg-black text-white hover:bg-zinc-800'
+              : 'bg-white text-black hover:bg-zinc-200'
+          }`}
         >
           <RefreshCw className={`h-4 w-4 ${isLoadingReminders ? 'animate-spin' : ''}`} />
           Check Credit Reminders
@@ -178,105 +174,116 @@ export function InsightsPage({ data, onDataRefresh }: InsightsPageProps) {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {primaryMetrics.map((metric, index) => (
-          <MetricCard key={metric.label} index={index} label={metric.label} value={metric.value} helper={metric.helper} />
+          <MetricCard isLight={isLight} icon={TrendingUp} key={metric.label} index={index} label={metric.label} value={metric.value} helper={metric.helper} />
         ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="rounded-[8px] border border-[#1A1A1A] bg-[#0A0A0A] p-5">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-[#6B7280]">
-            <Users className="h-4 w-4 text-white" />
+        <div className={`rounded-xl border p-5 ${
+          isLight ? 'border-transparent bg-zinc-50 text-black shadow-sm' : 'border-zinc-800 bg-black text-white'
+        }`}>
+          <div className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider ${
+            isLight ? 'text-zinc-500' : 'text-zinc-400'
+          }`}>
+            <Users className="h-4 w-4 text-current" />
             Customers by payment mode
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {paymentMetrics.map((metric) => (
-              <div key={metric.label} className="rounded-[8px] border border-white/10 bg-white/[0.035] p-4">
-                <div className="text-[12px] text-[#9CA3AF]">{metric.label}</div>
-                <div className="mt-2 text-[30px] font-semibold text-white">{metric.value}</div>
-                <div className="mt-1 text-[13px] text-[#6B7280]">₹{formatMoney(metric.amount)} billed</div>
+              <div key={metric.label} className={`rounded-xl border p-4 transition-all ${
+                isLight ? 'border-transparent bg-white text-black' : 'border-zinc-800 bg-black text-white'
+              }`}>
+                <div className={`text-[12px] font-semibold ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>{metric.label}</div>
+                <div className={`mt-1.5 text-[28px] font-extrabold ${isLight ? 'text-black' : 'text-white'}`}>{metric.value}</div>
+                <div className={`mt-1 text-[12.5px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>₹{formatMoney(metric.amount)} billed</div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-[8px] border border-[#1A1A1A] bg-[#0A0A0A] p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-[#6B7280]">
-              <MessageCircle className="h-4 w-4 text-white" />
-              Weekly credit reminders
+        <div className={`rounded-xl border p-5 ${
+          isLight ? 'border-transparent bg-zinc-50 text-black shadow-sm' : 'border-zinc-800 bg-black text-white'
+        }`}>
+          <div className="flex items-center justify-between gap-3 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+            <div>
+              <div className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider ${
+                isLight ? 'text-zinc-500' : 'text-zinc-400'
+              }`}>
+                <BellRing className="h-4 w-4 text-amber-500" />
+                Due Credit Reminders
+              </div>
+              <div className={`text-[12.5px] font-medium ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                Active follow-ups ready for manual dispatch
+              </div>
             </div>
-            <div className="text-[12px] text-[#9CA3AF]">Cron: Monday 09:00 UTC</div>
+            <span className={`rounded-full border px-3 py-1 text-[11.5px] font-bold ${
+              isLight ? 'border-transparent bg-zinc-100 text-black' : 'border-zinc-800 bg-black text-white'
+            }`}>
+              {dueReminders.length} Due
+            </span>
           </div>
 
-          {insightStatus.message ? (
-            <div className={`mt-4 rounded-[8px] border px-3 py-2 text-[13px] ${insightStatus.type === 'error' ? 'border-red-400/35 bg-red-500/10 text-red-100' : 'border-emerald-400/35 bg-emerald-500/10 text-emerald-100'}`}>
-              {insightStatus.message}
-            </div>
-          ) : null}
-
           <div className="mt-4 space-y-3">
-            {(dueReminders.length ? dueReminders : insights.openCreditInvoices.map((invoice: any) => ({
-              invoiceId: invoice.id,
-              customer: invoice.customer || null,
-              total: Number(invoice.total || 0),
-              createdAt: invoice.createdAt,
-              lastCreditReminderAt: invoice.lastCreditReminderAt || null,
-              phone: String(invoice.customer?.phone || ''),
-              message: '',
-              whatsappUrl: '',
-            }))).map((entry: ReminderDue) => (
-              <div key={entry.invoiceId} className="rounded-[8px] border border-white/10 bg-white/[0.035] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-white">{entry.customer?.name || 'Credit customer'}</div>
-                    <div className="mt-1 text-[12px] text-[#6B7280]">Bill {String(entry.invoiceId).slice(0, 10)} • {formatDate(entry.createdAt)}</div>
+            {dueReminders.map((reminder) => (
+              <div
+                key={reminder.invoiceId}
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 transition-all ${
+                  isLight
+                    ? 'border-transparent bg-white text-black'
+                    : 'border-zinc-800 bg-black text-white'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[14px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>
+                      {reminder.customer?.name || reminder.phone || 'Walk-in Customer'}
+                    </span>
+                    <span className={`rounded-md border px-1.5 py-0.5 text-[10.5px] font-bold ${
+                      isLight ? 'border-transparent bg-zinc-200 text-black' : 'border-zinc-800 bg-black text-white'
+                    }`}>
+                      INV-{String(reminder.invoiceId).slice(0, 6)}
+                    </span>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[18px] font-semibold text-white">₹{formatMoney(entry.total)}</div>
-                    <div className="text-[12px] text-[#6B7280]">{entry.lastCreditReminderAt ? `Last: ${formatDate(entry.lastCreditReminderAt)}` : 'No reminder sent'}</div>
+                  <div className={`mt-1 text-[12px] font-medium ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                    Due Amount: <strong className={isLight ? 'text-black' : 'text-white'}>₹{formatMoney(Number(reminder.total || 0))}</strong>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {entry.whatsappUrl ? (
-                    <a
-                      href={entry.whatsappUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => { void sendReminder(entry.invoiceId, true); }}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] font-semibold text-white transition hover:border-white/28 hover:bg-white/10"
-                    >
-                      <MessageCircle className="h-4 w-4" />
-                      Open WhatsApp
-                    </a>
-                  ) : (
-                    <button type="button" onClick={() => { void sendReminder(entry.invoiceId); }} className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] font-semibold text-white transition hover:border-white/28 hover:bg-white/10">
-                      <MessageCircle className="h-4 w-4" />
-                      Send Reminder
-                    </button>
-                  )}
-                  <button type="button" onClick={() => { void clearCredit(entry.invoiceId); }} className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-emerald-300/24 bg-emerald-400/10 px-4 text-[13px] font-semibold text-emerald-100 transition hover:bg-emerald-400/16">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Mark Paid
-                  </button>
-                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { void sendReminder(reminder.invoiceId, true); }}
+                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-[12px] font-bold transition ${
+                    isLight
+                      ? 'border-transparent bg-black text-white hover:bg-zinc-800'
+                      : 'border-zinc-800 bg-black text-white hover:bg-zinc-900'
+                  }`}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  <span>Send Follow-up</span>
+                </button>
               </div>
             ))}
 
-            {insights.openCreditInvoices.length === 0 ? (
-              <div className="rounded-[8px] border border-dashed border-white/12 p-6 text-center text-[14px] leading-6 text-[#9CA3AF]">
-                No open credit invoices. Weekly reminders will start automatically when a credit bill is created.
+            {dueReminders.length === 0 ? (
+              <div className={`rounded-xl border p-6 text-center text-[12.5px] font-medium ${
+                isLight ? 'border-transparent bg-white text-zinc-500' : 'border-zinc-800 bg-black text-zinc-400'
+              }`}>
+                No open credit invoices found.
               </div>
             ) : null}
           </div>
         </div>
       </div>
 
-      <div className="rounded-[8px] border border-[#1A1A1A] bg-[#0A0A0A] p-5">
-        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-[#6B7280]">
-          <ReceiptText className="h-4 w-4 text-white" />
+      <div className={`rounded-xl border p-5 ${
+        isLight ? 'border-transparent bg-zinc-50 text-black' : 'border-zinc-800 bg-black text-white'
+      }`}>
+        <div className={`text-[12px] font-bold uppercase tracking-wider ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
           Calculation rules
         </div>
-        <div className="mt-4 grid gap-3 text-[13px] leading-6 text-[#D1D5DB] md:grid-cols-3">
+        <div className={`mt-3 grid gap-3 text-[13px] font-medium leading-6 md:grid-cols-3 ${
+          isLight ? 'text-zinc-600' : 'text-zinc-400'
+        }`}>
           <p>Revenue is the sum of invoice totals. It does not use order placeholders.</p>
           <p>Stock sold is the sum of invoice item line totals. Remaining stock is current item price times quantity.</p>
           <p>Credit reminders repeat weekly only for unpaid credit invoices until they are marked paid.</p>
@@ -286,7 +293,7 @@ export function InsightsPage({ data, onDataRefresh }: InsightsPageProps) {
   );
 }
 
-function MetricCard({ helper, index, label, value }: { helper: string; index: number; label: string; value: string }) {
+function MetricCard({ helper, icon: Icon, index, isLight, label, value }: { helper: string; icon: any; index: number; isLight?: boolean; label: string; value: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -294,14 +301,16 @@ function MetricCard({ helper, index, label, value }: { helper: string; index: nu
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.22, delay: index * 0.025, ease: 'easeOut' }}
       whileHover={{ y: -2 }}
-      className="rounded-[8px] border border-[#1A1A1A] bg-[#0A0A0A] p-5"
+      className={`rounded-xl border p-5 transition-all ${
+        isLight ? 'border-zinc-200 bg-white text-black' : 'border-zinc-800 bg-black text-white'
+      }`}
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[11px] uppercase tracking-[0.15em] text-[#6B7280]">{label}</div>
-        <TrendingUp className="h-4 w-4 text-[#10B981]" />
+        <div className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>{label}</div>
+        <TrendingUp className="h-4 w-4 text-emerald-500" />
       </div>
-      <div className="mt-3 text-[30px] font-bold tracking-normal text-white">{value}</div>
-      <div className="mt-2 text-[12px] leading-5 text-[#6B7280]">{helper}</div>
+      <div className={`mt-3 text-[28px] font-extrabold ${isLight ? 'text-black' : 'text-white'}`}>{value}</div>
+      <div className={`mt-1.5 text-[12.5px] font-medium ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>{helper}</div>
     </motion.div>
   );
 }

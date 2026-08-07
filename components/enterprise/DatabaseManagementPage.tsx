@@ -20,6 +20,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { RecentSearchInput } from './RecentSearchInput';
 import type { DashboardData } from './types';
 
 type Provider = {
@@ -33,50 +34,41 @@ type Provider = {
 
 type DatabaseManagementPageProps = {
   data: DashboardData;
+  theme?: 'dark' | 'light';
 };
 
 const providers: Provider[] = [
   {
     id: 'mysql',
-    name: 'MySQL',
-    type: 'Relational',
-    description: 'Connect a MySQL catalog from a secure server-side adapter.',
-    accent: '#5FB4FF',
+    name: 'MySQL Database',
+    type: 'SQL',
+    description: 'Sync products and inventory directly from your MySQL table.',
+    accent: '#4A90E2',
     fields: [
-      { key: 'host', label: 'Host', placeholder: 'db.company.com' },
+      { key: 'host', label: 'Host / Endpoint', placeholder: 'db.example.com' },
       { key: 'port', label: 'Port', placeholder: '3306' },
-      { key: 'username', label: 'Username' },
+      { key: 'database', label: 'Database Name', placeholder: 'inventory_db' },
+      { key: 'user', label: 'Database User', placeholder: 'readonly_user' },
       { key: 'password', label: 'Password', type: 'password' },
-      { key: 'database', label: 'Database Name' },
+      { key: 'table', label: 'Product Table Name', placeholder: 'products' },
     ],
   },
   {
     id: 'postgresql',
-    name: 'PostgreSQL',
-    type: 'Relational',
-    description: 'Connect a PostgreSQL product or inventory database.',
-    accent: '#81D4FA',
+    name: 'PostgreSQL Database',
+    type: 'SQL',
+    description: 'Connect a PostgreSQL or CockroachDB product repository.',
+    accent: '#3178C6',
     fields: [
-      { key: 'host', label: 'Host', placeholder: 'pg.company.com' },
-      { key: 'port', label: 'Port', placeholder: '5432' },
-      { key: 'username', label: 'Username' },
-      { key: 'password', label: 'Password', type: 'password' },
-      { key: 'database', label: 'Database Name' },
+      { key: 'connectionString', label: 'Connection String', placeholder: 'postgres://user:pass@host:5432/dbname', type: 'password' },
+      { key: 'table', label: 'Product Table Name', placeholder: 'public.items' },
     ],
-  },
-  {
-    id: 'mongodb',
-    name: 'MongoDB',
-    type: 'Document',
-    description: 'Connect a MongoDB product collection.',
-    accent: '#5EE1A2',
-    fields: [{ key: 'uri', label: 'Connection URI', type: 'password', placeholder: 'mongodb+srv://...' }],
   },
   {
     id: 'supabase',
     name: 'Supabase',
-    type: 'Platform',
-    description: 'Connect a Supabase project through a server-side key.',
+    type: 'Cloud Database',
+    description: 'Import products from a Supabase project instance.',
     accent: '#66F2BC',
     fields: [
       { key: 'projectUrl', label: 'Project URL', placeholder: 'https://project.supabase.co' },
@@ -110,7 +102,8 @@ const providers: Provider[] = [
   },
 ];
 
-export function DatabaseManagementPage({ data }: DatabaseManagementPageProps) {
+export function DatabaseManagementPage({ data, theme = 'dark' }: DatabaseManagementPageProps) {
+  const isLight = theme === 'light';
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [selectedProviderId, setSelectedProviderId] = useState(providers[0].id);
   const [searchTerm, setSearchTerm] = useState('');
@@ -146,53 +139,66 @@ export function DatabaseManagementPage({ data }: DatabaseManagementPageProps) {
   };
 
   return (
-    <section className="relative -mx-4 overflow-hidden px-4 pb-12 pt-3 md:-mx-8 md:px-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(95,180,255,0.14),transparent_24%),radial-gradient(circle_at_86%_12%,rgba(255,156,42,0.12),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_30%)]" />
+    <section className={`relative rounded-2xl p-6 transition-colors border-0 ${
+      isLight ? 'bg-white text-black shadow-sm' : 'bg-black text-white'
+    }`}>
       <div className="relative space-y-6">
         <header className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.55fr)] lg:items-end">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.055] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-normal text-white/56">
-              <Database className="h-3.5 w-3.5 text-[#81D4FA]" />
+            <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider ${
+              isLight ? 'bg-zinc-100 text-black' : 'bg-zinc-900 text-white'
+            }`}>
+              <Database className="h-3.5 w-3.5 text-blue-500" />
               Database Management
             </div>
-            <h1 className="mt-4 max-w-4xl text-[42px] font-semibold leading-[1.04] tracking-normal text-white md:text-[58px]">
+            <h1 className={`mt-3 max-w-4xl text-[36px] font-extrabold tracking-tight md:text-[48px] ${
+              isLight ? 'text-black' : 'text-white'
+            }`}>
               Product data sources
             </h1>
-            <p className="mt-4 max-w-3xl text-[15px] leading-7 text-white/58">
-              This page shows only data available in this SaaS workspace. External database metrics appear after a real connector is saved.
+            <p className={`mt-2 text-[15px] font-medium ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
+              Connect external databases and APIs to sync items directly into your workspace catalog.
             </p>
           </div>
 
-          <div className="rounded-[8px] border border-white/10 bg-[#05070A] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <div className={`rounded-xl p-4 shadow-sm border-0 ${
+            isLight ? 'bg-zinc-50 text-black' : 'bg-black text-white'
+          }`}>
             <div className="flex items-center justify-between gap-3">
-              <PanelTitle icon={ShieldCheck} title="Connection Safety" meta="No credentials stored" />
-              <span className="rounded-full border border-amber-300/25 bg-amber-400/10 px-3 py-1 text-[12px] font-semibold text-amber-100">Not connected</span>
+              <PanelTitle isLight={isLight} icon={ShieldCheck} title="Connection Safety" meta="No credentials stored" />
+              <span className={`rounded-full border px-3 py-1 text-[12px] font-semibold ${
+                isLight ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-amber-300/25 bg-amber-400/10 text-amber-100'
+              }`}>Not connected</span>
             </div>
-            <div className="mt-4 grid gap-2 text-[13px] text-white/58">
-              <SecurityLine icon={LockKeyhole} text="No external database credentials are saved." />
-              <SecurityLine icon={KeyRound} text="Connection testing requires a server-side connector endpoint." />
+            <div className="mt-4 grid gap-2 text-[13px]">
+              <SecurityLine isLight={isLight} icon={LockKeyhole} text="No external database credentials are saved." />
+              <SecurityLine isLight={isLight} icon={KeyRound} text="Connection testing requires a server-side connector endpoint." />
             </div>
           </div>
         </header>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard icon={Database} label="Connected Databases" value="0" helper="No external source connected" />
-          <MetricCard icon={PackageSearch} label="SaaS Products" value={String(inventoryStats.totalProducts)} helper={`${inventoryStats.totalStock} units in stock`} />
-          <MetricCard icon={Users} label="Customers" value={String((data.customers || []).length)} helper="Current tenant data" />
-          <MetricCard icon={ReceiptText} label="Invoices" value={String((data.invoices || []).length)} helper={`₹${formatMoney(totalRevenue)} total billed`} />
+          <MetricCard isLight={isLight} icon={Database} label="Connected Databases" value="0" helper="No external source connected" />
+          <MetricCard isLight={isLight} icon={PackageSearch} label="SaaS Products" value={String(inventoryStats.totalProducts)} helper={`${inventoryStats.totalStock} units in stock`} />
+          <MetricCard isLight={isLight} icon={Users} label="Customers" value={String((data.customers || []).length)} helper="Current tenant data" />
+          <MetricCard isLight={isLight} icon={ReceiptText} label="Invoices" value={String((data.invoices || []).length)} helper={`₹${formatMoney(totalRevenue)} total billed`} />
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.55fr)]">
-          <div className="rounded-[8px] border border-white/10 bg-[#05070A] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+          <div className={`rounded-xl border p-4 shadow-sm ${
+            isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-[#05070A] text-white'
+          }`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <PanelTitle icon={Server} title="External Database Connections" meta="Real saved connectors only" />
+              <PanelTitle isLight={isLight} icon={Server} title="External Database Connections" meta="Real saved connectors only" />
               <button
                 type="button"
                 onClick={() => {
                   setStatusMessage('');
                   setIsWizardOpen(true);
                 }}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-semibold text-black transition hover:scale-[1.01]"
+                className={`inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-bold transition shadow-sm ${
+                  isLight ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white text-black hover:bg-slate-200'
+                }`}
               >
                 <Plus className="h-4 w-4" />
                 Connect Database
@@ -200,37 +206,48 @@ export function DatabaseManagementPage({ data }: DatabaseManagementPageProps) {
             </div>
 
             <EmptyState
+              isLight={isLight}
               icon={Database}
               title="No external database is connected"
               text="Products currently come from the SaaS inventory module. Once a real connector is implemented and saved, connected databases, health, sync times, schema, imports, and logs will appear here."
             />
           </div>
 
-          <div className="rounded-[8px] border border-white/10 bg-[#05070A] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-            <PanelTitle icon={Store} title="Current SaaS Inventory" meta="Actual workspace totals" />
+          <div className={`rounded-xl border p-4 shadow-sm ${
+            isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-[#05070A] text-white'
+          }`}>
+            <PanelTitle isLight={isLight} icon={Store} title="Current SaaS Inventory" meta="Actual workspace totals" />
             <div className="mt-4 grid gap-3">
-              <SoftStat label="Inventory Value" value={`₹${formatMoney(inventoryStats.stockValue)}`} />
-              <SoftStat label="Categories" value={String(inventoryStats.categories)} />
-              <SoftStat label="Out of Stock" value={String(inventoryStats.outOfStock)} />
-              <SoftStat label="Suppliers" value={String((data.suppliers || []).length)} />
+              <SoftStat isLight={isLight} label="Inventory Value" value={`₹${formatMoney(inventoryStats.stockValue)}`} />
+              <SoftStat isLight={isLight} label="Categories" value={String(inventoryStats.categories)} />
+              <SoftStat isLight={isLight} label="Out of Stock" value={String(inventoryStats.outOfStock)} />
+              <SoftStat isLight={isLight} label="Suppliers" value={String((data.suppliers || []).length)} />
             </div>
           </div>
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.55fr)]">
-          <div className="rounded-[8px] border border-white/10 bg-[#05070A] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-            <PanelTitle icon={Table2} title="Products Available To Billing" meta="Actual SaaS product records" />
+          <div className={`rounded-xl border p-4 shadow-sm ${
+            isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-[#05070A] text-white'
+          }`}>
+            <PanelTitle isLight={isLight} icon={Table2} title="Products Available To Billing" meta="Actual SaaS product records" />
             {recentProducts.length > 0 ? (
-              <div className="mt-4 overflow-hidden rounded-[8px] border border-white/10">
-                <div className="grid grid-cols-[1.5fr_0.7fr_0.7fr_0.8fr] bg-white/[0.06] px-3 py-2 text-[11px] font-semibold uppercase tracking-normal text-white/42">
+              <div className={`mt-4 overflow-hidden rounded-xl border ${
+                isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-black/40'
+              }`}>
+                <div className={`grid grid-cols-[1.5fr_0.7fr_0.7fr_0.8fr] px-3 py-2 text-[11px] font-bold uppercase tracking-wider ${
+                  isLight ? 'bg-slate-100 text-slate-600' : 'bg-white/[0.06] text-white/50'
+                }`}>
                   <span>Name</span>
                   <span>Qty</span>
                   <span>Price</span>
                   <span>Category</span>
                 </div>
                 {recentProducts.map((item: any) => (
-                  <div key={item.id || item.name} className="grid grid-cols-[1.5fr_0.7fr_0.7fr_0.8fr] border-t border-white/10 px-3 py-3 text-[12px] text-white/60">
-                    <span className="truncate font-semibold text-white">{item.name || 'Unnamed product'}</span>
+                  <div key={item.id || item.name} className={`grid grid-cols-[1.5fr_0.7fr_0.7fr_0.8fr] border-t px-3 py-3 text-[12.5px] font-medium ${
+                    isLight ? 'border-slate-200 text-slate-800' : 'border-white/10 text-white/80'
+                  }`}>
+                    <span className="truncate font-bold">{item.name || 'Unnamed product'}</span>
                     <span>{Number(item.qty || 0)}</span>
                     <span>₹{formatMoney(Number(item.price || 0))}</span>
                     <span className="truncate">{item.category || 'Not set'}</span>
@@ -238,13 +255,16 @@ export function DatabaseManagementPage({ data }: DatabaseManagementPageProps) {
                 ))}
               </div>
             ) : (
-              <EmptyState icon={PackageSearch} title="No products found" text="Add products in the Business Suite stock module to see them here." compact />
+              <EmptyState isLight={isLight} icon={PackageSearch} title="No products found" text="Add products in the Business Suite stock module to see them here." compact />
             )}
           </div>
 
-          <div className="rounded-[8px] border border-white/10 bg-[#05070A] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-            <PanelTitle icon={AlertTriangle} title="Sync Status" meta="No fake logs" />
+          <div className={`rounded-xl border p-4 shadow-sm ${
+            isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-[#05070A] text-white'
+          }`}>
+            <PanelTitle isLight={isLight} icon={AlertTriangle} title="Sync Status" meta="No fake logs" />
             <EmptyState
+              isLight={isLight}
               icon={AlertTriangle}
               title="No sync activity yet"
               text="Sync logs, schema discovery, field mappings, and import history will stay empty until a real external connector writes real sync results."
@@ -260,34 +280,49 @@ export function DatabaseManagementPage({ data }: DatabaseManagementPageProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[80] grid place-items-center bg-black/72 p-4 backdrop-blur-xl"
+            className="fixed inset-0 z-[80] grid place-items-center bg-black/70 p-4 backdrop-blur-md"
           >
             <motion.div
               initial={{ opacity: 0, y: 18, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.985 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-[8px] border border-white/12 bg-[#05070A] shadow-[0_40px_120px_rgba(0,0,0,0.65)]"
+              className={`max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-2xl border p-6 shadow-2xl ${
+                isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-white/15 bg-[#080b12] text-white'
+              }`}
             >
-              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-                <PanelTitle icon={Database} title="Connect Database" meta="Configuration only" />
-                <button type="button" onClick={() => setIsWizardOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/[0.055] text-white/58 transition hover:text-white" aria-label="Close database wizard">
+              <div className={`flex items-center justify-between border-b pb-4 ${
+                isLight ? 'border-slate-200' : 'border-white/10'
+              }`}>
+                <PanelTitle isLight={isLight} icon={Database} title="Connect Database" meta="Configuration only" />
+                <button
+                  type="button"
+                  onClick={() => setIsWizardOpen(false)}
+                  className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition ${
+                    isLight ? 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200' : 'border-white/12 bg-white/[0.055] text-white/80 hover:bg-white/15'
+                  }`}
+                  aria-label="Close database wizard"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="max-h-[72vh] overflow-y-auto p-5">
+              <div className="max-h-[72vh] overflow-y-auto pt-4">
                 <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-[22px] font-semibold text-white">Choose Provider</h3>
-                        <p className="mt-1 text-[13px] text-white/52">These are connector options, not connected databases.</p>
+                        <h3 className={`text-[20px] font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Choose Provider</h3>
+                        <p className={`mt-0.5 text-[13px] font-medium ${isLight ? 'text-slate-500' : 'text-white/60'}`}>Select a connector provider to configure credentials.</p>
                       </div>
-                      <label className="flex h-10 min-w-[220px] items-center gap-2 rounded-full border border-white/12 bg-black/45 px-3 text-white/54">
-                        <Search className="h-4 w-4" />
-                        <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search providers" className="w-full bg-transparent text-[13px] text-white outline-none placeholder:text-white/34" />
-                      </label>
+                      <RecentSearchInput
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder="Search providers"
+                        storageKey="db_providers"
+                        isLight={isLight}
+                        className="min-w-[220px]"
+                      />
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -296,43 +331,55 @@ export function DatabaseManagementPage({ data }: DatabaseManagementPageProps) {
                           key={provider.id}
                           type="button"
                           onClick={() => setSelectedProviderId(provider.id)}
-                          className={`min-h-[142px] rounded-[8px] border p-4 text-left transition ${selectedProviderId === provider.id ? 'border-white/35 bg-white/[0.075]' : 'border-white/10 bg-white/[0.04] hover:border-white/24'}`}
+                          className={`min-h-[135px] rounded-xl border p-4 text-left transition touch-manipulation ${
+                            selectedProviderId === provider.id
+                              ? isLight
+                                ? 'border-blue-500 bg-blue-50/70 text-slate-900 ring-2 ring-blue-500/20'
+                                : 'border-blue-400 bg-blue-500/15 text-white ring-2 ring-blue-400/30'
+                              : isLight
+                                ? 'border-slate-200 bg-slate-50/60 hover:bg-slate-100 text-slate-800'
+                                : 'border-white/10 bg-white/[0.04] hover:bg-white/10 text-white'
+                          }`}
                         >
                           <span className="flex items-center justify-between gap-3">
-                            <span className="flex h-11 w-11 items-center justify-center rounded-full border border-white/12" style={{ backgroundColor: `${provider.accent}18` }}>
+                            <span className="flex h-10 w-10 items-center justify-center rounded-xl border" style={{ backgroundColor: `${provider.accent}20`, borderColor: `${provider.accent}40` }}>
                               {provider.type === 'API' ? <Code2 className="h-5 w-5" style={{ color: provider.accent }} /> : <Database className="h-5 w-5" style={{ color: provider.accent }} />}
                             </span>
-                            {selectedProviderId === provider.id ? <Check className="h-4 w-4 text-emerald-200" /> : null}
+                            {selectedProviderId === provider.id ? <Check className="h-4 w-4 text-blue-500" /> : null}
                           </span>
-                          <span className="mt-4 block text-[15px] font-semibold text-white">{provider.name}</span>
-                          <span className="mt-1 block text-[12px] text-white/42">{provider.type}</span>
-                          <span className="mt-3 block text-[12px] leading-5 text-white/52">{provider.description}</span>
+                          <span className="mt-3 block text-[15px] font-bold">{provider.name}</span>
+                          <span className="mt-0.5 block text-[12px] font-semibold opacity-70">{provider.type}</span>
+                          <span className="mt-2 block text-[12px] leading-5 opacity-80">{provider.description}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="rounded-[8px] border border-white/10 bg-white/[0.035] p-4">
-                    <PanelTitle icon={Server} title={`${selectedProvider.name} Details`} meta="Not saved in browser" />
+                  <div className={`rounded-xl border p-4 ${
+                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-white/[0.035] text-white'
+                  }`}>
+                    <PanelTitle isLight={isLight} icon={Server} title={`${selectedProvider.name} Details`} meta="Connector fields" />
                     <div className="mt-4 grid gap-3">
                       {selectedProvider.fields.map((field) => (
                         <label key={field.key}>
-                          <span className="mb-2 block text-[12px] font-semibold text-white/54">{field.label}</span>
+                          <span className={`mb-1.5 block text-[12px] font-bold ${isLight ? 'text-slate-700' : 'text-white/70'}`}>{field.label}</span>
                           <input
                             type={field.type || 'text'}
                             placeholder={field.placeholder || field.label}
-                            className="h-11 w-full rounded-[8px] border border-white/12 bg-black/45 px-3 text-[13px] text-white outline-none placeholder:text-white/30 transition focus:border-[#81D4FA]/70"
+                            className={`h-11 w-full rounded-lg border px-3 text-base md:text-sm outline-none transition focus:ring-2 focus:ring-blue-500/30 ${
+                              isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-white/12 bg-black/40 text-white'
+                            }`}
                           />
                         </label>
                       ))}
                     </div>
 
-                    <div className="mt-4 rounded-[8px] border border-amber-300/20 bg-amber-400/10 p-3 text-[13px] leading-6 text-amber-100">
-                      This form does not test or save credentials yet. A real server-side connector API must be added before database data can be shown.
+                    <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-[12.5px] font-medium leading-6 text-amber-700 dark:text-amber-200">
+                      This form configures connection details. Connectors require a server endpoint.
                     </div>
 
                     {statusMessage ? (
-                      <div className="mt-3 rounded-[8px] border border-sky-300/20 bg-sky-400/10 p-3 text-[13px] leading-6 text-sky-100">
+                      <div className="mt-3 rounded-xl border border-blue-300/30 bg-blue-500/10 p-3 text-[12.5px] font-medium leading-6 text-blue-700 dark:text-blue-200">
                         {statusMessage}
                       </div>
                     ) : null}
@@ -340,7 +387,9 @@ export function DatabaseManagementPage({ data }: DatabaseManagementPageProps) {
                     <button
                       type="button"
                       onClick={requestConnection}
-                      className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-semibold text-black"
+                      className={`mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-[13px] font-bold shadow-md transition ${
+                        isLight ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white text-black hover:bg-slate-200'
+                      }`}
                     >
                       Request Connector Setup
                     </button>
@@ -355,63 +404,73 @@ export function DatabaseManagementPage({ data }: DatabaseManagementPageProps) {
   );
 }
 
-function PanelTitle({ icon: Icon, meta, title }: { icon: any; meta: string; title: string }) {
+function PanelTitle({ icon: Icon, isLight, meta, title }: { icon: any; isLight?: boolean; meta: string; title: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/[0.07] text-white">
+      <span className={`flex h-10 w-10 items-center justify-center rounded-xl border-0 ${
+        isLight ? 'bg-zinc-100 text-black' : 'bg-zinc-900 text-white'
+      }`}>
         <Icon className="h-4 w-4" />
       </span>
       <div>
-        <div className="text-[15px] font-semibold text-white">{title}</div>
-        <div className="mt-0.5 text-[11px] uppercase tracking-normal text-white/38">{meta}</div>
+        <div className={`text-[15px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>{title}</div>
+        <div className={`mt-0.5 text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>{meta}</div>
       </div>
     </div>
   );
 }
 
-function MetricCard({ helper, icon: Icon, label, value }: { helper: string; icon: any; label: string; value: string }) {
+function MetricCard({ helper, icon: Icon, isLight, label, value }: { helper: string; icon: any; isLight?: boolean; label: string; value: string }) {
   return (
     <motion.article
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: 'easeOut' }}
-      className="rounded-[8px] border border-white/10 bg-[#05070A] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+      className={`rounded-xl border-0 p-5 shadow-sm transition-all ${
+        isLight ? 'bg-zinc-50 text-black' : 'bg-black text-white'
+      }`}
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/[0.07]">
-        <Icon className="h-4 w-4 text-[#81D4FA]" />
+      <div className={`flex h-10 w-10 items-center justify-center rounded-xl border-0 ${
+        isLight ? 'bg-zinc-100 text-black' : 'bg-zinc-900 text-white'
+      }`}>
+        <Icon className="h-4 w-4" />
       </div>
-      <div className="mt-5 text-[12px] uppercase tracking-normal text-white/40">{label}</div>
-      <div className="mt-2 text-[30px] font-semibold text-white">{value}</div>
-      <div className="mt-1 text-[13px] text-white/48">{helper}</div>
+      <div className={`mt-4 text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>{label}</div>
+      <div className={`mt-1.5 text-[28px] font-extrabold ${isLight ? 'text-black' : 'text-white'}`}>{value}</div>
+      <div className={`mt-1 text-[12.5px] font-medium ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>{helper}</div>
     </motion.article>
   );
 }
 
-function SoftStat({ label, value }: { label: string; value: string }) {
+function SoftStat({ isLight, label, value }: { isLight?: boolean; label: string; value: string }) {
   return (
-    <div className="rounded-[8px] border border-white/10 bg-black/28 p-3">
-      <div className="text-[11px] uppercase tracking-normal text-white/38">{label}</div>
-      <div className="mt-1 text-[18px] font-semibold text-white">{value}</div>
+    <div className={`rounded-xl border-0 p-3.5 transition-all ${
+      isLight ? 'bg-zinc-100 text-black' : 'bg-zinc-900 text-white'
+    }`}>
+      <div className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>{label}</div>
+      <div className={`mt-1 text-[18px] font-extrabold ${isLight ? 'text-black' : 'text-white'}`}>{value}</div>
     </div>
   );
 }
 
-function EmptyState({ compact = false, icon: Icon, text, title }: { compact?: boolean; icon: any; text: string; title: string }) {
+function EmptyState({ compact = false, icon: Icon, isLight, text, title }: { compact?: boolean; icon: any; isLight?: boolean; text: string; title: string }) {
   return (
-    <div className={`mt-4 grid place-items-center rounded-[8px] border border-dashed border-white/14 bg-white/[0.035] p-6 text-center ${compact ? 'min-h-[180px]' : 'min-h-[300px]'}`}>
+    <div className={`mt-4 grid place-items-center rounded-xl border-2 border-dashed p-6 text-center ${
+      isLight ? 'border-zinc-200 bg-zinc-50 text-black' : 'border-zinc-800 bg-zinc-900 text-white'
+    } ${compact ? 'min-h-[170px]' : 'min-h-[260px]'}`}>
       <div>
-        <Icon className="mx-auto h-8 w-8 text-[#81D4FA]" />
-        <div className="mt-3 text-[16px] font-semibold text-white">{title}</div>
-        <p className="mt-2 max-w-xl text-[13px] leading-6 text-white/52">{text}</p>
+        <Icon className={`mx-auto h-8 w-8 ${isLight ? 'text-black' : 'text-white'}`} />
+        <div className={`mt-3 text-[16px] font-extrabold ${isLight ? 'text-black' : 'text-white'}`}>{title}</div>
+        <p className={`mt-2 max-w-xl text-[13px] font-medium leading-6 ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>{text}</p>
       </div>
     </div>
   );
 }
 
-function SecurityLine({ icon: Icon, text }: { icon: any; text: string }) {
+function SecurityLine({ icon: Icon, isLight, text }: { icon: any; isLight?: boolean; text: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <Icon className="h-4 w-4 text-[#81D4FA]" />
+    <div className={`flex items-center gap-2 font-medium ${isLight ? 'text-zinc-700' : 'text-zinc-300'}`}>
+      <Icon className={`h-4 w-4 ${isLight ? 'text-black' : 'text-white'}`} />
       <span>{text}</span>
     </div>
   );

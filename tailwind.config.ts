@@ -8,6 +8,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['KalenorOX', 'system-ui', 'sans-serif'],
+      },
       colors: {
         'gemini-blue': {
           50: '#e6f1ff',

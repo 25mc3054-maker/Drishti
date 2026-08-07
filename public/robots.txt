@@ -1,6 +1,8 @@
 User-agent: *
 Allow: /
+Allow: /storefront
+Allow: /customer-shop/
 Disallow: /admin
-Disallow: /api
+Disallow: /api/
 
-Sitemap: https://easytrader.onrender.com/sitemap.xml
+Sitemap: https://easytrader.onrender.com/sitemap.xml

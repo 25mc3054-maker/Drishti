@@ -2,22 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'KalenorOX';
+  src: url('/fonts/KalenorOX-Trial.ttf') format('truetype'),
+       url('/fonts/KalenorOX-Trial.otf') format('opentype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  /* Range for letters, space, punctuation (EXCLUDING digits 0-9: U+0030-0039, Rupee U+20B9, %, +, -, ,, ., /) */
+  unicode-range: U+0020-0024, U+0026-002A, U+003A-0040, U+0041-005A, U+005B-0060, U+0061-007A, U+007B-007E, U+00C0-00FF;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @layer base {
+  *, ::before, ::after {
+    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
   html {
-    background: #000000;
+    scroll-behavior: smooth;
+    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    @apply bg-black text-white antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply antialiased min-h-screen transition-colors duration-200;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 
-  * {
-    border-color: #1a1a1a;
+  html.dark, html.dark body, html.dark #__next {
+    background-color: #000000 !important;
+    background: #000000 !important;
+    color: #ffffff !important;
+  }
+
+  html.light, html.light body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Solid white crisp text for headings in dark mode */
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    color: #ffffff !important;
+  }
+
+  .light h1, .light h2, .light h3, .light h4, .light h5, .light h6 {
+    color: #000000 !important;
+  }
+
+  input, select, textarea, .tabular-nums {
+    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   }
 
   ::selection {
-    background: rgba(99, 102, 241, 0.35);
+    background: rgba(255, 255, 255, 0.2);
     color: #ffffff;
   }
 }
@@ -35,12 +78,16 @@
     background: #000000;
   }
 
+  .borderless-layout {
+    border: none !important;
+  }
+
   .chip-button {
-    @apply inline-flex h-9 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.055] px-3 text-[12px] font-semibold text-white/70 transition hover:border-white/25 hover:bg-white/10 hover:text-white;
+    @apply inline-flex h-8 items-center gap-1.5 rounded-full border-0 bg-slate-100 px-3 text-[12px] font-semibold text-slate-900 transition-all hover:bg-slate-200 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800;
   }
 
   .action-button {
-    @apply inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-black/45 px-4 text-[13px] font-semibold text-white transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg border-0 bg-zinc-900 px-4 text-[13px] font-medium text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-45;
   }
 }
 
@@ -56,21 +103,21 @@
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #050505;
+  background: #000000;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1a1a1a;
+  background: #1f1f1f;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2a2a2a;
+  background: #333333;
 }
 
 @keyframes marquee {
@@ -81,3 +128,4 @@
     transform: translate3d(-50%, 0, 0);
   }
 }
+

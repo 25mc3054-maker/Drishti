@@ -23,37 +23,6 @@ export function CosmicScene() {
     const root = new THREE.Group();
     scene.add(root);
 
-    const planetGeometry = new THREE.SphereGeometry(3.9, 96, 48, 0, Math.PI * 2, 0, Math.PI * 0.54);
-    const planetMaterial = new THREE.MeshBasicMaterial({
-      color: 0x0b1530,
-      transparent: true,
-      opacity: 0.72,
-      side: THREE.DoubleSide,
-    });
-    const planet = new THREE.Mesh(planetGeometry, planetMaterial);
-    planet.rotation.x = Math.PI * 0.98;
-    planet.position.set(0, -3.18, 0);
-    root.add(planet);
-
-    const ringGeometry = new THREE.TorusGeometry(3.92, 0.018, 12, 180, Math.PI * 1.08);
-    const ringMaterial = new THREE.MeshBasicMaterial({
-      color: 0xeaf6ff,
-      transparent: true,
-      opacity: 0.9,
-    });
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.rotation.x = Math.PI * 0.51;
-    ring.position.set(0, -2.95, 0.03);
-    root.add(ring);
-
-    const innerRing = new THREE.Mesh(
-      new THREE.TorusGeometry(3.62, 0.01, 12, 180, Math.PI * 1.05),
-      new THREE.MeshBasicMaterial({ color: 0x52b7ff, transparent: true, opacity: 0.42 }),
-    );
-    innerRing.rotation.x = Math.PI * 0.51;
-    innerRing.position.set(0.08, -2.88, 0.05);
-    root.add(innerRing);
-
     const beamGroup = new THREE.Group();
     const beamColors = [0xff8a1f, 0xffd24a, 0x49adff, 0x85ffd7, 0xffffff];
     for (let index = 0; index < 18; index += 1) {
@@ -162,8 +131,6 @@ export function CosmicScene() {
         root.rotation.y += ((pointer.x * 0.035) - root.rotation.y) * 0.025;
         root.rotation.x += ((-pointer.y * 0.018) - root.rotation.x) * 0.025;
         stars.rotation.y = elapsed * 0.012;
-        ring.rotation.z = Math.sin(elapsed * 0.28) * 0.015;
-        innerRing.rotation.z = -Math.sin(elapsed * 0.22) * 0.02;
         beamGroup.children.forEach((beam) => {
           const material = (beam as THREE.Mesh).material as THREE.MeshBasicMaterial;
           material.opacity = 0.1 + Math.sin(elapsed * beam.userData.speed + beam.userData.phase) * 0.06 + 0.09;
@@ -189,10 +156,6 @@ export function CosmicScene() {
       host.removeEventListener('pointermove', onPointerMove);
       host.removeChild(renderer.domElement);
       starGeometry.dispose();
-      planetGeometry.dispose();
-      planetMaterial.dispose();
-      ringGeometry.dispose();
-      ringMaterial.dispose();
       root.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           child.geometry.dispose();

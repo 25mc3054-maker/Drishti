@@ -54,12 +54,15 @@ export function AddSupplierModal({ onClose, onSupplierAdded }: AddSupplierModalP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm overflow-y-auto"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative w-full max-w-lg rounded-[8px] border border-white/10 bg-[#0A0C0F] p-6 shadow-2xl"
+        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#0A0C0F] p-5 sm:p-6 shadow-2xl"
       >
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-3 text-xl font-semibold text-white">
@@ -85,10 +88,10 @@ export function AddSupplierModal({ onClose, onSupplierAdded }: AddSupplierModalP
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={onClose} className="h-11 rounded-full bg-white/5 px-6 text-sm font-semibold text-white/80 transition hover:bg-white/10">
+            <button type="button" onClick={onClose} className="h-11 rounded-full bg-white/5 px-6 text-sm font-semibold text-white/80 transition hover:bg-white/10 touch-manipulation">
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting} className="h-11 rounded-full bg-white px-6 text-sm font-semibold text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] transition hover:scale-[1.02] disabled:opacity-50">
+            <button type="submit" disabled={isSubmitting} className="h-11 rounded-full bg-white px-6 text-sm font-semibold text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] transition hover:scale-[1.02] touch-manipulation disabled:opacity-50">
               {isSubmitting ? 'Adding...' : 'Add Supplier'}
             </button>
           </div>
@@ -107,7 +110,7 @@ function Field({ label, onChange, placeholder, required, type = 'text', value }:
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required={required}
-        className="mt-1 block h-11 w-full rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
+        className="mt-1 block h-11 w-full rounded-full border border-white/12 bg-black/45 px-4 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
         placeholder={placeholder}
       />
     </label>

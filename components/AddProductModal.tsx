@@ -68,8 +68,11 @@ export function AddProductModal({ existingCategories, onClose, onProductAdded }:
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="relative premium-card neon-panel p-6 rounded-2xl max-w-lg w-full">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="relative premium-card neon-panel p-5 sm:p-6 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-4 right-4 premium-button-ghost p-2">
           <X className="h-4 w-4" />
         </button>
