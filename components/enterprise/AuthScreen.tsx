@@ -1,8 +1,9 @@
-"use client"
+"use client";
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Mail, Phone, ShieldCheck, Store, UserPlus } from 'lucide-react';
+import { signIn as nextAuthSignIn } from 'next-auth/react';
 
 type AuthUser = {
   id: string;
@@ -22,6 +23,7 @@ type Mode = 'login' | 'register' | 'forgot';
 
 export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const [mode, setMode] = useState<Mode>('login');
+  
   const [form, setForm] = useState({
     name: '',
     shopName: '',
@@ -97,137 +99,220 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     }
   };
 
+  // Real OAuth 2.0 Provider Sign In Triggers
+  const handleRealOAuthSignIn = (provider: 'google' | 'apple' | 'microsoft') => {
+    setIsLoading(true);
+    setStatus({ type: 'idle', message: '' });
+
+    if (provider === 'google') {
+      void nextAuthSignIn('google', { callbackUrl: '/' });
+    } else if (provider === 'apple') {
+      void nextAuthSignIn('apple', { callbackUrl: '/' });
+    } else if (provider === 'microsoft') {
+      void nextAuthSignIn('azure-ad', { callbackUrl: '/' });
+    }
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (isLoading) return;
+    if (mode === 'register') void register();
+    else if (mode === 'login') void loginWithPassword();
+    else if (mode === 'forgot') {
+      if (securityQuestion) {
+        void resetPassword();
+      } else {
+        void getSecurityQuestion();
+      }
+    }
+  };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-background px-4 py-8 text-foreground">
+    <main className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white font-sans">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,156,42,0.18),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(59,168,255,0.20),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_38%)]" />
       <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-[1180px] gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <section>
           <motion.div
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.42, ease: 'easeOut' }}
-            className="max-w-xl"
+            transition={{ duration: 0.28, ease: 'easeOut' }}
+            className="space-y-4"
           >
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/[0.06] px-3 py-1.5 text-[12px] font-semibold text-foreground/68">
-              <ShieldCheck className="h-4 w-4 text-emerald-300" />
-              Multi-tenant shopkeeper workspace
-            </div>
-            <h1 className="mt-6 text-[48px] font-semibold leading-[1] tracking-normal text-foreground md:text-[72px]">
-              Sign in to your isolated shop.
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-md">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" /> EasyTrader Multi-Tenant SaaS Workspace
+            </span>
+            <h1 className="text-3xl font-black tracking-tight sm:text-4xl md:text-5xl leading-tight text-white">
+              Isolated Shop Workspaces with AI Intelligence.
             </h1>
-            <p className="mt-5 text-[17px] leading-8 text-foreground/64">
-              Every shopkeeper gets a private tenant workspace. Products, customers, invoices, staff, and settings stay invisible to every other shop.
+            <p className="text-sm text-zinc-400 sm:text-base leading-relaxed">
+              Manage inventory, bills, customer ledgers, and AI marketing in your dedicated workspace.
             </p>
           </motion.div>
         </section>
 
         <motion.section
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.42, delay: 0.08, ease: 'easeOut' }}
-          className="rounded-[8px] border border-border bg-card/88 p-4 shadow-sm backdrop-blur-2xl md:p-6"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.32, ease: 'easeOut' }}
+          className="rounded-3xl border border-zinc-800 bg-black/80 p-6 backdrop-blur-2xl sm:p-8 shadow-2xl shadow-black"
         >
-          <div className="grid grid-cols-2 gap-2 rounded-[8px] border border-border bg-background/35 p-1">
-            <ModeButton active={mode === 'login'} label="Password" onClick={() => setMode('login')} />
-            <ModeButton active={mode === 'register'} label="Register" onClick={() => setMode('register')} />
-          </div>
+          <div>
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-white">
+                  {mode === 'register' ? 'Create Account' : mode === 'login' ? 'Shopkeeper Login' : 'Password Recovery'}
+                </h2>
+                <p className="mt-1 text-xs text-zinc-400">
+                  {mode === 'register' ? 'Setup your shop account to continue' : mode === 'login' ? 'Login with mobile or single-click social sign-in' : 'Reset your account password'}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-900 p-1 border border-zinc-800">
+                <ModeButton active={mode === 'login'} label="Login" onClick={() => setMode('login')} />
+                <ModeButton active={mode === 'register'} label="Register" onClick={() => setMode('register')} />
+              </div>
+            </div>
 
-          <div className="mt-5 space-y-3">
-          {mode === 'forgot' ? (
-              <>
-                <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
-                {securityQuestion ? (
-                  <>
-                    <p>{securityQuestion}</p>
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              {mode === 'forgot' ? (
+                <>
+                  <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
+                  {securityQuestion ? (
+                    <>
+                      <p className="text-[13px] text-zinc-300">{securityQuestion}</p>
+                      <AuthInput
+                        icon={Lock}
+                        placeholder="Security answer"
+                        value={form.securityAnswer}
+                        onChange={(value) => updateForm('securityAnswer', value)}
+                      />
+                      <AuthInput
+                        icon={Lock}
+                        placeholder="New Password"
+                        type="password"
+                        value={newPassword}
+                        onChange={setNewPassword}
+                      />
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+
+              {mode === 'register' ? (
+                <>
+                  <AuthInput icon={UserPlus} placeholder="Full name" value={form.name} onChange={(value) => updateForm('name', value)} />
+                  <AuthInput icon={Store} placeholder="Shop name" value={form.shopName} onChange={(value) => updateForm('shopName', value)} />
+                  <AuthInput icon={Phone} placeholder="Mobile number" value={form.mobile} onChange={(value) => updateForm('mobile', value)} />
+                  <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
+                  <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
+                  <div className="flex flex-col gap-3">
+                    <select
+                      value={form.securityQuestion}
+                      onChange={(e) => updateForm('securityQuestion', e.target.value)}
+                      className="w-full h-12 rounded-xl border border-zinc-800 bg-zinc-950 px-4 text-base md:text-sm text-white/70 transition focus-within:border-zinc-500 outline-none"
+                    >
+                      <option value="" disabled>Select a security question</option>
+                      {securityQuestions.map((q, i) => (
+                        <option key={i} value={q}>{q}</option>
+                      ))}
+                    </select>
                     <AuthInput
                       icon={Lock}
                       placeholder="Security answer"
                       value={form.securityAnswer}
                       onChange={(value) => updateForm('securityAnswer', value)}
                     />
-                    <AuthInput
-                      icon={Lock}
-                      placeholder="New Password"
-                      type="password"
-                      value={newPassword}
-                      onChange={setNewPassword}
-                    />
-                  </>
-                ) : null}
-              </>
-            ) : null}
-
-            {mode === 'register' ? (
-              <>
-                <AuthInput icon={UserPlus} placeholder="Shopkeeper name" value={form.name} onChange={(value) => updateForm('name', value)} />
-                <AuthInput icon={Store} placeholder="Shop name" value={form.shopName} onChange={(value) => updateForm('shopName', value)} />
-                <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
-                <AuthInput icon={Phone} placeholder="Mobile number" value={form.mobile} onChange={(value) => updateForm('mobile', value)} />
-                <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
-                 <div className="flex flex-col gap-3">
-                  <select
-                    value={form.securityQuestion}
-                    onChange={(e) => updateForm('securityQuestion', e.target.value)}
-                    className="w-full h-12 rounded-full border border-border bg-background/45 px-4 text-foreground/50 transition focus-within:border-primary"
-                  >
-                    <option value="" disabled>Select a security question</option>
-                    {securityQuestions.map((q, i) => (
-                      <option key={i} value={q}>{q}</option>
-                    ))}
-                  </select>
-                  <AuthInput
-                    icon={Lock}
-                    placeholder="Security answer"
-                    value={form.securityAnswer}
-                    onChange={(value) => updateForm('securityAnswer', value)}
-                  />
-                  {form.securityAnswer.length > 0 && form.securityAnswer.length < 5 && (
-                    <p className="text-red-500 text-xs mt-1">Security question must be at least 5 characters.</p>
-                  )}
-                </div>
-              </>
-            ) : mode === 'login' ? (
-              <>
-                <AuthInput icon={Phone} placeholder="Mobile number" value={form.mobile} onChange={(value) => updateForm('mobile', value)} />
-                <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
-                {mode === 'login' && (
+                    {form.securityAnswer.length > 0 && form.securityAnswer.length < 5 && (
+                      <p className="text-red-400 text-xs mt-1 font-semibold">Security question must be at least 5 characters.</p>
+                    )}
+                  </div>
+                </>
+              ) : mode === 'login' ? (
+                <>
+                  <AuthInput icon={Phone} placeholder="Mobile number" value={form.mobile} onChange={(value) => updateForm('mobile', value)} />
+                  <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
+                  {mode === 'login' && (
                     <button
-                    type="button"
-                    onClick={() => setMode('forgot')}
-                    className="text-foreground/50 text-sm text-right mt-2 hover:text-foreground"
+                      type="button"
+                      onClick={() => setMode('forgot')}
+                      className="text-zinc-400 text-xs text-right mt-1 hover:text-white transition touch-manipulation font-semibold block ml-auto"
                     >
-                    Forgot Password?
+                      Forgot Password?
                     </button>
-                )}
-              </>
-            ) : null}
+                  )}
+                </>
+              ) : null}
+
+              {status.message ? (
+                <div className={`mt-4 rounded-xl border px-3.5 py-2.5 text-xs font-semibold ${status.type === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>
+                  {status.message}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-xl bg-white px-5 text-sm font-extrabold text-black shadow-lg transition hover:scale-[1.01] active:scale-[0.99] touch-manipulation disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {isLoading ? 'Please wait...' : mode === 'register' ? 'Create Shop Workspace' : mode === 'login' ? 'Login with Password' : securityQuestion ? 'Reset Password' : 'Get Security Question'}
+              </button>
+
+              {/* Divider */}
+              <div className="relative my-5 flex items-center justify-center">
+                <div className="w-full border-t border-zinc-800" />
+                <span className="absolute bg-black px-3 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                  Or Continue With
+                </span>
+              </div>
+
+              {/* Real Official Provider OAuth Buttons */}
+              <div className="grid grid-cols-3 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleRealOAuthSignIn('google')}
+                  disabled={isLoading}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[12.5px] font-bold text-white transition hover:bg-zinc-900 hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98] touch-manipulation disabled:opacity-50"
+                  title="Sign in with Google (accounts.google.com)"
+                >
+                  <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"/>
+                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15s.7 5.3 1.9 7.7l3.7-2.9z"/>
+                    <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"/>
+                  </svg>
+                  <span>Google</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRealOAuthSignIn('apple')}
+                  disabled={isLoading}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[12.5px] font-bold text-white transition hover:bg-zinc-900 hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98] touch-manipulation disabled:opacity-50"
+                  title="Sign in with Apple (appleid.apple.com)"
+                >
+                  <svg className="h-4 w-4 fill-current shrink-0" viewBox="0 0 24 24">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.67-.82 1.13-1.96.99-3.1-.97.04-2.18.66-2.87 1.46-.62.72-1.16 1.88-1.01 3 .01 0 .04.01.07.01 1.08 0 2.15-.55 2.82-1.37z"/>
+                  </svg>
+                  <span>Apple</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRealOAuthSignIn('microsoft')}
+                  disabled={isLoading}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[12.5px] font-bold text-white transition hover:bg-zinc-900 hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98] touch-manipulation disabled:opacity-50"
+                  title="Sign in with Microsoft (login.microsoftonline.com)"
+                >
+                  <svg className="h-4 w-4 shrink-0" viewBox="0 0 23 23">
+                    <path fill="#f35325" d="M1 1h10v10H1z"/>
+                    <path fill="#81bc06" d="M12 1h10v10H1z"/>
+                    <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+                    <path fill="#ffba08" d="M12 12h10v10H1z"/>
+                  </svg>
+                  <span>Microsoft</span>
+                </button>
+              </div>
+            </form>
           </div>
-
-          {status.message ? (
-            <div className={`mt-4 rounded-[8px] border px-3 py-2 text-[13px] ${status.type === 'error' ? 'border-red-400/35 bg-red-500/10 text-red-100' : 'border-emerald-400/35 bg-emerald-500/10 text-emerald-100'}`}>
-              {status.message}
-            </div>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={() => {
-              if (mode === 'register') void register();
-              else if (mode === 'login') void loginWithPassword();
-              else if (mode === 'forgot') {
-                if (securityQuestion) {
-                  void resetPassword();
-                } else {
-                  void getSecurityQuestion();
-                }
-              }
-            }}
-            disabled={isLoading}
-            className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-5 text-[14px] font-semibold text-primary-foreground shadow-sm transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            {isLoading ? 'Please wait...' : mode === 'register' ? 'Create Shop Workspace' : mode === 'login' ? 'Login with Password' : securityQuestion ? 'Reset Password' : 'Get Security Question'}
-          </button>
         </motion.section>
       </div>
     </main>
@@ -239,7 +324,9 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
     <button
       type="button"
       onClick={onClick}
-      className={`h-10 rounded-[8px] text-[12px] font-semibold transition ${active ? 'bg-primary text-primary-foreground' : 'text-foreground/58 hover:bg-card/8 hover:text-foreground'}`}
+      className={`h-9 rounded-lg px-4 text-[12.5px] font-bold transition touch-manipulation ${
+        active ? 'bg-white text-black shadow-md' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+      }`}
     >
       {label}
     </button>
@@ -248,14 +335,14 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
 
 function AuthInput({ icon: Icon, onChange, placeholder, type = 'text', value }: { icon: any; onChange: (value: string) => void; placeholder: string; type?: string; value: string }) {
   return (
-    <label className="flex h-12 items-center gap-3 rounded-full border border-border bg-background/45 px-4 text-foreground/50 transition focus-within:border-primary">
-      <Icon className="h-4 w-4" />
+    <label className="flex h-11 items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-4 text-zinc-400 transition focus-within:border-zinc-500 focus-within:text-white">
+      <Icon className="h-4 w-4 shrink-0 text-current" />
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full bg-transparent text-[14px] text-foreground outline-none placeholder:text-foreground/34"
+        className="w-full bg-transparent text-base md:text-sm text-white outline-none placeholder:text-zinc-500 font-sans font-medium"
       />
     </label>
   );

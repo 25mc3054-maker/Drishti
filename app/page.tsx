@@ -4,9 +4,11 @@ import { useEffect, useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import LoadingSpinner from '../components/LoadingSpinner';
-import type { DashboardData, TabKey } from '@/components/enterprise/types';
+import type { BusinessSectionKey, DashboardData, TabKey } from '@/components/enterprise/types';
+import { ThemeOnboardingModal } from '@/components/enterprise/ThemeOnboardingModal';
 
 const Navbar = dynamic(() => import('@/components/enterprise/Navbar').then(mod => mod.Navbar), { ssr: false });
+const LeftMiniSidebar = dynamic(() => import('@/components/enterprise/LeftMiniSidebar').then(mod => mod.LeftMiniSidebar), { ssr: false });
 const HeroSection = dynamic(() => import('@/components/enterprise/HeroSection').then(mod => mod.HeroSection), { loading: () => <div className="h-[400px] w-full flex justify-center items-center"><LoadingSpinner /></div> });
 const MarqueeTicker = dynamic(() => import('@/components/enterprise/MarqueeTicker').then(mod => mod.MarqueeTicker), { ssr: false });
 const AIWorkspace = dynamic(() => import('@/components/enterprise/AIWorkspace').then(mod => mod.AIWorkspace), { loading: () => <LoadingSpinner /> });
@@ -28,14 +30,21 @@ const initialData: DashboardData = {
   storefront: null,
 };
 
-import { ThemeOnboardingModal } from '@/components/enterprise/ThemeOnboardingModal';
-
 export default function EasyTraderPlatform() {
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [activeTab, setActiveTab] = useState<TabKey>('business-suite');
+  const [activeBusinessSection, setActiveBusinessSection] = useState<BusinessSectionKey>('billing');
   const [data, setData] = useState<DashboardData>(initialData);
   const [authUser, setAuthUser] = useState<any | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [showThemeOnboarding, setShowThemeOnboarding] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
+  }, []);
 
   const loadData = async () => {
     const [itemsRes, customersRes, invoicesRes, suppliersRes] = await Promise.all([
@@ -65,12 +74,11 @@ export default function EasyTraderPlatform() {
       const timeoutId = setTimeout(() => {
         controller.abort();
         if (!cancelled) {
-          console.error('Session check timed out.');
           setAuthUser(null);
           setData(initialData);
           setIsCheckingSession(false);
         }
-      }, 8000); // 8 second timeout, increased for very slow networks
+      }, 8000);
 
       try {
         const response = await fetch('/api/auth/session', { signal: controller.signal });
@@ -85,15 +93,22 @@ export default function EasyTraderPlatform() {
           return;
         }
 
-        const result = await response.json();
-        if (!response.ok || !result.success) throw new Error(result.error || 'No session');
         if (cancelled) return;
-        setAuthUser(result.user);
-        const nextData = await loadData();
-        if (!cancelled) setData(nextData);
-      } catch (error) {
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result?.success && result?.user) {
+            setAuthUser(result.user);
+            const nextData = await loadData();
+            if (!cancelled) setData(nextData);
+            return;
+          }
+        }
+
+        setAuthUser(null);
+        setData(initialData);
+      } catch (error: any) {
         if (!cancelled) {
-          console.error('Failed to check session:', error);
           setAuthUser(null);
           setData(initialData);
         }
@@ -142,7 +157,7 @@ export default function EasyTraderPlatform() {
     }
     setAuthUser(user);
     setData(await loadData());
-    setActiveTab('overview');
+    setActiveTab('business-suite');
   };
 
   const handleThemeOnboardingComplete = () => {
@@ -153,71 +168,110 @@ export default function EasyTraderPlatform() {
     await fetch('/api/auth/logout', { method: 'POST' });
     setAuthUser(null);
     setData(initialData);
-    setActiveTab('overview');
+    setActiveTab('business-suite');
   };
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+      } else {
+        document.documentElement.classList.add('light');
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, [theme]);
+
+  const isLight = theme === 'light';
+
   if (isCheckingSession) {
-    return <div className="grid min-h-screen place-items-center bg-background text-foreground">Loading workspace...</div>;
+    return <div className="grid min-h-screen place-items-center bg-black text-white font-medium">Loading workspace...</div>;
   }
 
   if (!authUser) {
     return <AuthScreen onAuthenticated={handleAuthenticated} />;
   }
 
+  const handleTabSelect = (tab: TabKey) => {
+    setActiveTab(tab);
+    setIsSidebarOpen(false);
+  };
+
   return (
-    <>
+    <div className={`relative min-h-screen overflow-x-hidden font-sans transition-colors duration-200 ${
+      isLight ? 'bg-white text-black' : 'bg-black text-white'
+    }`}>
       {showThemeOnboarding && <ThemeOnboardingModal onComplete={handleThemeOnboardingComplete} />}
-      <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-70"
-          style={{
-            background:
-              'linear-gradient(180deg, rgba(255,255,255,0.025), transparent 18%), linear-gradient(90deg, rgba(255,156,42,0.06), transparent 28%, transparent 72%, rgba(59,168,255,0.07))',
-          }}
-        />
-        <Navbar
+      
+      {/* Top Navigation Bar */}
+      <Navbar
+        activeTab={activeTab}
+        activeBusinessSection={activeBusinessSection}
+        onBusinessSectionChange={setActiveBusinessSection}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+        theme={theme}
+        onThemeChange={setTheme}
+        onTabChange={handleTabSelect}
+        onLogout={() => { void logout(); }}
+        onProfileUpdate={(updatedUser) => setAuthUser(updatedUser)}
+        profileUser={authUser}
+        shopName={authUser.shopName || `Tenant ${String(authUser.tenantId || '').slice(0, 8)}`}
+      />
+
+      {/* Main Workspace Layout with Left Mini Sidebar */}
+      <div className="flex w-full min-h-[calc(100vh-65px)]">
+        <LeftMiniSidebar
           activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onLogout={() => { void logout(); }}
-          profileUser={authUser}
-          shopName={authUser.shopName || `Tenant ${String(authUser.tenantId || '').slice(0, 8)}`}
+          isOpen={activeTab !== 'overview' && isSidebarOpen}
+          onTabChange={handleTabSelect}
+          theme={theme}
         />
 
+        {/* Main Content View */}
         <motion.main
           key={activeTab}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.22, ease: 'easeOut' }}
-          className="mx-auto w-full max-w-[1400px] px-4 pb-16 pt-5 md:px-8"
+          className="flex-1 min-w-0 px-3 pb-3 pt-3 md:px-6"
         >
           {(() => {
             switch (activeTab) {
               case 'overview':
                 return (
-                  <div className="space-y-7">
-                    <HeroSection data={data} onNavigate={setActiveTab} />
+                  <div className="space-y-7 mx-auto max-w-[1400px]">
+                    <HeroSection theme={theme} data={data} onNavigate={setActiveTab} />
                     <MarqueeTicker />
                   </div>
                 );
               case 'ai-workspace':
-                return <AIWorkspace />;
+                return <div className="mx-auto max-w-[1400px]"><AIWorkspace theme={theme} /></div>;
               case 'business-suite':
-                return <BusinessSuite data={data} onDataRefresh={async () => setData(await loadData())} />;
+                return (
+                  <BusinessSuite
+                    theme={theme}
+                    data={data}
+                    activeSection={activeBusinessSection}
+                    onSectionChange={setActiveBusinessSection}
+                    onDataRefresh={async () => setData(await loadData())}
+                  />
+                );
               case 'database-management':
-                return <DatabaseManagementPage data={data} />;
+                return <div className="mx-auto max-w-[1400px]"><DatabaseManagementPage theme={theme} data={data} /></div>;
               case 'storefront':
-                return <StorefrontPage data={data} onNavigate={setActiveTab} />;
+                return <div className="mx-auto max-w-[1400px]"><StorefrontPage data={data} onNavigate={setActiveTab} /></div>;
               case 'insights':
-                return <InsightsPage data={data} onDataRefresh={async () => setData(await loadData())} />;
+                return <div className="mx-auto max-w-[1400px]"><InsightsPage theme={theme} data={data} onDataRefresh={async () => setData(await loadData())} /></div>;
               case 'saas-admin':
-                return <SaaSAdminPage onDataRefresh={async () => setData(await loadData())} />;
+                return <div className="mx-auto max-w-[1400px]"><SaaSAdminPage theme={theme} onDataRefresh={async () => setData(await loadData())} /></div>;
               default:
                 return null;
             }
           })()}
         </motion.main>
       </div>
-    </>
+    </div>
   );
 }

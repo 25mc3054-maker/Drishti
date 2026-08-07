@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Box, X, UploadCloud } from 'lucide-react';
+import { Box, X, UploadCloud, Check } from 'lucide-react';
 
 interface AddStockModalProps {
   onClose: () => void;
@@ -11,12 +11,28 @@ interface AddStockModalProps {
 }
 
 export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModalProps) {
+  // Input Refs for sequential Enter Key Navigation
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const brandInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+  const priceInputRef = useRef<HTMLInputElement>(null);
+  const qtyInputRef = useRef<HTMLInputElement>(null);
+  const categorySelectRef = useRef<HTMLSelectElement>(null);
+  const newCategoryInputRef = useRef<HTMLInputElement>(null);
+  const newSupplierNameRef = useRef<HTMLInputElement>(null);
+  const newSupplierPhoneRef = useRef<HTMLInputElement>(null);
+  const newSupplierLeadTimeRef = useRef<HTMLInputElement>(null);
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
+
   const [name, setName] = useState('');
+  const [brand, setBrand] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [newCategory, setNewCategory] = useState('');
+  const [isAddingNewCat, setIsAddingNewCat] = useState(false);
   const [price, setPrice] = useState('');
   const [qty, setQty] = useState('');
+  const [unit, setUnit] = useState('pcs');
   const [supplierMode, setSupplierMode] = useState<'existing' | 'new'>('existing');
   const [supplierId, setSupplierId] = useState('');
   const [newSupplierName, setNewSupplierName] = useState('');
@@ -29,13 +45,13 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch existing categories
     const fetchCategories = async () => {
       try {
         const response = await fetch('/api/saas/items');
         if (response.ok) {
-          const { data } = await response.json();
-          const uniqueCategories = Array.from(new Set(data.map((item: any) => item.category).filter(Boolean)));
+          const result = await response.json();
+          const itemsList = Array.isArray(result?.items) ? result.items : (Array.isArray(result?.data) ? result.data : []);
+          const uniqueCategories = Array.from(new Set(itemsList.map((item: any) => item?.category).filter(Boolean)));
           setCategories(uniqueCategories as string[]);
         }
       } catch (error) {
@@ -43,6 +59,10 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
       }
     };
     fetchCategories();
+    // Auto-focus first input field on load
+    setTimeout(() => {
+      nameInputRef.current?.focus();
+    }, 100);
   }, []);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,24 +77,49 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
     }
   };
 
+  const applyNewCategory = () => {
+    const trimmed = newCategory.trim();
+    if (trimmed) {
+      if (!categories.includes(trimmed)) {
+        setCategories((prev) => [...prev, trimmed]);
+      }
+      setCategory(trimmed);
+      setNewCategory('');
+      setIsAddingNewCat(false);
+    }
+    setSupplierMode('new');
+    setTimeout(() => {
+      newSupplierNameRef.current?.focus();
+    }, 50);
+  };
+
+  const handleCategoryEnter = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyNewCategory();
+    }
+  };
+
+  const handleKeyDownNext = (e: React.KeyboardEvent, nextRef: React.RefObject<any>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      nextRef.current?.focus();
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!name || !price || !qty) {
-      setError('Name, price and quantity are required.');
+      setError('Product Name, Price and Quantity/Measurement are required.');
       return;
     }
-    if (supplierMode === 'existing' && !supplierId) {
-      setError('Select an existing supplier or create a new supplier.');
-      return;
+
+    let finalCategory = category;
+    if (isAddingNewCat && newCategory.trim()) {
+      finalCategory = newCategory.trim();
     }
-    if (supplierMode === 'new' && (!newSupplierName || !newSupplierPhone)) {
-      setError('New supplier name and phone are required.');
-      return;
-    }
-    const finalCategory = category === 'new-category' ? newCategory : category;
-    if (!finalCategory) {
-        setError('Category is required.');
-        return;
+    if (!finalCategory || finalCategory === 'new-category') {
+      finalCategory = 'General';
     }
 
     setIsSubmitting(true);
@@ -98,22 +143,21 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
       
       let selectedSupplier = suppliers.find((supplier) => String(supplier.id) === supplierId);
 
-      if (supplierMode === 'new') {
+      if (supplierMode === 'new' && newSupplierName.trim()) {
         const supplierResponse = await fetch('/api/saas/suppliers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: newSupplierName,
-            phone: newSupplierPhone,
+            phone: newSupplierPhone || '',
             products: name,
             leadTimeDays: Number(newSupplierLeadTime || 0),
           }),
         });
         const supplierResult = await supplierResponse.json();
-        if (!supplierResponse.ok || !supplierResult.success) {
-          throw new Error(supplierResult.error || 'Failed to add supplier.');
+        if (supplierResponse.ok && supplierResult.success) {
+          selectedSupplier = supplierResult.supplier;
         }
-        selectedSupplier = supplierResult.supplier;
       }
 
       const response = await fetch('/api/saas/items', {
@@ -121,10 +165,12 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          description,
+          brand,
+          description: description || '',
           category: finalCategory,
           price: Number(price),
           qty: Number(qty),
+          unit: unit || 'pcs',
           supplierId: selectedSupplier?.id || '',
           supplierName: selectedSupplier?.name || '',
           supplierPhone: selectedSupplier?.phone || '',
@@ -146,15 +192,18 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm overflow-y-auto"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[8px] border border-white/10 bg-[#0A0C0F] p-6 shadow-2xl"
+        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-800 bg-[#0A0C0F] p-5 sm:p-6 shadow-2xl text-white"
       >
-        <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-3 text-xl font-semibold text-white">
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+          <h2 className="flex items-center gap-3 text-xl font-bold text-white">
             <Box className="h-5 w-5 text-[#7EA7FF]" />
             Add New Stock
           </h2>
@@ -167,131 +216,234 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-        <div>
-              <label className="block text-sm font-medium text-white/70 mb-2">
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          {/* Top Row: Image Upload (Left) + Product Name * (Right) */}
+          <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-1.5">
                 Product Image (Optional)
               </label>
-              <div className="flex items-center gap-4">
-                <div className="w-24 h-24 rounded-lg border border-dashed border-white/20 flex items-center justify-center bg-black/30">
+              <div className="flex items-center gap-3">
+                <div className="w-16 h-16 rounded-xl border border-dashed border-zinc-700 flex items-center justify-center bg-black/40 shrink-0 overflow-hidden">
                   {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover rounded-lg"/>
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover rounded-xl"/>
                   ) : (
-                    <UploadCloud className="h-8 w-8 text-white/40" />
+                    <UploadCloud className="h-6 w-6 text-white/40" />
                   )}
                 </div>
-                <div className="flex-1">
-                    <input
+                <div>
+                  <input
                     id="stock-image-upload"
                     type="file"
                     accept="image/*"
                     onChange={handleImageChange}
                     className="hidden"
-                    />
-                    <label htmlFor="stock-image-upload" className="cursor-pointer rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20">
+                  />
+                  <label htmlFor="stock-image-upload" className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-zinc-800">
                     {image ? 'Change Image' : 'Upload Image'}
-                    </label>
-                    <p className="text-xs text-white/50 mt-2">PNG, JPG, GIF up to 5MB.</p>
+                  </label>
+                  <p className="text-[10.5px] text-white/40 mt-1">PNG, JPG up to 5MB.</p>
                 </div>
               </div>
             </div>
-          <div>
-            <label htmlFor="stock-name" className="block text-sm font-medium text-white/70">
-              Product Name
-            </label>
-            <input
-              id="stock-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="mt-1 block w-full h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
-              placeholder="e.g. Organic Honey"
-            />
-          </div>
-          <div>
-            <label htmlFor="stock-description" className="block text-sm font-medium text-white/70">
-              Description (Optional)
-            </label>
-            <textarea
-              id="stock-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="mt-1 block w-full rounded-2xl border border-white/12 bg-black/45 px-4 py-2 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
-              placeholder="e.g. 500g jar of wild forest honey"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
+
+            {/* 1. Product Name beside Image */}
             <div>
-              <label htmlFor="stock-price" className="block text-sm font-medium text-white/70">
-                Price (₹)
+              <label htmlFor="stock-name" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+                Product Name *
               </label>
               <input
-                id="stock-price"
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                ref={nameInputRef}
+                id="stock-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => handleKeyDownNext(e, brandInputRef)}
                 required
-                className="mt-1 block w-full h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
-                placeholder="e.g. 250"
+                className="mt-1 block w-full h-11 rounded-xl border border-zinc-800 bg-black/60 px-4 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-semibold"
+                placeholder="e.g. Organic Honey or Cow Milk"
               />
-            </div>
-            <div>
-              <label htmlFor="stock-qty" className="block text-sm font-medium text-white/70">
-                Quantity
-              </label>
-              <input
-                id="stock-qty"
-                type="number"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                required
-                className="mt-1 block w-full h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
-                placeholder="e.g. 50"
-              />
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-                <label htmlFor="stock-category" className="block text-sm font-medium text-white/70">
-                Category
-                </label>
-                <select
-                id="stock-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                required
-                className="h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none transition focus:border-[#78B7FF]"
-                >
-                <option value="" disabled>Select category</option>
-                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                <option value="new-category">-- Add New Category --</option>
-                </select>
-                {category === 'new-category' && (
-                <input
-                    type="text"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    className="h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
-                    placeholder="New category name"
-                />
-                )}
             </div>
           </div>
 
-          <div className="rounded-[8px] border border-white/10 bg-white/[0.035] p-4">
-            <div className="mb-3 text-sm font-semibold text-white">Supplier Link</div>
+          {/* 2. Second Row: Brand Name (Optional) */}
+          <div>
+            <label htmlFor="stock-brand" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+              Brand Name (Optional)
+            </label>
+            <input
+              ref={brandInputRef}
+              id="stock-brand"
+              type="text"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              onKeyDown={(e) => handleKeyDownNext(e, descriptionInputRef)}
+              className="mt-1 block w-full h-11 rounded-xl border border-zinc-800 bg-black/60 px-4 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-semibold"
+              placeholder="e.g. Dabur, Amul, Nestlé, Nike, Tata (Optional)"
+            />
+          </div>
+
+          {/* 3. Description (Optional) */}
+          <div>
+            <label htmlFor="stock-description" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+              Description (Optional)
+            </label>
+            <textarea
+              ref={descriptionInputRef}
+              id="stock-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onKeyDown={(e) => handleKeyDownNext(e, priceInputRef)}
+              rows={2}
+              className="mt-1 block w-full rounded-xl border border-zinc-800 bg-black/60 px-4 py-2.5 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-medium"
+              placeholder="e.g. Raw organic forest honey, 100% natural, glass jar packaging"
+            />
+          </div>
+
+          {/* 4. Price, Quantity + Unit, Category */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            {/* Price */}
+            <div>
+              <label htmlFor="stock-price" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+                Price (₹) *
+              </label>
+              <input
+                ref={priceInputRef}
+                id="stock-price"
+                type="number"
+                step="any"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                onKeyDown={(e) => handleKeyDownNext(e, qtyInputRef)}
+                required
+                className="mt-1 block w-full h-11 rounded-xl border border-zinc-800 bg-black/60 px-4 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-bold"
+                placeholder="e.g. 250"
+              />
+            </div>
+
+            {/* 5. Quantity + Unit of Measurement */}
+            <div>
+              <label htmlFor="stock-qty" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+                Quantity & Unit *
+              </label>
+              <div className="mt-1 flex items-center gap-1.5">
+                <input
+                  ref={qtyInputRef}
+                  id="stock-qty"
+                  type="number"
+                  step="any"
+                  value={qty}
+                  onChange={(e) => setQty(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (isAddingNewCat) {
+                        newCategoryInputRef.current?.focus();
+                      } else {
+                        categorySelectRef.current?.focus();
+                      }
+                    }
+                  }}
+                  required
+                  className="block w-full flex-1 h-11 rounded-xl border border-zinc-800 bg-black/60 px-3 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-bold"
+                  placeholder="e.g. 50"
+                />
+                <select
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 text-[12px] font-bold text-white outline-none transition focus:border-zinc-500"
+                  title="Unit of Measurement"
+                >
+                  <option value="pcs">pcs (units)</option>
+                  <option value="kg">kg (kilograms)</option>
+                  <option value="g">g (grams)</option>
+                  <option value="L">L (litres)</option>
+                  <option value="mL">mL (millilitres)</option>
+                  <option value="pack">pack (bundles)</option>
+                  <option value="box">box (cartons)</option>
+                  <option value="m">m (metres)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* 6. Category (Optional) */}
+            <div>
+              <label htmlFor="stock-category" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+                Category (Optional)
+              </label>
+              {!isAddingNewCat ? (
+                <select
+                  ref={categorySelectRef}
+                  id="stock-category"
+                  value={category}
+                  onChange={(e) => {
+                    if (e.target.value === 'new-category') {
+                      setIsAddingNewCat(true);
+                      setTimeout(() => newCategoryInputRef.current?.focus(), 50);
+                    } else {
+                      setCategory(e.target.value);
+                    }
+                  }}
+                  onKeyDown={handleCategoryEnter}
+                  className="mt-1 h-11 w-full rounded-xl border border-zinc-800 bg-black/60 px-3 text-[12.5px] font-semibold text-white outline-none transition focus:border-zinc-500"
+                >
+                  <option value="">General (Default)</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                  <option value="new-category">+ Add New Category</option>
+                </select>
+              ) : (
+                <div className="mt-1 flex items-center gap-1.5">
+                  <input
+                    ref={newCategoryInputRef}
+                    type="text"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    onKeyDown={handleCategoryEnter}
+                    autoFocus
+                    className="h-11 flex-1 rounded-xl border border-zinc-700 bg-black/80 px-3 text-[12.5px] text-white outline-none placeholder:text-white/34 font-semibold"
+                    placeholder="Type category & press Enter..."
+                  />
+                  <button
+                    type="button"
+                    onClick={applyNewCategory}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                    title="Apply category and proceed to new supplier"
+                  >
+                    <Check className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 7. Supplier Link (Optional) - Switching to New Supplier on Enter */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-white/80">
+              Supplier Link (Optional)
+            </div>
+
             <div className="grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setSupplierMode('existing')}
-                className={`h-10 rounded-full border px-4 text-sm font-semibold transition ${supplierMode === 'existing' ? 'border-white/30 bg-white text-black' : 'border-white/12 bg-black/35 text-white/70 hover:bg-white/10'}`}
+                className={`h-9 rounded-xl border px-4 text-xs font-bold transition ${
+                  supplierMode === 'existing'
+                    ? 'border-zinc-600 bg-white text-black'
+                    : 'border-zinc-800 bg-black/50 text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                }`}
               >
                 Existing Supplier
               </button>
               <button
                 type="button"
                 onClick={() => setSupplierMode('new')}
-                className={`h-10 rounded-full border px-4 text-sm font-semibold transition ${supplierMode === 'new' ? 'border-white/30 bg-white text-black' : 'border-white/12 bg-black/35 text-white/70 hover:bg-white/10'}`}
+                className={`h-9 rounded-xl border px-4 text-xs font-bold transition ${
+                  supplierMode === 'new'
+                    ? 'border-zinc-600 bg-white text-black'
+                    : 'border-zinc-800 bg-black/50 text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                }`}
               >
                 New Supplier
               </button>
@@ -301,9 +453,16 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
               <select
                 value={supplierId}
                 onChange={(event) => setSupplierId(event.target.value)}
-                className="mt-3 h-11 w-full rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none transition focus:border-[#78B7FF]"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    setSupplierMode('new');
+                    setTimeout(() => newSupplierNameRef.current?.focus(), 50);
+                  }
+                }}
+                className="mt-3 h-11 w-full rounded-xl border border-zinc-800 bg-black/60 px-4 text-[12.5px] font-semibold text-white outline-none transition focus:border-zinc-500"
               >
-                <option value="">Select supplier</option>
+                <option value="">Select supplier (Optional)</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
                     {supplier.name} {supplier.phone ? `- ${supplier.phone}` : ''}
@@ -311,46 +470,53 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                 ))}
               </select>
             ) : (
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
                 <input
+                  ref={newSupplierNameRef}
                   value={newSupplierName}
                   onChange={(event) => setNewSupplierName(event.target.value)}
-                  className="h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
-                  placeholder="Supplier name"
+                  onKeyDown={(e) => handleKeyDownNext(e, newSupplierPhoneRef)}
+                  className="h-10 rounded-xl border border-zinc-800 bg-black/60 px-3 text-[12.5px] text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-semibold"
+                  placeholder="New Supplier Name (Optional)"
                 />
                 <input
+                  ref={newSupplierPhoneRef}
                   value={newSupplierPhone}
                   onChange={(event) => setNewSupplierPhone(event.target.value)}
-                  className="h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
+                  onKeyDown={(e) => handleKeyDownNext(e, newSupplierLeadTimeRef)}
+                  className="h-10 rounded-xl border border-zinc-800 bg-black/60 px-3 text-[12.5px] text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-semibold"
                   placeholder="Phone"
                 />
                 <input
+                  ref={newSupplierLeadTimeRef}
                   type="number"
                   value={newSupplierLeadTime}
                   onChange={(event) => setNewSupplierLeadTime(event.target.value)}
-                  className="h-11 rounded-full border border-white/12 bg-black/45 px-4 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-[#78B7FF]"
+                  onKeyDown={(e) => handleKeyDownNext(e, submitBtnRef)}
+                  className="h-10 rounded-xl border border-zinc-800 bg-black/60 px-3 text-[12.5px] text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-semibold"
                   placeholder="Lead days"
                 />
               </div>
             )}
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 p-2.5 rounded-xl">{error}</p>}
 
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-3">
             <button
               type="button"
               onClick={onClose}
-              className="h-11 rounded-full bg-white/5 px-6 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+              className="h-11 rounded-xl bg-zinc-900 px-6 text-xs font-bold text-zinc-300 transition hover:bg-zinc-800 hover:text-white border border-zinc-800"
             >
               Cancel
             </button>
             <button
+              ref={submitBtnRef}
               type="submit"
               disabled={isSubmitting}
-              className="h-11 rounded-full bg-white px-6 text-sm font-semibold text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] transition hover:scale-[1.02] disabled:opacity-50"
+              className="h-11 rounded-xl bg-white px-6 text-xs font-extrabold text-black shadow-md transition hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 border-0"
             >
-              {isSubmitting ? 'Adding...' : 'Add Stock'}
+              {isSubmitting ? 'Adding Stock...' : 'Add Stock'}
             </button>
           </div>
         </form>

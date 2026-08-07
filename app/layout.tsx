@@ -1,31 +1,37 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import ClientToaster from '../components/ClientToaster'
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from '../contexts/ThemeContext'
+import { NextAuthProvider } from '@/components/NextAuthProvider'
 
 const inter = Inter({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-inter',
+  weight: ['400', '500', '600', '700', '800'],
 })
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
-  themeColor: '#05070A',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+  ],
 }
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://easytrader.onrender.com'
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://easytrader.onrender.com'
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'EasyTrader | Smart Billing, Business Suite & E-Commerce Workspace',
+    default: 'EasyTrader - Smart Billing, Business Suite & AI Workspace for Bharat',
     template: '%s | EasyTrader',
   },
-  description: 'Replace manual registers with EasyTrader. An all-in-one AI smart billing desk, stock inventory manager, customer ledger, supplier database, and e-commerce storefront for modern shopkeepers and SMBs.',
+  description: 'AI-powered solution architect and retail operations platform for businesses in Bharat. Smart POS billing, inventory management, AI workspace, customer ledger, and digital storefronts.',
   keywords: [
     'EasyTrader',
     'Smart Billing System',
@@ -36,7 +42,8 @@ export const metadata: Metadata = {
     'Digital Khata Book',
     'E-commerce Storefront Generator',
     'AI Business Suite',
-    'Business Intelligence Workspace'
+    'Bharat MSME',
+    'Digital Storefront',
   ],
   authors: [{ name: 'EasyTrader Team', url: siteUrl }],
   creator: 'EasyTrader',
@@ -46,6 +53,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+  manifest: '/manifest.json',
   alternates: {
     canonical: siteUrl,
   },
@@ -61,15 +69,15 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: 'EasyTrader | Complete Billing & Business Workspace for Shopkeepers',
+    title: 'EasyTrader - Smart Billing & Business Workspace for Shopkeepers',
     description: 'Manage retail billing, stock inventory, customers, suppliers, expenses, and automated storefronts effortlessly with EasyTrader.',
     url: siteUrl,
     siteName: 'EasyTrader',
-    locale: 'en_US',
+    locale: 'en_IN',
     type: 'website',
     images: [
       {
-        url: '/diagram-export-08-03-2026-15_08_32.png',
+        url: `${siteUrl}/diagram-export-08-03-2026-15_08_32.png`,
         width: 1200,
         height: 630,
         alt: 'EasyTrader Business Suite Workspace',
@@ -78,9 +86,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'EasyTrader | Complete Billing & Business Workspace',
+    title: 'EasyTrader - Smart Billing & Business Workspace',
     description: 'Manage retail billing, stock inventory, customers, suppliers, expenses, and automated storefronts effortlessly with EasyTrader.',
-    images: ['/diagram-export-08-03-2026-15_08_32.png'],
+    images: [`${siteUrl}/diagram-export-08-03-2026-15_08_32.png`],
     creator: '@EasyTraderApp',
   },
 }
@@ -129,18 +137,21 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`dark font-sans ${inter.variable}`} suppressHydrationWarning>
       <head>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
         />
       </head>
-      <body className={inter.className} suppressHydrationWarning>
-        <ThemeProvider>
-          {children}
-          <ClientToaster />
-        </ThemeProvider>
+      <body className={`${inter.className} font-sans antialiased text-slate-100 bg-black selection:bg-blue-500 selection:text-white`} suppressHydrationWarning>
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
+        <NextAuthProvider>
+          <ThemeProvider>
+            {children}
+            <ClientToaster />
+          </ThemeProvider>
+        </NextAuthProvider>
         <Analytics />
       </body>
     </html>

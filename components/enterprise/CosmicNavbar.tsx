@@ -24,9 +24,12 @@ type NavItem = {
 interface CosmicNavbarProps {
   activeSection: BusinessSectionKey;
   onSectionChange: (section: BusinessSectionKey) => void;
+  isLight?: boolean;
+  theme?: 'light' | 'dark';
 }
 
-export function CosmicNavbar({ activeSection, onSectionChange }: CosmicNavbarProps) {
+export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionChange, theme }: CosmicNavbarProps) {
+  const isLight = propIsLight ?? theme === 'light';
   const [isOpen, setIsOpen] = useState(false);
 
   const navItems = useMemo<NavItem[]>(() => [
@@ -45,53 +48,63 @@ export function CosmicNavbar({ activeSection, onSectionChange }: CosmicNavbarPro
   };
 
   return (
-    <div className="relative z-20">
+    <div className="relative z-20 w-full">
       <motion.div
-        initial={{ opacity: 0, y: -12, scale: 0.985 }}
+        initial={{ opacity: 0, y: -8, scale: 0.985 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
-        className="relative overflow-hidden rounded-[8px] border border-white/12 bg-[#05070A]/78 shadow-[0_24px_90px_rgba(0,0,0,0.42)] backdrop-blur-2xl"
+        transition={{ duration: 0.22, ease: 'easeOut' }}
+        className={`relative overflow-hidden rounded-2xl md:rounded-full border p-1.5 ${
+          isLight
+            ? 'border-zinc-200 bg-white text-black shadow-md'
+            : 'border-zinc-800 bg-black text-white shadow-xl'
+        }`}
       >
-        <motion.div
-          aria-hidden
-          className="absolute inset-y-0 left-0 w-1/2 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.11),transparent)]"
-          animate={{ x: ['-120%', '240%'] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(255,156,42,0.22),transparent_34%),radial-gradient(circle_at_86%_15%,rgba(59,168,255,0.20),transparent_34%)]" />
-
-        <div className="relative flex min-h-[74px] items-center gap-3 p-2.5">
+        <div className="relative flex items-center justify-between gap-2 px-1">
+          {/* Mobile Menu Dropdown Toggle Button */}
           <button
             type="button"
             onClick={() => setIsOpen((current) => !current)}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[8px] border border-white/12 bg-white/[0.065] text-white transition hover:border-white/25 hover:bg-white/[0.11] lg:hidden"
-            aria-label="Toggle business suite navigation"
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition lg:hidden touch-manipulation min-h-[36px] ${
+              isLight
+                ? 'border-zinc-200 bg-white text-black hover:bg-zinc-100'
+                : 'border-zinc-800 bg-black text-white hover:bg-zinc-900'
+            }`}
+            aria-label="Toggle business suite section menu"
             aria-expanded={isOpen}
           >
-            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
 
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto rounded-[8px] border border-white/8 bg-black/28 p-1.5 scrollbar-none lg:justify-between">
+          {/* Horizontal Scroll-Free Nav Bar for all 7 items */}
+          <div className={`flex w-full flex-1 items-center justify-between gap-0.5 rounded-full p-0.5 ${
+            isLight ? 'bg-white' : 'bg-black'
+          }`}>
             {navItems.map((item) => (
               <NavButton
                 key={item.key}
                 item={item}
                 isActive={item.key === activeSection}
                 onClick={() => selectSection(item.key)}
+                isLight={isLight}
               />
             ))}
           </div>
         </div>
       </motion.div>
 
+      {/* Mobile Dropdown Popup Menu */}
       <AnimatePresence>
         {isOpen ? (
           <motion.div
             initial={{ opacity: 0, y: -8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 8, scale: 1 }}
+            animate={{ opacity: 1, y: 6, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="absolute left-0 right-0 top-full z-30 grid gap-2 rounded-[8px] border border-white/12 bg-[#05070A]/96 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:grid-cols-2 lg:hidden"
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className={`absolute left-0 right-0 top-full z-30 grid gap-1.5 rounded-2xl border p-2.5 shadow-2xl sm:grid-cols-2 lg:hidden ${
+              isLight
+                ? 'border-zinc-200 bg-white text-black shadow-zinc-200/80'
+                : 'border-zinc-800 bg-black text-white shadow-2xl'
+            }`}
           >
             {navItems.map((item) => (
               <NavButton
@@ -99,6 +112,7 @@ export function CosmicNavbar({ activeSection, onSectionChange }: CosmicNavbarPro
                 item={item}
                 isActive={item.key === activeSection}
                 onClick={() => selectSection(item.key)}
+                isLight={isLight}
                 mobile
               />
             ))}
@@ -109,7 +123,7 @@ export function CosmicNavbar({ activeSection, onSectionChange }: CosmicNavbarPro
   );
 }
 
-function NavButton({ isActive, item, mobile, onClick }: { isActive: boolean; item: NavItem; mobile?: boolean; onClick: () => void }) {
+function NavButton({ isActive, isLight, item, mobile, onClick }: { isActive: boolean; isLight?: boolean; item: NavItem; mobile?: boolean; onClick: () => void }) {
   const Icon = item.icon;
 
   return (
@@ -118,23 +132,41 @@ function NavButton({ isActive, item, mobile, onClick }: { isActive: boolean; ite
       onClick={onClick}
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.98 }}
-      className={`group relative flex h-12 items-center gap-2 overflow-hidden rounded-[8px] px-3 text-left transition ${
-        mobile ? 'justify-between' : 'min-w-[105px] shrink-0 flex-1 justify-center lg:min-w-[126px]'
-      } ${isActive ? 'text-white' : 'text-white/54 hover:text-white'}`}
+      className={`group relative flex h-9 items-center gap-1.5 overflow-hidden rounded-full px-2.5 sm:px-3 text-left transition border-0 ${
+        mobile ? 'justify-between w-full' : 'flex-1 justify-center'
+      } ${
+        isActive
+          ? 'text-white font-bold'
+          : isLight
+            ? 'text-zinc-600 hover:text-black'
+            : 'text-zinc-400 hover:text-white'
+      }`}
       aria-current={isActive ? 'page' : undefined}
     >
       {isActive ? (
         <motion.span
           layoutId="business-suite-active-nav"
-          className="absolute inset-0 rounded-[8px] border border-white/18 bg-white/[0.105] shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+          className={`absolute inset-0 rounded-full border ${
+            isLight
+              ? 'bg-black text-white border-black'
+              : 'bg-zinc-800 text-white border-zinc-700/60'
+          }`}
           transition={{ type: 'spring', stiffness: 380, damping: 34 }}
         />
       ) : (
-        <span className="absolute inset-0 rounded-[8px] bg-white/[0.04] opacity-0 transition group-hover:opacity-100" />
+        <span className={`absolute inset-0 rounded-full opacity-0 transition group-hover:opacity-100 ${
+          isLight ? 'bg-zinc-100' : 'bg-zinc-900/40'
+        }`} />
       )}
-      <span className="relative flex min-w-0 items-center gap-2">
-        <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-[#FFB866]' : 'text-white/42 group-hover:text-[#9DCEFF]'}`} />
-        <span className="truncate text-[13px] font-semibold">{item.label}</span>
+      <span className="relative flex items-center gap-1.5 shrink-0">
+        <Icon className={`h-3.5 w-3.5 shrink-0 ${
+          isActive
+            ? 'text-white'
+            : isLight
+              ? 'text-zinc-500 group-hover:text-black'
+              : 'text-zinc-400 group-hover:text-white'
+        }`} />
+        <span className="whitespace-nowrap text-[12px] xl:text-[12.5px] font-bold">{item.label}</span>
       </span>
     </motion.button>
   );

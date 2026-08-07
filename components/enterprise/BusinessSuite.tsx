@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  ArrowRight,
   BadgePercent,
   Boxes,
   CheckCircle2,
@@ -27,6 +28,7 @@ import { AddStockModal } from './AddStockModal';
 import { AddCustomerModal } from './AddCustomerModal';
 import { AddSupplierModal } from './AddSupplierModal';
 import { CosmicNavbar } from './CosmicNavbar';
+import { RecentSearchInput } from './RecentSearchInput';
 import type { BusinessSectionKey, DashboardData } from './types';
 import { formatDate, formatMoney } from './utils';
 
@@ -34,6 +36,9 @@ interface BusinessSuiteProps {
   data: DashboardData;
   onDataRefresh?: () => Promise<void>;
   initialSection?: BusinessSectionKey;
+  activeSection?: BusinessSectionKey;
+  onSectionChange?: (section: BusinessSectionKey) => void;
+  theme?: 'dark' | 'light';
 }
 
 type CartItem = {
@@ -42,6 +47,7 @@ type CartItem = {
   price: number;
   qty: number;
   availableQty: number;
+  checked?: boolean;
 };
 
 type MarketingForm = {
@@ -57,8 +63,21 @@ type PromoResult = {
   caption: string;
 };
 
-export function BusinessSuite({ data, onDataRefresh, initialSection }: BusinessSuiteProps) {
-  const [activeSection, setActiveSection] = useState<BusinessSectionKey>(initialSection || 'billing');
+export function BusinessSuite({
+  activeSection: controlledSection,
+  data,
+  initialSection,
+  onDataRefresh,
+  onSectionChange,
+  theme = 'dark',
+}: BusinessSuiteProps) {
+  const isLight = theme === 'light';
+  const [internalSection, setInternalSection] = useState<BusinessSectionKey>(initialSection || 'billing');
+  const activeSection = controlledSection || internalSection;
+  const setActiveSection = (sec: BusinessSectionKey) => {
+    setInternalSection(sec);
+    onSectionChange?.(sec);
+  };
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [isAddingStock, setIsAddingStock] = useState(false);
   const [isAddingSupplier, setIsAddingSupplier] = useState(false);
@@ -66,8 +85,8 @@ export function BusinessSuite({ data, onDataRefresh, initialSection }: BusinessS
   const [customerId, setCustomerId] = useState('walk-in');
   const [productQuery, setProductQuery] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [discount, setDiscount] = useState('0');
-  const [tax, setTax] = useState('0');
+  const [discount, setDiscount] = useState('');
+  const [tax, setTax] = useState('');
   const [notes, setNotes] = useState('');
   const [lastInvoice, setLastInvoice] = useState<any | null>(null);
   const [billingStatus, setBillingStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({ type: 'idle', message: '' });
@@ -122,6 +141,7 @@ export function BusinessSuite({ data, onDataRefresh, initialSection }: BusinessS
           price: Number(item.price || 0),
           qty: 1,
           availableQty,
+          checked: false,
         },
       ];
     });
@@ -135,6 +155,20 @@ export function BusinessSuite({ data, onDataRefresh, initialSection }: BusinessS
 
   const removeFromCart = (id: string) => {
     setCart((current) => current.filter((entry) => entry.id !== id));
+  };
+
+  const toggleCartItemCheck = (id: string) => {
+    setCart((current) =>
+      current.map((entry) => (entry.id === id ? { ...entry, checked: !entry.checked } : entry))
+    );
+  };
+
+  const toggleAllCartItemsCheck = (checkedState: boolean) => {
+    setCart((current) => current.map((entry) => ({ ...entry, checked: checkedState })));
+  };
+
+  const removeSelectedFromCart = () => {
+    setCart((current) => current.filter((entry) => entry.checked === false));
   };
 
   const quickDiscount = (percent: number) => {
@@ -201,8 +235,9 @@ export function BusinessSuite({ data, onDataRefresh, initialSection }: BusinessS
 
       setLastInvoice(result.invoice);
       setCart([]);
-      setDiscount('0');
-      setTax('0');
+      setCustomerId('walk-in');
+      setDiscount('');
+      setTax('');
       setNotes('');
       setBillingStatus({ type: 'success', message: `Bill ${String(result.invoice.id).slice(0, 10)} created. Inventory is updated.` });
       depletedItems.forEach((item: any) => {
@@ -522,21 +557,8 @@ export function BusinessSuite({ data, onDataRefresh, initialSection }: BusinessS
 
 
   return (
-    <section className="relative -mx-4 overflow-hidden px-4 pb-12 pt-3 md:-mx-8 md:px-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(255,156,42,0.16),transparent_24%),radial-gradient(circle_at_82%_14%,rgba(59,168,255,0.18),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_28%)]" />
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-28 h-[520px] w-[520px] -translate-x-1/2 rounded-full border border-white/10"
-        animate={{ rotate: 360 }}
-        transition={{ duration: 48, repeat: Infinity, ease: 'linear' }}
-      />
-
-      <div className="relative mx-auto max-w-[1400px] space-y-6">
-        <CosmicNavbar
-          activeSection={activeSection}
-          onSectionChange={setActiveSection}
-        />
-
+    <section className={`relative -mx-4 overflow-hidden px-3 pb-1 pt-0 md:-mx-8 md:px-6 ${isLight ? 'bg-white text-black' : 'bg-black text-white'}`}>
+      <div className="relative mx-auto max-w-[1500px]">
         <div>
             {activeSection === 'billing' ? (
               <BillingDesk
@@ -557,6 +579,7 @@ export function BusinessSuite({ data, onDataRefresh, initialSection }: BusinessS
                 subtotal={subtotal}
                 tax={tax}
                 taxAmount={taxAmount}
+                theme={theme}
                 onAddToCart={addToCart}
                 onCreateBill={createBill}
                 onCustomerChange={setCustomerId}
@@ -568,12 +591,16 @@ export function BusinessSuite({ data, onDataRefresh, initialSection }: BusinessS
                 onProductQueryChange={setProductQuery}
                 onQuickDiscount={quickDiscount}
                 onRemoveFromCart={removeFromCart}
+                onToggleCartItemCheck={toggleCartItemCheck}
+                onToggleAllCartItemsCheck={toggleAllCartItemsCheck}
+                onRemoveSelectedFromCart={removeSelectedFromCart}
                 onShare={shareLastBill}
                 onTaxChange={setTax}
                 onUpdateCartQty={updateCartQty}
               />
             ) : (
               <ModuleGallery
+                theme={theme}
                 section={activeSection}
                 data={data}
                 onDownloadInvoice={downloadInvoice}
@@ -606,8 +633,11 @@ export function BusinessSuite({ data, onDataRefresh, initialSection }: BusinessS
           {isAddingCustomer && (
             <AddCustomerModal
               onClose={() => setIsAddingCustomer(false)}
-              onCustomerAdded={() => {
+              onCustomerAdded={(newCustomer) => {
                 onDataRefresh?.();
+                if (newCustomer?.id) {
+                  setCustomerId(String(newCustomer.id));
+                }
               }}
             />
           )}
@@ -652,6 +682,7 @@ function BillingDesk({
   subtotal,
   tax,
   taxAmount,
+  theme = 'dark',
   onAddToCart,
   onCreateBill,
   onCustomerChange,
@@ -663,6 +694,9 @@ function BillingDesk({
   onProductQueryChange,
   onQuickDiscount,
   onRemoveFromCart,
+  onToggleCartItemCheck,
+  onToggleAllCartItemsCheck,
+  onRemoveSelectedFromCart,
   onShare,
   onTaxChange,
   onUpdateCartQty,
@@ -684,6 +718,7 @@ function BillingDesk({
   subtotal: number;
   tax: string;
   taxAmount: number;
+  theme?: 'dark' | 'light';
   onAddToCart: (item: any) => void;
   onCreateBill: () => void;
   onCustomerChange: (value: string) => void;
@@ -695,178 +730,579 @@ function BillingDesk({
   onProductQueryChange: (value: string) => void;
   onQuickDiscount: (percent: number) => void;
   onRemoveFromCart: (id: string) => void;
+  onToggleCartItemCheck?: (id: string) => void;
+  onToggleAllCartItemsCheck?: (checked: boolean) => void;
+  onRemoveSelectedFromCart?: () => void;
   onShare: () => void;
   onTaxChange: (value: string) => void;
   onUpdateCartQty: (id: string, qty: number) => void;
 }) {
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
+  const isLight = theme === 'light';
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
+  const [cartQuery, setCartQuery] = useState('');
+  const [mobileBillingTab, setMobileBillingTab] = useState<'products' | 'cart'>('products');
+
+  const displayedCustomers = useMemo(() => {
+    const query = customerSearch.trim().toLowerCase();
+    if (!query) return data.customers || [];
+    return (data.customers || []).filter((c: any) =>
+      `${c.name || ''} ${c.phone || ''}`.toLowerCase().includes(query)
+    );
+  }, [data.customers, customerSearch]);
+
+  const sortedProducts = useMemo(() => {
+    return [...filteredProducts].sort((a: any, b: any) =>
+      (a.name || '').localeCompare(b.name || '')
+    );
+  }, [filteredProducts]);
+
+  const filteredCart = useMemo(() => {
+    const query = cartQuery.trim().toLowerCase();
+    if (!query) return cart;
+    return cart.filter((item) =>
+      (item.name || '').toLowerCase().includes(query)
+    );
+  }, [cart, cartQuery]);
 
   return (
-    <div className="relative overflow-hidden rounded-[8px] border border-border bg-card/45 p-3 shadow-sm backdrop-blur-2xl md:p-4">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_8%,rgba(255,156,42,0.18),transparent_26%),radial-gradient(circle_at_76%_24%,rgba(59,168,255,0.20),transparent_30%)]" />
-      <div className="relative space-y-3">
-        <div className="grid gap-3 md:grid-cols-3">
-          <SoftStat label="Items in cart" value={String(itemCount)} />
-          <SoftStat label="Bill value" value={`₹${formatMoney(grandTotal)}`} />
-          <SoftStat label="Customer" value={selectedCustomer ? selectedCustomer.name : 'Walk-in'} />
+    <div className={`relative overflow-hidden rounded-2xl p-2 transition-colors duration-200 md:p-2.5 ${
+      isLight
+        ? 'bg-white text-black shadow-sm'
+        : 'bg-black text-white'
+    }`}>
+      <div className="relative space-y-2">
+        {/* Mobile Phone Segment Control (< xl ONLY) */}
+        <div className="flex xl:hidden items-center justify-between gap-1.5 rounded-xl border border-zinc-800 bg-black p-1 shadow-md">
+          <button
+            type="button"
+            onClick={() => setMobileBillingTab('products')}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-[12.5px] font-bold transition-all touch-manipulation ${
+              mobileBillingTab === 'products'
+                ? isLight ? 'bg-black text-white shadow' : 'bg-white text-black shadow'
+                : isLight ? 'text-zinc-600 hover:text-black' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Boxes className="h-4 w-4" />
+            <span>Products & Customer</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileBillingTab('cart')}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-[12.5px] font-bold transition-all touch-manipulation ${
+              mobileBillingTab === 'cart'
+                ? isLight ? 'bg-black text-white shadow' : 'bg-white text-black shadow'
+                : isLight ? 'text-zinc-600 hover:text-black' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <ReceiptText className="h-4 w-4" />
+            <span>Cart ({itemCount}) • ₹{formatMoney(grandTotal)}</span>
+          </button>
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-[minmax(360px,0.86fr)_minmax(0,1.14fr)]">
-          <motion.section
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.28, ease: 'easeOut' }}
-            className="rounded-[8px] border border-border bg-card/82 p-4 shadow-sm"
-          >
-            <PanelHeader icon={Search} title="Product Command" meta={`${filteredProducts.length} available`} />
-            <select
-              value={customerId}
-              onChange={(event) => {
-                if (event.target.value === 'add-new-customer') {
-                  onAddCustomer();
-                } else {
-                  onCustomerChange(event.target.value);
-                }
-              }}
-              className="mt-4 h-12 w-full rounded-full border border-border bg-background/55 px-4 text-[14px] font-semibold text-foreground outline-none transition focus:border-primary"
+        {/* Main Grid Layout: Left Panel (Customer & Product Command) vs Right Panel (Smart Invoice Composer) */}
+        <div className="grid gap-2.5 xl:grid-cols-[minmax(340px,0.88fr)_minmax(0,1.12fr)]">
+          {/* LEFT COLUMN: Customer Selection at Top + Product Command below (Hidden on Mobile if Cart Tab active) */}
+          <div className={`space-y-2 ${mobileBillingTab === 'cart' ? 'hidden xl:block' : 'block'}`}>
+            {/* WALK-IN CUSTOMER & SEARCH FOR OLD CUSTOMER (Top of Left Section) */}
+            <motion.section
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.24, ease: 'easeOut' }}
+              className={`rounded-xl p-2.5 border ${
+                isLight
+                  ? 'border-transparent bg-zinc-50 text-black'
+                  : 'border-zinc-800 bg-black text-white'
+              }`}
             >
-              <option value="walk-in">Walk-in customer</option>
-              <option value="add-new-customer">-- Add New Customer --</option>
-              {data.customers.map((customer: any) => (
-                <option key={customer.id} value={customer.id}>{customer.name} {customer.phone ? `- ${customer.phone}` : ''}</option>
-              ))}
-            </select>
-
-            <label className="mt-3 flex h-12 items-center gap-2 rounded-full border border-border bg-background/55 px-4 text-foreground/55 transition focus-within:border-primary">
-              <Search className="h-4 w-4" />
-              <input
-                value={productQuery}
-                onChange={(event) => onProductQueryChange(event.target.value)}
-                placeholder="Search products, category, description"
-                className="w-full bg-transparent text-[14px] text-foreground outline-none placeholder:text-foreground/35"
-              />
-            </label>
-
-            <div className="mt-4 grid max-h-[610px] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-              {filteredProducts.map((item, index) => (
-                <motion.button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onAddToCart(item)}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22, delay: index * 0.018, ease: 'easeOut' }}
-                  whileHover={{ y: -2, scale: 1.006 }}
-                  className="group relative flex min-h-[86px] w-full items-center justify-between gap-3 overflow-hidden rounded-[8px] border border-border bg-card/[0.045] px-4 py-3 text-left transition hover:border-border/22 hover:bg-card/[0.075]"
-                >
-                  <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[#FF9C2A] to-[#3BA8FF] opacity-0 transition group-hover:opacity-100" />
-                  <span>
-                    <span className="block text-[14px] font-semibold text-foreground">{item.name || 'Unnamed item'}</span>
-                    <span className="mt-1 block text-[12px] text-foreground/48">Stock {Number(item.qty || 0)} • {item.category || 'General'}</span>
-                  </span>
-                  <span className="rounded-full border border-border bg-background/45 px-3 py-1 text-[13px] font-semibold text-foreground">₹{formatMoney(Number(item.price || 0))}</span>
-                </motion.button>
-              ))}
-              {filteredProducts.length === 0 ? (
-                <div className="rounded-[8px] border border-border bg-card/[0.045] px-4 py-10 text-center text-[14px] text-foreground/52">
-                  No in-stock products match your search.
+              <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <Users className="h-3.5 w-3.5 text-current" />
+                  <span className="text-[12px] font-bold uppercase tracking-wider">Customer Selection</span>
                 </div>
-              ) : null}
-            </div>
-          </motion.section>
+                <button
+                  type="button"
+                  onClick={onAddCustomer}
+                  className={`inline-flex items-center gap-1.5 h-8 rounded-full border px-3 text-[12px] font-bold transition-all shadow-sm ${
+                    isLight
+                      ? 'border-transparent bg-black text-white hover:bg-zinc-800'
+                      : 'border-zinc-800 bg-white text-black hover:bg-zinc-200'
+                  }`}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>New Customer</span>
+                </button>
+              </div>
 
+              <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                {/* Left Select: Walk in Customer dropdown */}
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wide mb-0.5 ${
+                    isLight ? 'text-zinc-500' : 'text-zinc-400'
+                  }`}>
+                    Walk-in Customer
+                  </label>
+                  <select
+                    value={customerId}
+                    onChange={(event) => {
+                      if (event.target.value === 'add-new-customer') {
+                        onAddCustomer();
+                      } else {
+                        onCustomerChange(event.target.value);
+                      }
+                    }}
+                    className={`h-9 w-full rounded-lg border px-3 text-[13px] font-semibold outline-none transition ${
+                      isLight
+                        ? 'border-transparent bg-zinc-100 text-black focus:ring-1 focus:ring-black'
+                        : 'border-zinc-800 bg-black text-white focus:border-white'
+                    }`}
+                  >
+                    <option value="walk-in">Walk-in customer</option>
+                    <option value="add-new-customer">+ Add New Customer</option>
+                    {selectedCustomer && (
+                      <option value={selectedCustomer.id}>
+                        {selectedCustomer.name} {selectedCustomer.phone ? `(${selectedCustomer.phone})` : ''}
+                      </option>
+                    )}
+                  </select>
+                </div>
+
+                {/* Right Option: Search Option for Old Customers */}
+                <div className="relative">
+                  <label className={`block text-[10px] font-bold uppercase tracking-wide mb-0.5 ${
+                    isLight ? 'text-zinc-500' : 'text-zinc-400'
+                  }`}>
+                    Search Old Customer
+                  </label>
+                  <div className={`flex h-9 items-center gap-2 rounded-lg border px-3 transition ${
+                    isLight
+                      ? 'border-transparent bg-zinc-100 text-black focus-within:ring-1 focus-within:ring-black'
+                      : 'border-zinc-800 bg-black text-white focus-within:border-white'
+                  }`}>
+                    <Search className="h-4 w-4 shrink-0 text-zinc-400" />
+                    <input
+                      value={customerSearch}
+                      onChange={(e) => {
+                        setCustomerSearch(e.target.value);
+                        setIsSearchingCustomer(true);
+                      }}
+                      onFocus={() => setIsSearchingCustomer(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && displayedCustomers.length > 0) {
+                          e.preventDefault();
+                          onCustomerChange(displayedCustomers[0].id);
+                          setCustomerSearch('');
+                          setIsSearchingCustomer(false);
+                        }
+                      }}
+                      placeholder="Name or phone"
+                      className="w-full bg-transparent text-base md:text-[12.5px] font-medium outline-none placeholder:text-zinc-500"
+                    />
+                  </div>
+
+                  {/* Autocomplete List for Search Old Customer */}
+                  {isSearchingCustomer && customerSearch.trim() && (
+                    <div className={`absolute left-0 right-0 top-full z-40 mt-1 max-h-44 overflow-y-auto rounded-xl border p-1 shadow-2xl ${
+                      isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-black text-white'
+                    }`}>
+                      {displayedCustomers.length === 0 ? (
+                        <div className="p-2 text-center text-[12px] opacity-50">No customer found</div>
+                      ) : (
+                        displayedCustomers.map((c: any) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              onCustomerChange(c.id);
+                              setCustomerSearch('');
+                              setIsSearchingCustomer(false);
+                            }}
+                            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[12px] font-semibold transition ${
+                              isLight ? 'hover:bg-blue-50 hover:text-blue-700' : 'hover:bg-zinc-900 hover:text-white'
+                            }`}
+                          >
+                            <span className="font-bold">{c.name}</span>
+                            <span className="text-[11px] opacity-60">{c.phone}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.section>
+
+            {/* PRODUCT COMMAND */}
+            <motion.section
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className={`rounded-xl p-2.5 border ${
+                isLight
+                  ? 'border-transparent bg-zinc-50 text-black'
+                  : 'border-zinc-800 bg-black text-white'
+              }`}
+            >
+              <PanelHeader
+                isLight={isLight}
+                icon={Search}
+                title="Product Command"
+                meta={`${sortedProducts.length} Available`}
+              />
+
+              <RecentSearchInput
+                value={productQuery}
+                onChange={onProductQueryChange}
+                placeholder="Search products, category, description..."
+                storageKey="product_command"
+                isLight={isLight}
+                className="mt-1.5"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && sortedProducts.length > 0) {
+                    onAddToCart(sortedProducts[0]);
+                  }
+                }}
+              />
+
+              {/* Product List */}
+              <div className="mt-1.5 space-y-1 h-[260px] sm:h-[320px] xl:h-[calc(100vh-360px)] xl:min-h-[220px] xl:max-h-[480px] overflow-y-auto pr-1">
+                {sortedProducts.map((item, index) => (
+                  <motion.button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onAddToCart(item)}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.18, delay: index * 0.015, ease: 'easeOut' }}
+                    whileHover={{ scale: 1.004, x: 2 }}
+                    className={`group relative flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-all ${
+                      isLight
+                        ? 'border-transparent bg-white hover:bg-zinc-100 text-black'
+                        : 'border-zinc-900 bg-black hover:border-zinc-700 text-white'
+                    }`}
+                  >
+                    <span className="absolute inset-y-0 left-0 w-1 rounded-l-lg bg-white opacity-0 transition group-hover:opacity-100" />
+                    <div className="min-w-0 flex-1">
+                      <div className={`truncate text-[12.5px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>
+                        {item.name || 'Unnamed item'}
+                      </div>
+                      <div className={`mt-0.5 flex items-center gap-1.5 text-[11px] ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                        <span>Stock: <strong className={isLight ? 'text-black' : 'text-white'}>{Number(item.qty || 0)} {item.unit || 'pcs'}</strong></span>
+                        <span>•</span>
+                        <span className="truncate">{item.category || 'General'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`rounded-lg px-2.5 py-1 text-[12px] font-bold border ${
+                        isLight
+                          ? 'border-transparent bg-zinc-100 text-black'
+                          : 'border-zinc-800 bg-black text-white'
+                      }`}>
+                        ₹{formatMoney(Number(item.price || 0))}
+                      </span>
+                      <span className={`inline-flex h-7 items-center justify-center rounded-lg px-3 text-[11.5px] font-bold transition shadow-sm ${
+                        isLight
+                          ? 'bg-black text-white hover:bg-zinc-800'
+                          : 'bg-white text-black hover:bg-zinc-200'
+                      }`}>
+                        + Add
+                      </span>
+                    </div>
+                  </motion.button>
+                ))}
+                {sortedProducts.length === 0 ? (
+                  <div className={`rounded-lg p-4 text-center text-[12.5px] border ${
+                    isLight ? 'border-transparent bg-white text-zinc-500' : 'border-zinc-800 bg-black text-zinc-400'
+                  }`}>
+                    No in-stock products match your search query.
+                  </div>
+                ) : null}
+              </div>
+            </motion.section>
+          </div>
+
+          {/* RIGHT COLUMN: SMART INVOICE COMPOSER (Hidden on Mobile if Products Tab active) */}
           <motion.section
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.28, delay: 0.05, ease: 'easeOut' }}
-            className="rounded-[8px] border border-border bg-card/82 p-4 shadow-sm"
+            className={`rounded-xl p-2.5 flex flex-col justify-between border ${
+              isLight
+                ? 'border-transparent bg-zinc-50 text-black'
+                : 'border-zinc-800 bg-black text-white'
+            } ${mobileBillingTab === 'products' ? 'hidden xl:flex' : 'flex'}`}
           >
-            <PanelHeader icon={ReceiptText} title="Smart Invoice Composer" meta={selectedCustomer ? selectedCustomer.name : 'Walk-in'} />
-            <div className="mt-4 min-h-[240px] rounded-[8px] border border-border bg-background/45 p-3">
-              {cart.length === 0 ? (
-                <div className="flex h-[216px] items-center justify-center rounded-[6px] border border-dashed border-border/14 text-center text-[14px] leading-6 text-foreground/48">
-                  Add products to begin a stock-linked bill.
+            <div>
+              {/* Header with Search Bar right BESIDE Smart Invoice Composer Name */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+                <div className="flex flex-1 items-center gap-2.5 min-w-[240px]">
+                  <PanelHeader
+                    isLight={isLight}
+                    icon={ReceiptText}
+                    title="Smart Invoice Composer"
+                    meta={selectedCustomer ? selectedCustomer.name : 'Walk-in'}
+                  />
+
+                  {/* SEARCH BAR BESIDE SMART INVOICE COMPOSER NAME */}
+                  <label className={`flex h-9 flex-1 items-center gap-2 rounded-lg border px-2.5 transition min-w-[140px] ${
+                    isLight
+                      ? 'border-transparent bg-zinc-100 text-black focus-within:ring-1 focus-within:ring-black'
+                      : 'border-zinc-800 bg-black text-white focus-within:ring-1 focus-within:ring-white'
+                  }`}>
+                    <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                    <input
+                      value={cartQuery}
+                      onChange={(event) => setCartQuery(event.target.value)}
+                      placeholder="Search items in cart..."
+                      className="w-full bg-transparent text-base md:text-[12.5px] font-semibold outline-none placeholder:text-zinc-500"
+                    />
+                  </label>
                 </div>
-              ) : (
-                <div className="grid gap-2 lg:grid-cols-2">
-                  {cart.map((item) => (
-                    <div key={item.id} className="rounded-[8px] border border-border bg-card/[0.045] p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-[14px] font-semibold text-foreground">{item.name}</div>
-                          <div className="mt-1 text-[12px] text-foreground/45">₹{formatMoney(item.price)} each • {item.availableQty} available</div>
-                        </div>
-                        <button type="button" onClick={() => onRemoveFromCart(item.id)} className="rounded-full p-2 text-foreground/42 transition hover:bg-card/10 hover:text-foreground" aria-label={`Remove ${item.name}`}>
-                          <Trash2 className="h-4 w-4" />
+
+                {/* ITEMS IN CART BADGE & SELECT ALL CONTROLS */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {cart.length > 0 && (
+                    <div className="flex items-center gap-2 text-[11px] font-bold">
+                      <label className={`flex items-center gap-1 cursor-pointer select-none ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-zinc-400 hover:text-white'}`}>
+                        <input
+                          type="checkbox"
+                          checked={cart.length > 0 && cart.every((i) => i.checked !== false)}
+                          onChange={(e) => onToggleAllCartItemsCheck?.(e.target.checked)}
+                          className="h-3.5 w-3.5 rounded accent-emerald-500 cursor-pointer"
+                          title="Select all items"
+                        />
+                        <span>All</span>
+                      </label>
+                      {cart.some((i) => i.checked !== false) && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveSelectedFromCart?.()}
+                          className="text-red-400 hover:text-red-300 transition text-[10.5px] uppercase tracking-wider font-extrabold"
+                          title="Remove selected items"
+                        >
+                          Clear
                         </button>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <div className="flex items-center rounded-full border border-border bg-background/45">
-                          <button type="button" onClick={() => onUpdateCartQty(item.id, item.qty - 1)} className="p-2.5 text-foreground/52 hover:text-foreground" aria-label={`Decrease ${item.name}`}>
-                            <Minus className="h-3.5 w-3.5" />
+                      )}
+                    </div>
+                  )}
+                  <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold shrink-0 ${
+                    isLight
+                      ? 'bg-black text-white'
+                      : 'bg-white text-black'
+                  }`}>
+                    <span className="relative flex h-2 w-2">
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${isLight ? 'bg-white' : 'bg-black'}`}></span>
+                    </span>
+                    <span>{itemCount} {itemCount === 1 ? 'Item' : 'Items'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic RECTANGULAR Cart Items List */}
+              <div className={`mt-1.5 h-[220px] sm:h-[280px] xl:h-[calc(100vh-450px)] xl:min-h-[180px] xl:max-h-[380px] overflow-y-auto rounded-lg p-1.5 border ${
+                isLight ? 'border-transparent bg-white' : 'border-zinc-900 bg-black'
+              }`}>
+                {cart.length === 0 ? (
+                  <div className={`flex h-full items-center justify-center rounded-lg border border-dashed text-center text-[12px] font-medium leading-5 ${
+                    isLight ? 'border-slate-300 text-slate-400' : 'border-zinc-800 text-white/40'
+                  }`}>
+                    Add products from Product Command to begin a stock-linked bill.
+                  </div>
+                ) : filteredCart.length === 0 ? (
+                  <div className={`flex h-full items-center justify-center rounded-lg border border-dashed text-center text-[12px] font-medium leading-5 ${
+                    isLight ? 'border-slate-300 text-slate-400' : 'border-zinc-800 text-white/40'
+                  }`}>
+                    No cart items match your search query.
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {filteredCart.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center justify-between gap-2 rounded-lg border px-2 py-1 transition-all ${
+                          isLight
+                            ? 'border-slate-200 bg-slate-50/90 text-slate-900'
+                            : 'border-zinc-900 bg-black text-white'
+                        }`}
+                      >
+                        {/* Optional Verification Checkbox */}
+                        <label className="flex items-center shrink-0 cursor-pointer pr-0.5" title="Re-check or verify physical item">
+                          <input
+                            type="checkbox"
+                            checked={!!item.checked}
+                            onChange={() => onToggleCartItemCheck?.(item.id)}
+                            className={`h-4 w-4 rounded cursor-pointer transition accent-emerald-500 ${
+                              isLight ? 'border-slate-300 bg-white' : 'border-zinc-700 bg-zinc-900'
+                            }`}
+                          />
+                        </label>
+
+                        {/* Item Name & Unit Price */}
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                          <span className="truncate text-[12.5px] font-bold">{item.name}</span>
+                          <span className={`text-[11px] font-semibold shrink-0 ${isLight ? 'text-slate-500' : 'text-white/45'}`}>
+                            (₹{formatMoney(item.price)}/ea)
+                          </span>
+                        </div>
+
+                        {/* Quantity Controls */}
+                        <div className={`flex items-center shrink-0 rounded-md border ${
+                          isLight ? 'border-slate-300 bg-white' : 'border-zinc-800 bg-black'
+                        }`}>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateCartQty(item.id, item.qty - 1)}
+                            className={`p-0.5 transition ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-white/60 hover:text-white'}`}
+                            aria-label={`Decrease ${item.name}`}
+                          >
+                            <Minus className="h-3 w-3" />
                           </button>
                           <input
                             value={item.qty}
                             onChange={(event) => onUpdateCartQty(item.id, Number(event.target.value || 1))}
-                            className="h-9 w-12 bg-transparent text-center text-[14px] font-semibold text-foreground outline-none"
+                            className="h-4.5 w-6 bg-transparent text-center text-[11.5px] font-bold outline-none"
                             inputMode="numeric"
                           />
-                          <button type="button" onClick={() => onUpdateCartQty(item.id, item.qty + 1)} className="p-2.5 text-foreground/52 hover:text-foreground" aria-label={`Increase ${item.name}`}>
-                            <Plus className="h-3.5 w-3.5" />
+                          <button
+                            type="button"
+                            onClick={() => onUpdateCartQty(item.id, item.qty + 1)}
+                            className={`p-0.5 transition ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-white/60 hover:text-white'}`}
+                            aria-label={`Increase ${item.name}`}
+                          >
+                            <Plus className="h-3 w-3" />
                           </button>
                         </div>
-                        <div className="text-[15px] font-semibold text-foreground">₹{formatMoney(item.price * item.qty)}</div>
+
+                        {/* Line Total */}
+                        <div className="w-14 text-right text-[12.5px] font-extrabold shrink-0">
+                          ₹{formatMoney(item.price * item.qty)}
+                        </div>
+
+                        {/* Remove Button */}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveFromCart(item.id)}
+                          className={`rounded-md p-0.5 shrink-0 transition ${
+                            isLight
+                              ? 'text-slate-400 hover:bg-red-50 hover:text-red-600'
+                              : 'text-white/40 hover:bg-red-500/20 hover:text-red-300'
+                          }`}
+                          aria-label={`Remove ${item.name}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Form Input fields */}
+              <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
+                <FormSelect isLight={isLight} value={paymentMethod} onChange={onPaymentMethodChange} options={['cash', 'upi', 'card', 'credit']} />
+                <FormInput isLight={isLight} value={notes} onChange={onNotesChange} placeholder="Notes" />
+                <FormInput isLight={isLight} value={discount} onChange={onDiscountChange} placeholder="Discount (₹)" />
+                <FormInput isLight={isLight} value={tax} onChange={onTaxChange} placeholder="Tax (₹)" />
+              </div>
+
+              {/* Quick Discount Buttons */}
+              <div className="mt-1 flex flex-wrap gap-1">
+                {[
+                  { label: '1%', action: () => onQuickDiscount(0.01) },
+                  { label: '5%', action: () => onQuickDiscount(0.05) },
+                  { label: '7%', action: () => onQuickDiscount(0.07) },
+                  { label: '10%', action: () => onQuickDiscount(0.1) },
+                  { label: '15%', action: () => onQuickDiscount(0.15) },
+                  { label: 'GST 18%', action: () => onTaxChange(String(Math.round(subtotal * 0.18))) },
+                ].map((chip) => (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={chip.action}
+                    className={`inline-flex h-7.5 items-center gap-1.5 rounded-lg border border-zinc-800 px-2.5 text-[11.5px] font-bold transition-all shadow-sm ${
+                      isLight
+                        ? 'border-transparent bg-zinc-100 text-black hover:bg-zinc-200'
+                        : 'border-zinc-800 bg-black text-white hover:bg-zinc-900'
+                    }`}
+                  >
+                    <BadgePercent className={`h-3.5 w-3.5 ${isLight ? 'text-black' : 'text-white'}`} />
+                    <span>{chip.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Calculation Summary */}
+              <div className={`mt-1.5 rounded-lg border p-2 text-[12px] ${
+                isLight ? 'border-transparent bg-white' : 'border-zinc-900 bg-black'
+              }`}>
+                <TotalLine isLight={isLight} label="Subtotal" value={`₹${formatMoney(subtotal)}`} />
+                <TotalLine isLight={isLight} label="Discount" value={`₹${formatMoney(discountAmount)}`} />
+                <TotalLine isLight={isLight} label="Tax" value={`₹${formatMoney(taxAmount)}`} />
+                <div className={`mt-1 flex justify-between border-t border-zinc-200 dark:border-zinc-800 pt-1 text-[15px] font-bold ${
+                  isLight ? 'text-black' : 'text-white'
+                }`}>
+                  <span>Grand Total</span>
+                  <span className={`font-black ${isLight ? 'text-black' : 'text-white'}`}>₹{formatMoney(grandTotal)}</span>
                 </div>
-              )}
-            </div>
-
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <FormSelect value={paymentMethod} onChange={onPaymentMethodChange} options={['cash', 'upi', 'card', 'credit']} />
-              <FormInput value={notes} onChange={onNotesChange} placeholder="Notes" />
-              <FormInput value={discount} onChange={onDiscountChange} placeholder="Discount" />
-              <FormInput value={tax} onChange={onTaxChange} placeholder="Tax" />
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={() => onQuickDiscount(0.05)} className="chip-button"><BadgePercent className="h-3.5 w-3.5" />5%</button>
-              <button type="button" onClick={() => onQuickDiscount(0.1)} className="chip-button"><BadgePercent className="h-3.5 w-3.5" />10%</button>
-              <button type="button" onClick={() => onTaxChange(String(Math.round(subtotal * 0.18)))} className="chip-button"><Wand2 className="h-3.5 w-3.5" />GST 18%</button>
-            </div>
-
-            <div className="mt-4 rounded-[8px] border border-border bg-card/[0.045] p-4 text-[13px]">
-              <TotalLine label="Subtotal" value={`₹${formatMoney(subtotal)}`} />
-              <TotalLine label="Discount" value={`₹${formatMoney(discountAmount)}`} />
-              <TotalLine label="Tax" value={`₹${formatMoney(taxAmount)}`} />
-              <div className="mt-3 flex justify-between border-t border-border pt-3 text-[17px] font-semibold text-foreground">
-                <span>Grand Total</span>
-                <span>₹{formatMoney(grandTotal)}</span>
               </div>
+
+              {status.message ? (
+                <div className={`mt-1 rounded-lg px-2.5 py-1 text-[11.5px] font-bold border ${
+                  status.type === 'error'
+                    ? 'border-red-900 bg-red-950 text-red-200'
+                    : 'border-zinc-800 bg-black text-white'
+                }`}>
+                  {status.message}
+                </div>
+              ) : null}
             </div>
 
-            {status.message ? (
-              <div className={`mt-3 rounded-[8px] border px-3 py-2 text-[13px] ${status.type === 'error' ? 'border-red-400/35 bg-red-500/10 text-red-100' : 'border-emerald-400/35 bg-emerald-500/10 text-emerald-100'}`}>
-                {status.message}
-              </div>
-            ) : null}
-
-            <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_auto_auto]">
+            {/* Action CTAs - ALWAYS PINNED & VISIBLE WITHOUT SCROLLING */}
+            <div className="mt-2 grid gap-1.5 sm:grid-cols-[1fr_auto_auto]">
               <button
                 type="button"
                 onClick={onCreateBill}
                 disabled={cart.length === 0 || isBilling}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[14px] font-semibold text-primary-foreground shadow-sm transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-6 text-[13.5px] font-bold transition-all border-0 shadow-md ${
+                  isLight
+                    ? 'bg-black text-white hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400'
+                    : 'bg-white text-black hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-500'
+                }`}
               >
                 <CheckCircle2 className="h-4 w-4" />
                 {isBilling ? 'Creating bill...' : 'Create Bill & Deduct Stock'}
               </button>
-              <IconAction disabled={!lastInvoice} onClick={onPrint} icon={Printer} label="Print" />
-              <IconAction disabled={!lastInvoice} onClick={onShare} icon={MessageCircle} label="WhatsApp" />
+              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onPrint} icon={Printer} label="Print" />
+              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onShare} icon={MessageCircle} label="WhatsApp" />
             </div>
           </motion.section>
         </div>
+
+        {/* Floating Mobile Cart Quick Checkout Pill (< xl ONLY) */}
+        {itemCount > 0 && mobileBillingTab === 'products' && (
+          <div className="fixed bottom-4 left-4 right-4 z-40 xl:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileBillingTab('cart')}
+              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-zinc-700 bg-white px-4 py-3 text-black shadow-2xl transition hover:bg-zinc-100 touch-manipulation min-h-[48px]"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-black text-white text-[12px] font-black">
+                  {itemCount}
+                </span>
+                <div className="text-left">
+                  <div className="text-[13px] font-extrabold leading-tight">View Cart & Checkout</div>
+                  <div className="text-[11px] font-bold opacity-75">Total: ₹{formatMoney(grandTotal)}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-[13px] font-extrabold">
+                <span>Proceed</span>
+                <ArrowRight className="h-4 w-4" />
+              </div>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -875,6 +1311,7 @@ function BillingDesk({
 function ModuleGallery({
   section,
   data,
+  theme = 'dark',
   onDownloadInvoice,
   onAddCustomer,
   onAddSupplier,
@@ -901,6 +1338,7 @@ function ModuleGallery({
 }: {
   section: BusinessSectionKey;
   data: DashboardData;
+  theme?: 'dark' | 'light';
   onDownloadInvoice: (invoice: any) => void;
   onAddCustomer: () => void;
   onAddSupplier: () => void;
@@ -925,107 +1363,325 @@ function ModuleGallery({
   onSharePromo: () => void;
   onSyncGoogleBusiness: () => void;
 }) {
+  const isLight = theme === 'light';
+
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [stockSearchQuery, setStockSearchQuery] = useState('');
+  const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
+  const [supplierSearchQuery, setSupplierSearchQuery] = useState('');
+
+  const filteredCustomersList = useMemo(() => {
+    const q = customerSearchQuery.trim().toLowerCase();
+    if (!q) return data.customers || [];
+    return (data.customers || []).filter((c: any) =>
+      `${c.name || ''} ${c.phone || ''}`.toLowerCase().includes(q)
+    );
+  }, [data.customers, customerSearchQuery]);
+
+  const filteredStockList = useMemo(() => {
+    const q = stockSearchQuery.trim().toLowerCase();
+    if (!q) return data.items || [];
+    return (data.items || []).filter((item: any) =>
+      `${item.name || ''} ${item.category || ''} ${item.supplierName || ''}`.toLowerCase().includes(q)
+    );
+  }, [data.items, stockSearchQuery]);
+
+  const filteredInvoicesList = useMemo(() => {
+    const q = invoiceSearchQuery.trim().toLowerCase();
+    if (!q) return data.invoices || [];
+    return (data.invoices || []).filter((inv: any) =>
+      `${inv.id || ''} ${inv.customer?.name || ''} ${inv.customer?.phone || ''} ${inv.paymentMethod || ''}`.toLowerCase().includes(q)
+    );
+  }, [data.invoices, invoiceSearchQuery]);
+
+  const filteredSuppliersList = useMemo(() => {
+    const q = supplierSearchQuery.trim().toLowerCase();
+    if (!q) return data.suppliers || [];
+    return (data.suppliers || []).filter((s: any) =>
+      `${s.name || ''} ${s.phone || ''} ${s.products || ''}`.toLowerCase().includes(q)
+    );
+  }, [data.suppliers, supplierSearchQuery]);
+
   return (
-    <div className="relative overflow-hidden rounded-[8px] border border-border bg-card/45 p-4 shadow-sm backdrop-blur-2xl">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(255,156,42,0.14),transparent_26%),radial-gradient(circle_at_86%_18%,rgba(59,168,255,0.16),transparent_30%)]" />
+    <div className={`relative overflow-hidden rounded-2xl p-3 transition-colors duration-200 md:p-4 ${
+      isLight
+        ? 'bg-white text-black shadow-sm'
+        : 'bg-black text-white'
+    }`}>
       <div className="relative">
         {section === 'customers' ? (
-          <ModuleSection icon={Users} eyebrow="Customer Profiles" title="Customer memory" description="Your customer cards are restored with phone, purchase count, and lifetime spend.">
-            <div className="mb-4 flex justify-end">
-              <IconAction onClick={onAddCustomer} icon={UserPlus} label="Add New Customer" />
+          <ModuleSection isLight={isLight} icon={Users} eyebrow="Customer Profiles" title="Customer Directory" description="Search and manage customer records, purchase histories, and total spent.">
+            {/* Header Controls: Search Input + Add Button */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2">
+              <RecentSearchInput
+                value={customerSearchQuery}
+                onChange={setCustomerSearchQuery}
+                placeholder="Search customers by name or phone..."
+                storageKey="customer_directory"
+                isLight={isLight}
+                className="min-w-[220px] max-w-md"
+              />
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`rounded-full border px-3 py-1 text-[11.5px] font-bold ${
+                  isLight ? 'border-transparent bg-zinc-100 text-black' : 'border-zinc-800 bg-black text-white'
+                }`}>
+                  {filteredCustomersList.length} {filteredCustomersList.length === 1 ? 'Customer' : 'Customers'}
+                </span>
+                <IconAction isLight={isLight} onClick={onAddCustomer} icon={UserPlus} label="Add New Customer" />
+              </div>
             </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {data.customers.slice(0, 12).map((customer: any, index: number) => (
-                <MotionModuleCard key={customer.id} index={index} title={customer.name || 'Unnamed customer'} meta={customer.phone || 'Customer'}>
-                  <div className="text-[13px] text-foreground/58">Purchases: <span className="text-foreground">{customer.purchaseCount || 0}</span></div>
-                  <div className="mt-2 text-[13px] text-foreground/58">Spent: <span className="text-foreground">₹{formatMoney(Number(customer.totalSpent || 0))}</span></div>
-                  <div className="mt-3 flex justify-end">
-                    <IconAction onClick={() => onDeleteCustomer(customer.id)} icon={Trash2} label="Delete" />
+
+            {/* Compact Space-Efficient Customer Grid */}
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredCustomersList.map((customer: any) => (
+                <div
+                  key={customer.id}
+                  className={`group relative flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-all ${
+                    isLight
+                      ? 'border-transparent bg-zinc-50 text-black hover:bg-zinc-100'
+                      : 'border-zinc-900 bg-black hover:border-zinc-700 text-white'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className={`truncate text-[13.5px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>
+                      {customer.name || 'Unnamed customer'}
+                    </div>
+                    <div className={`mt-0.5 text-[11.5px] font-medium ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                      {customer.phone || 'No phone'}
+                    </div>
                   </div>
-                </MotionModuleCard>
+                  <div className="text-right shrink-0">
+                    <div className={`text-[11.5px] font-bold ${isLight ? 'text-zinc-700' : 'text-zinc-300'}`}>
+                      {customer.purchaseCount || 0} Bills
+                    </div>
+                    <div className={`text-[12.5px] font-extrabold ${isLight ? 'text-black' : 'text-white'}`}>
+                      ₹{formatMoney(Number(customer.totalSpent || 0))}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteCustomer(customer.id)}
+                    className={`rounded-lg p-1.5 shrink-0 transition ${
+                      isLight
+                        ? 'text-zinc-400 hover:bg-red-50 hover:text-red-600'
+                        : 'text-zinc-500 hover:bg-red-950 hover:text-red-300'
+                    }`}
+                    title="Delete customer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               ))}
+              {filteredCustomersList.length === 0 ? (
+                <div className={`col-span-full rounded-xl border p-6 text-center text-[13px] ${
+                  isLight ? 'border-transparent bg-zinc-50 text-zinc-500' : 'border-zinc-900 bg-black text-zinc-400'
+                }`}>
+                  No customers found matching your search.
+                </div>
+              ) : null}
             </div>
           </ModuleSection>
         ) : null}
 
         {section === 'stock' ? (
-          <ModuleSection icon={Boxes} eyebrow="Stock Management" title="Live stock field" description="Inventory quantities remain visible and update after stock-linked billing.">
-            <div className="mb-4 flex justify-end">
-              <IconAction onClick={onAddStock} icon={PackagePlus} label="Add New Stock" />
+          <ModuleSection isLight={isLight} icon={Boxes} eyebrow="Stock Management" title="Live Stock Inventory" description="Real-time stock levels with search, supplier restock alerts, and instant ordering.">
+            {/* Header Controls: Search Input + Add Button */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2">
+              <RecentSearchInput
+                value={stockSearchQuery}
+                onChange={setStockSearchQuery}
+                placeholder="Search stock by item, category, supplier..."
+                storageKey="stock_inventory"
+                isLight={isLight}
+                className="min-w-[220px] max-w-md"
+              />
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`rounded-full border px-3 py-1 text-[11.5px] font-bold ${
+                  isLight ? 'border-transparent bg-zinc-100 text-black' : 'border-zinc-800 bg-black text-white'
+                }`}>
+                  {filteredStockList.length} Products
+                </span>
+                <IconAction isLight={isLight} onClick={onAddStock} icon={PackagePlus} label="Add New Stock" />
+              </div>
             </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {data.items.slice(0, 12).map((item: any, index: number) => (
-                <MotionModuleCard key={item.id} index={index} title={item.name || 'Unnamed item'} meta={`Qty ${item.qty || 0}`} imageUrl={item.imageUrl}>
-                  <div className="text-[13px] text-foreground/58">Unit price: <span className="text-foreground">₹{formatMoney(Number(item.price || 0))}</span></div>
-                  <div className="mt-2 text-[13px] text-foreground/58">Supplier: <span className="text-foreground">{item.supplierName || 'Not linked'}</span></div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-card/10">
-                    <div className="h-full rounded-full bg-gradient-to-r from-[#FF9C2A] to-[#3BA8FF]" style={{ width: `${Math.min(100, Math.max(6, Number(item.qty || 0)))}%` }} />
-                  </div>
-                  {Number(item.qty || 0) <= 0 ? (
-                    <div className="mt-3 rounded-[8px] border border-amber-300/25 bg-amber-400/10 p-3 text-[12px] leading-5 text-amber-100">
-                      Stock completed. Place a supplier order now.
+
+            {/* Compact Space-Efficient Stock Grid */}
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredStockList.map((item: any) => (
+                <div
+                  key={item.id}
+                  className={`group relative flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 transition-all ${
+                    isLight
+                      ? 'border-transparent bg-zinc-50 text-black hover:bg-zinc-100'
+                      : 'border-zinc-900 bg-black hover:border-zinc-700 text-white'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`truncate text-[13.5px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>{item.name || 'Unnamed item'}</span>
+                      <span className={`rounded-md border px-1.5 py-0.5 text-[10.5px] font-extrabold ${
+                        Number(item.qty || 0) <= 0
+                          ? 'border-red-900 bg-red-950 text-red-200'
+                          : isLight ? 'border-transparent bg-zinc-200 text-black' : 'border-zinc-800 bg-black text-white'
+                      }`}>
+                        Qty: {item.qty || 0} {item.unit || 'pcs'}
+                      </span>
                     </div>
-                  ) : null}
-                  <div className="mt-3 flex flex-wrap justify-end gap-2">
-                    <IconAction onClick={() => onPlaceSupplierOrder(item)} icon={PackagePlus} label="Order" />
-                    <IconAction onClick={() => onDeleteStock(item.id)} icon={Trash2} label="Delete" />
+                    <div className={`mt-1 flex items-center gap-2 text-[11.5px] font-medium ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                      <span className={`font-bold ${isLight ? 'text-black' : 'text-white'}`}>₹{formatMoney(Number(item.price || 0))}</span>
+                      <span>•</span>
+                      <span className="truncate">{item.supplierName || item.category || 'General'}</span>
+                    </div>
                   </div>
-                </MotionModuleCard>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => onPlaceSupplierOrder(item)}
+                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11.5px] font-bold transition border-0 ${
+                        isLight
+                          ? 'bg-black text-white hover:bg-zinc-800'
+                          : 'bg-white text-black hover:bg-zinc-200'
+                      }`}
+                    >
+                      <PackagePlus className="h-3.5 w-3.5" />
+                      <span>Order</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteStock(item.id)}
+                      className={`rounded-lg p-1.5 shrink-0 transition ${
+                        isLight
+                          ? 'text-slate-400 hover:bg-red-50 hover:text-red-600'
+                          : 'text-white/40 hover:bg-red-500/20 hover:text-red-300'
+                      }`}
+                      title="Delete stock"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               ))}
+              {filteredStockList.length === 0 ? (
+                <div className={`col-span-full rounded-xl border p-6 text-center text-[13px] ${
+                  isLight ? 'border-slate-200 bg-white text-slate-500' : 'border-zinc-900 bg-black text-zinc-400'
+                }`}>
+                  No products found matching your search.
+                </div>
+              ) : null}
             </div>
           </ModuleSection>
         ) : null}
 
         {section === 'invoices' ? (
-          <ModuleSection icon={ReceiptText} eyebrow="Invoice Ledger" title="Invoice constellation" description="The invoice details view is back, with subtotal, discount, tax, and total.">
-            <div className="space-y-3">
-              {data.invoices.slice(0, 8).map((invoice: any, index: number) => (
-                <motion.div
+          <ModuleSection isLight={isLight} icon={ReceiptText} eyebrow="Invoice Ledger" title="Invoice History" description="Complete invoice register with instant search and download options.">
+            {/* Header Controls: Search Input */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2">
+              <RecentSearchInput
+                value={invoiceSearchQuery}
+                onChange={setInvoiceSearchQuery}
+                placeholder="Search invoices by ID, customer name, phone..."
+                storageKey="invoice_history"
+                isLight={isLight}
+                className="min-w-[240px] max-w-md"
+              />
+              <span className={`rounded-full border px-3 py-1 text-[11.5px] font-bold ${
+                isLight ? 'border-transparent bg-zinc-100 text-black' : 'border-zinc-800 bg-black text-white'
+              }`}>
+                {filteredInvoicesList.length} {filteredInvoicesList.length === 1 ? 'Invoice' : 'Invoices'}
+              </span>
+            </div>
+
+            {/* High-Density Compact Invoice List */}
+            <div className="space-y-1.5">
+              {filteredInvoicesList.map((invoice: any) => (
+                <div
                   key={invoice.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22, delay: index * 0.035, ease: 'easeOut' }}
-                  className="rounded-[8px] border border-border bg-card/[0.045] p-4"
+                  className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3.5 py-2 transition-all ${
+                    isLight
+                      ? 'border-transparent bg-zinc-50 text-black hover:bg-zinc-100'
+                      : 'border-zinc-900 bg-black hover:border-zinc-700 text-white'
+                  }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3 text-[13px] text-foreground/58">
-                    <div>
-                      <span className="font-semibold text-foreground">{invoice.customer?.name || 'Walk-in Customer'}</span>
-                      <span className="ml-3 text-foreground/40">INV-{String(invoice.id).slice(0, 6)}</span>
+                  <div className="min-w-[180px]">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[13.5px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>
+                        {invoice.customer?.name || 'Walk-in Customer'}
+                      </span>
+                      <span className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${
+                        isLight ? 'bg-zinc-200 text-black' : 'bg-zinc-800 text-white'
+                      }`}>
+                        INV-{String(invoice.id).slice(0, 6)}
+                      </span>
                     </div>
-                    <span>{formatDate(invoice.createdAt)}</span>
+                    <div className={`mt-0.5 text-[11.5px] font-medium ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                      {formatDate(invoice.createdAt)} • <span className="capitalize font-semibold">{invoice.paymentMethod || 'cash'}</span>
+                    </div>
                   </div>
-                  <div className="mt-4 grid gap-3 md:grid-cols-4">
-                    <SoftStat label="Subtotal" value={`₹${formatMoney(Number(invoice.subtotal || 0))}`} />
-                    <SoftStat label="Discount" value={`₹${formatMoney(Number(invoice.discount || 0))}`} />
-                    <SoftStat label="Tax" value={`₹${formatMoney(Number(invoice.tax || 0))}`} />
-                    <SoftStat label="Total" value={`₹${formatMoney(Number(invoice.total || 0))}`} />
+
+                  <div className="flex items-center gap-3 text-[12px] font-medium">
+                    <span className={isLight ? 'text-zinc-600' : 'text-zinc-400'}>
+                      Subtotal: <strong className={isLight ? 'text-black' : 'text-white'}>₹{formatMoney(Number(invoice.subtotal || 0))}</strong>
+                    </span>
+                    <span className={isLight ? 'text-zinc-600' : 'text-zinc-400'}>
+                      Discount: <strong className={isLight ? 'text-black' : 'text-white'}>₹{formatMoney(Number(invoice.discount || 0))}</strong>
+                    </span>
+                    <span className={isLight ? 'text-zinc-600' : 'text-zinc-400'}>
+                      Tax: <strong className={isLight ? 'text-black' : 'text-white'}>₹{formatMoney(Number(invoice.tax || 0))}</strong>
+                    </span>
                   </div>
-                  <div className="mt-4 flex justify-end">
-                    <IconAction disabled={!invoice} onClick={() => onDownloadInvoice(invoice)} icon={Download} label="Download" />
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-[15px] font-extrabold ${isLight ? 'text-black' : 'text-white'}`}>
+                      ₹{formatMoney(Number(invoice.total || 0))}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onDownloadInvoice(invoice)}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12px] font-bold transition border-0 ${
+                        isLight
+                          ? 'bg-black text-white hover:bg-zinc-800'
+                          : 'bg-white text-black hover:bg-zinc-200'
+                      }`}
+                    >
+                      <Download className="h-3.5 w-3.5 text-current" />
+                      <span>Download</span>
+                    </button>
                   </div>
-                </motion.div>
+                </div>
               ))}
+              {filteredInvoicesList.length === 0 ? (
+                <div className={`rounded-xl border-0 p-6 text-center text-[13px] ${
+                  isLight ? 'bg-zinc-50 text-zinc-500' : 'bg-zinc-900 text-zinc-400'
+                }`}>
+                  No invoices found matching your search.
+                </div>
+              ) : null}
             </div>
           </ModuleSection>
         ) : null}
 
         {section === 'marketing' ? (
-          <ModuleSection icon={Sparkles} eyebrow="Marketing Operations" title="Marketing Studio" description="Generate a local promo poster, caption, hashtag pack, WhatsApp share, and Google Business update from your inventory.">
+          <ModuleSection isLight={isLight} icon={Sparkles} eyebrow="Marketing Operations" title="Marketing Studio" description="Generate a local promo poster, caption, hashtag pack, WhatsApp share, and Google Business update from your inventory.">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)]">
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.24, ease: 'easeOut' }}
-                className="rounded-[8px] border border-border bg-card p-4 shadow-sm"
+                className={`rounded-xl border-0 p-4 shadow-sm ${
+                  isLight ? 'bg-zinc-50 text-black' : 'bg-black text-white'
+                }`}
               >
-                <PanelHeader icon={Wand2} title="Promo Inputs" meta={selectedMarketingProduct ? selectedMarketingProduct.name : 'Select product'} />
+                <PanelHeader isLight={isLight} icon={Wand2} title="Promo Inputs" meta={selectedMarketingProduct ? selectedMarketingProduct.name : 'Select product'} />
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <FormInput
+                    isLight={isLight}
                     value={marketingForm.shopName}
                     onChange={(value) => onMarketingFormChange({ ...marketingForm, shopName: value })}
                     placeholder="Shop name"
                   />
                   <FormInput
+                    isLight={isLight}
                     value={marketingForm.area}
                     onChange={(value) => onMarketingFormChange({ ...marketingForm, area: value })}
                     placeholder="Area"
@@ -1033,7 +1689,11 @@ function ModuleGallery({
                   <select
                     value={marketingForm.productId}
                     onChange={(event) => onMarketingFormChange({ ...marketingForm, productId: event.target.value })}
-                    className="h-11 rounded-full border border-border bg-background/45 px-4 text-[13px] font-semibold text-foreground outline-none transition focus:border-primary sm:col-span-2"
+                    className={`h-11 rounded-xl border-0 px-4 text-[13.5px] font-semibold outline-none transition sm:col-span-2 ${
+                      isLight
+                        ? 'bg-zinc-100 text-black focus:ring-1 focus:ring-black'
+                        : 'border-white/12 bg-black/45 text-white focus:border-[#78B7FF]'
+                    }`}
                   >
                     <option value="">Select product</option>
                     {data.items.map((item: any) => (
@@ -1041,11 +1701,13 @@ function ModuleGallery({
                     ))}
                   </select>
                   <FormInput
+                    isLight={isLight}
                     value={marketingForm.openingHours}
                     onChange={(value) => onMarketingFormChange({ ...marketingForm, openingHours: value })}
                     placeholder="Opening hours"
                   />
                   <FormInput
+                    isLight={isLight}
                     value={marketingForm.specialOffer}
                     onChange={(value) => onMarketingFormChange({ ...marketingForm, specialOffer: value })}
                     placeholder="Special offer"
@@ -1057,16 +1719,20 @@ function ModuleGallery({
                     type="button"
                     onClick={onGeneratePromo}
                     disabled={isGeneratingPromo}
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[14px] font-semibold text-primary-foreground shadow-sm transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45"
+                    className={`inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-[14px] font-bold shadow-md transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45 ${
+                      isLight
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-white text-black shadow-[0_0_34px_rgba(255,255,255,0.18)]'
+                    }`}
                   >
                     <Sparkles className="h-4 w-4" />
                     {isGeneratingPromo ? 'Generating...' : 'Generate Promo'}
                   </button>
-                  <IconAction disabled={isSyncingGoogle} onClick={onSyncGoogleBusiness} icon={ExternalLink} label={isSyncingGoogle ? 'Syncing...' : 'Google Sync'} />
+                  <IconAction isLight={isLight} disabled={isSyncingGoogle} onClick={onSyncGoogleBusiness} icon={ExternalLink} label={isSyncingGoogle ? 'Syncing...' : 'Google Sync'} />
                 </div>
 
                 {marketingStatus.message ? (
-                  <div className={`mt-4 rounded-[8px] border px-3 py-2 text-[13px] ${marketingStatus.type === 'error' ? 'border-red-400/35 bg-red-500/10 text-red-100' : 'border-emerald-400/35 bg-emerald-500/10 text-emerald-100'}`}>
+                  <div className={`mt-4 rounded-xl border px-3.5 py-2.5 text-[13px] font-semibold ${marketingStatus.type === 'error' ? 'border-red-300 bg-red-50 text-red-800 dark:border-red-400/35 dark:bg-red-500/10 dark:text-red-100' : 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-400/35 dark:bg-emerald-500/10 dark:text-emerald-100'}`}>
                     {marketingStatus.message}
                   </div>
                 ) : null}
@@ -1077,42 +1743,56 @@ function ModuleGallery({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.24, delay: 0.04, ease: 'easeOut' }}
-                className="rounded-[8px] border border-border bg-card p-4 shadow-sm"
+                className={`rounded-xl border p-4 shadow-sm ${
+                  isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-[#05070A] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                }`}
               >
-                <PanelHeader icon={Sparkles} title="Campaign Output" meta={promoResult ? 'Generated' : 'Waiting for promo'} />
+                <PanelHeader isLight={isLight} icon={Sparkles} title="Campaign Output" meta={promoResult ? 'Generated' : 'Waiting for promo'} />
                 {promoResult ? (
                   <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(220px,0.86fr)_minmax(0,1.14fr)]">
                     <img
                       src={promoResult.posterDataUrl}
                       alt="Generated promo poster"
-                      className="aspect-square w-full rounded-[8px] border border-border bg-background/35 object-cover"
+                      className={`aspect-square w-full rounded-xl border object-cover ${
+                        isLight ? 'border-slate-200 bg-slate-100' : 'border-white/12 bg-black/35'
+                      }`}
                     />
                     <div className="space-y-3">
-                      <div className="rounded-[8px] border border-border bg-card/[0.045] p-4">
-                        <div className="text-[11px] uppercase tracking-[0.15em] text-foreground/38">Caption</div>
-                        <p className="mt-2 text-[14px] leading-6 text-foreground">{promoResult.caption}</p>
+                      <div className={`rounded-xl border p-4 ${
+                        isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-white/[0.045] text-white'
+                      }`}>
+                        <div className={`text-[11px] font-extrabold uppercase tracking-[0.15em] ${
+                          isLight ? 'text-slate-500' : 'text-[#78B7FF]'
+                        }`}>Caption</div>
+                        <p className={`mt-2 text-[14px] font-medium leading-6 ${isLight ? 'text-slate-800' : 'text-white'}`}>{promoResult.caption}</p>
                       </div>
-                      <div className="rounded-[8px] border border-border bg-card/[0.045] p-4">
-                        <div className="text-[11px] uppercase tracking-[0.15em] text-foreground/38">Hashtags</div>
-                        <p className="mt-2 break-words text-[13px] leading-6 text-foreground/68">{promoHashtags}</p>
+                      <div className={`rounded-xl border p-4 ${
+                        isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-white/[0.045] text-white'
+                      }`}>
+                        <div className={`text-[11px] font-extrabold uppercase tracking-[0.15em] ${
+                          isLight ? 'text-slate-500' : 'text-[#78B7FF]'
+                        }`}>Hashtags</div>
+                        <p className={`mt-2 break-words text-[13px] font-medium leading-6 ${isLight ? 'text-slate-700' : 'text-white/80'}`}>{promoHashtags}</p>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
-                        <IconAction onClick={onCopyCaption} icon={Copy} label="Copy Caption" />
-                        <IconAction onClick={onDownloadPoster} icon={Download} label="Download Poster" />
-                        <IconAction onClick={onSharePromo} icon={MessageCircle} label="WhatsApp" />
-                        <IconAction onClick={onExportInstagramPack} icon={ExternalLink} label="Instagram Pack" />
+                        <IconAction isLight={isLight} onClick={onCopyCaption} icon={Copy} label="Copy Caption" />
+                        <IconAction isLight={isLight} onClick={onDownloadPoster} icon={Download} label="Download Poster" />
+                        <IconAction isLight={isLight} onClick={onSharePromo} icon={MessageCircle} label="WhatsApp" />
+                        <IconAction isLight={isLight} onClick={onExportInstagramPack} icon={ExternalLink} label="Instagram Pack" />
                         <div className="sm:col-span-2">
-                          <IconAction onClick={onCopyHashtags} icon={Copy} label="Copy Hashtags" />
+                          <IconAction isLight={isLight} onClick={onCopyHashtags} icon={Copy} label="Copy Hashtags" />
                         </div>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-4 grid min-h-[360px] place-items-center rounded-[8px] border border-dashed border-border/14 bg-card/[0.035] p-6 text-center">
+                  <div className={`mt-4 grid min-h-[360px] place-items-center rounded-xl border border-dashed p-6 text-center ${
+                    isLight ? 'border-slate-300 bg-slate-50 text-slate-600' : 'border-white/14 bg-white/[0.035] text-white'
+                  }`}>
                     <div>
-                      <Sparkles className="mx-auto h-8 w-8 text-[#FFB866]" />
-                      <div className="mt-3 text-[16px] font-semibold text-foreground">No campaign generated yet</div>
-                      <p className="mt-2 max-w-md text-[13px] leading-6 text-foreground/54">Choose an inventory item, add the local offer details, and generate a poster with a caption ready for social sharing.</p>
+                      <Sparkles className="mx-auto h-8 w-8 text-[#FF9C2A]" />
+                      <div className={`mt-3 text-[16px] font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>No campaign generated yet</div>
+                      <p className={`mt-2 max-w-md text-[13px] font-medium leading-6 ${isLight ? 'text-slate-600' : 'text-white/60'}`}>Choose an inventory item, add the local offer details, and generate a poster with a caption ready for social sharing.</p>
                     </div>
                   </div>
                 )}
@@ -1122,15 +1802,17 @@ function ModuleGallery({
         ) : null}
 
         {section === 'expenses' ? (
-          <ModuleSection icon={CreditCard} eyebrow="Expense Control" title="Expense atmosphere" description="Expense entries are back, including the empty-ledger state.">
+          <ModuleSection isLight={isLight} icon={CreditCard} eyebrow="Expense Control" title="Expense atmosphere" description="Expense entries are back, including the empty-ledger state.">
             {data.expenses.length === 0 ? (
-              <EmptyState text="No expense entries are recorded yet. The ledger is currently clean." />
+              <EmptyState isLight={isLight} text="No expense entries are recorded yet. The ledger is currently clean." />
             ) : (
               <div className="space-y-3">
                 {data.expenses.map((expense: any, index: number) => (
-                  <motion.div key={expense.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: index * 0.03 }} className="rounded-[8px] border border-border bg-card/[0.045] p-4">
-                    <div className="flex items-center justify-between text-[13px] text-foreground/58"><span className="font-semibold text-foreground">{expense.title}</span><span>₹{formatMoney(Number(expense.amount || 0))}</span></div>
-                    <div className="mt-2 text-[13px] text-foreground/38">{expense.category} • {formatDate(expense.date || expense.createdAt)}</div>
+                  <motion.div key={expense.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: index * 0.03 }} className={`rounded-xl border p-4 ${
+                    isLight ? 'border-slate-200 bg-white text-slate-900 shadow-sm' : 'border-zinc-900 bg-black text-white'
+                  }`}>
+                    <div className={`flex items-center justify-between text-[13px] font-medium ${isLight ? 'text-slate-600' : 'text-slate-300'}`}><span className={`font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{expense.title}</span><span className={`font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>₹{formatMoney(Number(expense.amount || 0))}</span></div>
+                    <div className={`mt-2 text-[13px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{expense.category} • {formatDate(expense.date || expense.createdAt)}</div>
                   </motion.div>
                 ))}
               </div>
@@ -1139,23 +1821,66 @@ function ModuleGallery({
         ) : null}
 
         {section === 'suppliers' ? (
-          <ModuleSection icon={Boxes} eyebrow="Supplier Network" title="Supplier orbit" description="Supplier cards are restored with product lines, lead time, and phone.">
-            <div className="mb-4 flex justify-end">
-              <IconAction onClick={onAddSupplier} icon={PackagePlus} label="Add New Supplier" />
+          <ModuleSection isLight={isLight} icon={Boxes} eyebrow="Supplier Network" title="Suppliers Directory" description="Manage supplier contact info, lead times, and linked product lines.">
+            {/* Header Controls: Search Input + Add Button */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2">
+              <RecentSearchInput
+                value={supplierSearchQuery}
+                onChange={setSupplierSearchQuery}
+                placeholder="Search suppliers by name, phone, products..."
+                storageKey="supplier_network"
+                isLight={isLight}
+                className="min-w-[220px] max-w-md"
+              />
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`rounded-full border px-3 py-1 text-[11.5px] font-bold ${
+                  isLight ? 'border-transparent bg-zinc-100 text-black' : 'border-zinc-800 bg-black text-white'
+                }`}>
+                  {filteredSuppliersList.length} Suppliers
+                </span>
+                <IconAction isLight={isLight} onClick={onAddSupplier} icon={PackagePlus} label="Add New Supplier" />
+              </div>
             </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {data.suppliers.map((supplier: any, index: number) => (
-                <MotionModuleCard key={supplier.id} index={index} title={supplier.name || 'Unnamed supplier'} meta={supplier.products || 'Supplier'}>
-                  <div className="text-[13px] text-foreground/58">Lead time: <span className="text-foreground">{supplier.leadTimeDays || 0} days</span></div>
-                  <div className="mt-2 text-[13px] text-foreground/58">Phone: <span className="text-foreground">{supplier.phone || 'Not set'}</span></div>
-                  {supplier.notes ? <div className="mt-2 text-[13px] leading-6 text-foreground/48">{supplier.notes}</div> : null}
-                  <div className="mt-3 flex justify-end">
-                    <IconAction onClick={() => onDeleteSupplier(supplier.id)} icon={Trash2} label="Delete" />
+
+            {/* Compact Space-Efficient Supplier Grid */}
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredSuppliersList.map((supplier: any) => (
+                <div
+                  key={supplier.id}
+                  className={`group relative flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-all ${
+                    isLight
+                      ? 'border-transparent bg-zinc-50 text-black hover:bg-zinc-100'
+                      : 'border-zinc-900 bg-black hover:border-zinc-700 text-white'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className={`truncate text-[13.5px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>
+                      {supplier.name || 'Unnamed supplier'}
+                    </div>
+                    <div className={`mt-0.5 text-[11.5px] font-medium ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                      Phone: {supplier.phone || 'Not set'} • Lead: {supplier.leadTimeDays || 0}d
+                    </div>
                   </div>
-                </MotionModuleCard>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteSupplier(supplier.id)}
+                    className={`rounded-lg p-1.5 shrink-0 transition ${
+                      isLight
+                        ? 'text-zinc-400 hover:bg-red-50 hover:text-red-600'
+                        : 'text-zinc-500 hover:bg-red-950 hover:text-red-300'
+                    }`}
+                    title="Delete supplier"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               ))}
-              {data.suppliers.length === 0 ? (
-                <EmptyState text="No suppliers are linked yet. Add one to enable fast reorder messages from stock alerts." />
+              {filteredSuppliersList.length === 0 ? (
+                <div className={`col-span-full rounded-xl border p-6 text-center text-[13px] ${
+                  isLight ? 'border-transparent bg-zinc-50 text-zinc-500' : 'border-zinc-900 bg-black text-zinc-400'
+                }`}>
+                  No suppliers found matching your search.
+                </div>
               ) : null}
             </div>
           </ModuleSection>
@@ -1165,109 +1890,141 @@ function ModuleGallery({
   );
 }
 
-function ModuleSection({ children, description, eyebrow, icon: Icon, title }: { children: React.ReactNode; description: string; eyebrow: string; icon: any; title: string }) {
+function ModuleSection({ children, description, eyebrow, icon: Icon, isLight, title }: { children: React.ReactNode; description: string; eyebrow: string; icon: any; isLight?: boolean; title: string }) {
   return (
-    <div className="space-y-5">
-      <div className="grid gap-4 lg:grid-cols-[0.45fr_1fr] lg:items-end">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/[0.055] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-foreground/52">
-            <Icon className="h-3.5 w-3.5 text-primary" />
-            {eyebrow}
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-2">
+        <div className="flex items-center gap-2.5">
+          <span className={`flex h-7 w-7 items-center justify-center rounded-lg border ${
+            isLight ? 'border-transparent bg-zinc-100 text-black' : 'border-zinc-800 bg-black text-white'
+          }`}>
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+          <div>
+            <h3 className={`text-[19px] font-bold leading-tight ${isLight ? 'text-black' : 'text-white'}`}>{title}</h3>
+            <p className={`text-[12px] font-medium ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>{description}</p>
           </div>
-          <h3 className="mt-4 text-[38px] font-semibold leading-[1.04] tracking-normal text-foreground">{title}</h3>
         </div>
-        <p className="max-w-2xl text-[15px] leading-7 text-foreground/58">{description}</p>
       </div>
       {children}
     </div>
   );
 }
 
-function MotionModuleCard({ children, index, meta, title, imageUrl }: { children: React.ReactNode; index: number; meta: string; title: string; imageUrl?: string }) {
+function MotionModuleCard({ children, index, isLight, meta, title, imageUrl }: { children: React.ReactNode; index: number; isLight?: boolean; meta: string; title: string; imageUrl?: string }) {
   return (
     <motion.article
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24, delay: index * 0.035, ease: 'easeOut' }}
       whileHover={{ y: -2, scale: 1.004 }}
-      className="relative min-h-[190px] overflow-hidden rounded-[8px] border border-border bg-card p-5 shadow-sm"
+      className={`relative min-h-[190px] overflow-hidden rounded-xl border-0 p-5 shadow-sm transition-all ${
+        isLight
+          ? 'bg-zinc-50 text-black hover:bg-white'
+          : 'bg-black text-white'
+      }`}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,156,42,0.14),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(59,168,255,0.16),transparent_32%)]" />
       <div className="relative flex h-full flex-col">
         {imageUrl && (
-            <div className="w-full h-32 mb-4 rounded-md overflow-hidden border border-border">
-                <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
-            </div>
+          <div className={`mb-4 h-32 w-full overflow-hidden rounded-lg border-0 ${
+            isLight ? 'bg-zinc-100' : 'bg-zinc-900'
+          }`}>
+            <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
+          </div>
         )}
         <div className="flex-grow">
-            <div className="text-[11px] uppercase tracking-[0.16em] text-foreground/38">{meta}</div>
-            <div className="mt-3 text-[20px] font-semibold text-foreground">{title}</div>
-            <div className="mt-4">{children}</div>
+          <div className={`text-[11.5px] font-extrabold uppercase tracking-[0.16em] ${
+            isLight ? 'text-zinc-500' : 'text-zinc-400'
+          }`}>{meta}</div>
+          <div className={`mt-2.5 text-[20px] font-bold ${
+            isLight ? 'text-black' : 'text-white'
+          }`}>{title}</div>
+          <div className="mt-4">{children}</div>
         </div>
       </div>
     </motion.article>
   );
 }
 
-function SoftStat({ label, value }: { label: string; value: string }) {
+function SoftStat({ isLight, label, value }: { isLight?: boolean; label: string; value: string }) {
   return (
-    <div className="rounded-[8px] border border-border bg-card/[0.045] p-4">
-      <div className="text-[11px] uppercase tracking-[0.15em] text-foreground/38">{label}</div>
-      <div className="mt-2 text-[20px] font-semibold text-foreground">{value}</div>
+    <div className={`rounded-xl border-0 p-3.5 ${
+      isLight ? 'bg-zinc-100 text-black' : 'bg-zinc-900 text-white'
+    }`}>
+      <div className={`text-[11px] font-extrabold uppercase tracking-[0.15em] ${
+        isLight ? 'text-zinc-500' : 'text-zinc-400'
+      }`}>{label}</div>
+      <div className={`mt-2 text-[20px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>{value}</div>
     </div>
   );
 }
 
-function EmptyState({ text }: { text: string }) {
+function EmptyState({ isLight, text }: { isLight?: boolean; text: string }) {
   return (
-    <div className="rounded-[8px] border border-border bg-card/[0.045] p-6 text-[15px] leading-7 text-foreground/58">
+    <div className={`rounded-xl border-0 p-6 text-[15px] font-medium leading-7 ${
+      isLight ? 'bg-zinc-100 text-zinc-700' : 'bg-zinc-900 text-zinc-300'
+    }`}>
       {text}
     </div>
   );
 }
 
-function PanelHeader({ icon: Icon, title, meta }: { icon: any; title: string; meta: string }) {
+function PanelHeader({ icon: Icon, isLight, meta, title }: { icon: any; isLight?: boolean; meta?: any; title: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card/[0.07] text-foreground">
+        <span className={`flex h-9 w-9 items-center justify-center rounded-xl border ${
+          isLight
+            ? 'border-transparent bg-zinc-100 text-black'
+            : 'border-zinc-900/50 bg-black text-white'
+        }`}>
           <Icon className="h-4 w-4" />
         </span>
         <div>
-          <div className="text-[15px] font-semibold text-foreground">{title}</div>
-          <div className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-foreground/38">{meta}</div>
+          <div className={`text-[15px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>{title}</div>
+          {meta ? (
+            <div className={`text-[11px] font-semibold uppercase tracking-wider ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>{meta}</div>
+          ) : null}
         </div>
       </div>
     </div>
   );
 }
 
-function TotalLine({ label, value }: { label: string; value: string }) {
+function TotalLine({ isLight, label, value }: { isLight?: boolean; label: string; value: string }) {
   return (
-    <div className="flex justify-between py-1 text-foreground/58">
+    <div className={`flex justify-between py-1 font-bold ${isLight ? 'text-zinc-700' : 'text-zinc-300'}`}>
       <span>{label}</span>
-      <span className="text-foreground/78">{value}</span>
+      <span className={`font-extrabold ${isLight ? 'text-black' : 'text-white'}`}>{value}</span>
     </div>
   );
 }
 
-function FormInput({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
+function FormInput({ isLight, onChange, placeholder, value }: { isLight?: boolean; onChange: (value: string) => void; placeholder: string; value: string }) {
   return (
     <input
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="h-11 rounded-full border border-border bg-background/45 px-4 text-[13px] text-foreground outline-none placeholder:text-foreground/34 transition focus:border-primary"
+      className={`h-10.5 rounded-xl border px-3.5 text-[13.5px] font-semibold outline-none transition ${
+        isLight
+          ? 'border-transparent bg-zinc-100 text-black placeholder:text-zinc-400 focus:ring-1 focus:ring-black'
+          : 'border-zinc-900/50 bg-black text-white placeholder:text-zinc-500 focus:ring-1 focus:ring-white'
+      }`}
     />
   );
 }
 
-function FormSelect({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: string[] }) {
+function FormSelect({ isLight, onChange, options, value }: { isLight?: boolean; onChange: (value: string) => void; options: string[]; value: string }) {
   return (
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="h-11 rounded-full border border-border bg-background/45 px-4 text-[13px] font-semibold capitalize text-foreground outline-none transition focus:border-primary"
+      className={`h-10.5 rounded-xl border px-3.5 text-[13.5px] font-semibold capitalize outline-none transition ${
+        isLight
+          ? 'border-transparent bg-zinc-100 text-black focus:ring-1 focus:ring-black'
+          : 'border-zinc-900/50 bg-black text-white focus:ring-1 focus:ring-white'
+      }`}
     >
       {options.map((option) => (
         <option key={option} value={option}>{option}</option>
@@ -1276,15 +2033,19 @@ function FormSelect({ value, onChange, options }: { value: string; onChange: (va
   );
 }
 
-function IconAction({ disabled = false, icon: Icon, label, onClick }: { disabled?: boolean; icon: any; label: string; onClick: () => void }) {
+function IconAction({ disabled = false, icon: Icon, isLight, label, onClick }: { disabled?: boolean; icon: any; isLight?: boolean; label: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-border bg-background/45 px-4 text-[13px] font-semibold text-foreground transition hover:border-border/28 hover:bg-card/10 disabled:cursor-not-allowed disabled:opacity-40"
+      className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-4 text-[13px] font-bold transition shadow-sm ${
+        isLight
+          ? 'border-transparent bg-zinc-100 text-black hover:bg-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400'
+          : 'border-zinc-800 bg-black text-white hover:bg-zinc-900 disabled:bg-black disabled:text-zinc-600'
+      }`}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-4 w-4 text-current" />
       {label}
     </button>
   );

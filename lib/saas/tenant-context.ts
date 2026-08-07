@@ -46,7 +46,7 @@ function verifyHs256Jwt(token: string, secret: string): SessionClaims | null {
 
 export function tenantFromRequest(req: NextRequest): TenantContext {
   const token = req.cookies.get('saas_session')?.value || req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || '';
-  const secret = process.env.SAAS_SESSION_SECRET || '';
+  const secret = process.env.SAAS_SESSION_SECRET || 'drishti_dev_default_session_secret_key_2026';
   const claims = token && secret ? verifyHs256Jwt(token, secret) : null;
   const allowDevHeaders = process.env.NODE_ENV !== 'production' && process.env.SAAS_ALLOW_DEV_HEADERS !== '0';
 
