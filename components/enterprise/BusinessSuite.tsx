@@ -11,8 +11,10 @@ import {
   CreditCard,
   Download,
   ExternalLink,
+  FileText,
   Minus,
   MessageCircle,
+  MessageSquare,
   PackagePlus,
   Plus,
   Printer,
@@ -31,6 +33,8 @@ import { CosmicNavbar } from './CosmicNavbar';
 import { RecentSearchInput } from './RecentSearchInput';
 import type { BusinessSectionKey, DashboardData } from './types';
 import { formatDate, formatMoney } from './utils';
+import { downloadInvoicePDF } from '@/lib/saas/invoice-pdf';
+import { sendInvoiceTextMessage } from '@/lib/saas/invoice-sms';
 
 interface BusinessSuiteProps {
   data: DashboardData;
@@ -239,7 +243,29 @@ export function BusinessSuite({
       setDiscount('');
       setTax('');
       setNotes('');
-      setBillingStatus({ type: 'success', message: `Bill ${String(result.invoice.id).slice(0, 10)} created. Inventory is updated.` });
+
+      // AUTOMATIC POST-BILLING DISPATCH: BOTH INVOICE PDF & TEXT MESSAGE
+      try {
+        downloadInvoicePDF(result.invoice, { shopName: 'EasyTrader' });
+      } catch (err) {
+        console.error('PDF invoice download error:', err);
+      }
+
+      let textStatus = '';
+      try {
+        const textResult = await sendInvoiceTextMessage(result.invoice, { shopName: 'EasyTrader', channel: 'auto' });
+        if (textResult?.success) {
+          textStatus = ' & Text Message sent to customer';
+        }
+      } catch (err) {
+        console.error('SMS text dispatch error:', err);
+      }
+
+      setBillingStatus({
+        type: 'success',
+        message: `Bill #${String(result.invoice.id).slice(0, 8).toUpperCase()} created! PDF Invoice downloaded${textStatus}. Inventory updated.`,
+      });
+
       depletedItems.forEach((item: any) => {
         if (confirm(`${item.name || 'A product'} is now out of stock. Place an order from the linked supplier?`)) {
           placeSupplierOrder(item);
@@ -335,36 +361,12 @@ export function BusinessSuite({
 
   const downloadInvoice = (invoice: any) => {
     if (!invoice) return;
+    downloadInvoicePDF(invoice, { shopName: 'EasyTrader' });
+  };
 
-    const customerName = invoice.customer?.name ? invoice.customer.name.replace(/\s/g, '_') : 'Walk-in';
-    const invoiceId = String(invoice.id).slice(0, 6);
-    const fileName = `EasyTrader_Invoice_${customerName}_${invoiceId}.txt`;
-
-    const billText = [
-      `EasyTrader Invoice: ${String(invoice.id)}`,
-      `Date: ${formatDate(invoice.createdAt)}`,
-      `Customer: ${invoice.customer?.name || 'Walk-in'}`,
-      `Payment Method: ${invoice.paymentMethod || 'cash'}`,
-      '---',
-      'Items:',
-      ...invoice.items.map((item: any) => `- ${item.name} x ${item.qty} @ ₹${formatMoney(Number(item.price || 0))} = ₹${formatMoney(Number(item.lineTotal || 0))}`),
-      '---',
-      `Subtotal: ₹${formatMoney(Number(invoice.subtotal || 0))}`,
-      `Discount: ₹${formatMoney(Number(invoice.discount || 0))}`,
-      `Tax: ₹${formatMoney(Number(invoice.tax || 0))}`,
-      `Total: ₹${formatMoney(Number(invoice.total || 0))}`,
-      invoice.notes ? `Notes: ${invoice.notes}` : '',
-    ].filter(Boolean).join('\n');
-
-    const blob = new Blob([billText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const sendTextInvoice = (invoice: any, channel: 'sms' | 'whatsapp' | 'auto' = 'sms') => {
+    if (!invoice) return;
+    void sendInvoiceTextMessage(invoice, { shopName: 'EasyTrader', channel });
   };
 
   const getPromoHashtags = () => {
@@ -689,6 +691,7 @@ export function BusinessSuite({
                 onMarketingFormChange={setMarketingForm}
                 onPlaceSupplierOrder={placeSupplierOrder}
                 onShareInvoice={shareInvoiceOnWhatsApp}
+                onSendTextInvoice={(inv) => sendTextInvoice(inv, 'sms')}
                 onSharePromo={sharePromoOnWhatsApp}
                 onSyncGoogleBusiness={syncGoogleBusiness}
               />
@@ -1346,7 +1349,7 @@ function BillingDesk({
             </div>
 
             {/* Action CTAs - ALWAYS PINNED & VISIBLE WITHOUT SCROLLING */}
-            <div className="mt-2 grid gap-1.5 sm:grid-cols-[1fr_auto_auto]">
+            <div className="mt-2 grid gap-1.5 sm:grid-cols-[1fr_auto_auto_auto_auto]">
               <button
                 type="button"
                 onClick={onCreateBill}
@@ -1360,8 +1363,10 @@ function BillingDesk({
                 <CheckCircle2 className="h-4 w-4" />
                 {isBilling ? 'Creating bill...' : 'Create Bill & Deduct Stock'}
               </button>
-              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onPrint} icon={Printer} label="Print" />
+              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={() => lastInvoice && downloadInvoicePDF(lastInvoice, { shopName: 'EasyTrader' })} icon={FileText} label="PDF Invoice" />
+              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={() => lastInvoice && sendInvoiceTextMessage(lastInvoice, { shopName: 'EasyTrader', channel: 'sms' })} icon={MessageSquare} label="SMS Text" />
               <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onShare} icon={MessageCircle} label="WhatsApp" />
+              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onPrint} icon={Printer} label="Print" />
             </div>
           </motion.section>
         </div>
@@ -1421,6 +1426,7 @@ function ModuleGallery({
   onDeleteStock,
   onPlaceSupplierOrder,
   onShareInvoice,
+  onSendTextInvoice,
   onSharePromo,
   onSyncGoogleBusiness,
 }: {
@@ -1429,6 +1435,7 @@ function ModuleGallery({
   theme?: 'dark' | 'light';
   onDownloadInvoice: (invoice: any) => void;
   onShareInvoice?: (invoice: any) => void;
+  onSendTextInvoice?: (invoice: any) => void;
   onAddCustomer: () => void;
   onAddSupplier: () => void;
   onAddStock: () => void;
@@ -1726,28 +1733,42 @@ function ModuleGallery({
                     </span>
                     <button
                       type="button"
-                      onClick={() => onShareInvoice?.(invoice)}
-                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
-                        isLight
-                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                          : 'bg-emerald-500 text-black hover:bg-emerald-400 font-bold'
-                      }`}
-                      title="Share invoice breakdown and document via WhatsApp"
-                    >
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      <span>WhatsApp</span>
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => onDownloadInvoice(invoice)}
                       className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
                         isLight
                           ? 'bg-black text-white hover:bg-zinc-800'
                           : 'bg-white text-black hover:bg-zinc-200'
                       }`}
+                      title="Download PDF Tax Invoice"
                     >
-                      <Download className="h-3.5 w-3.5 text-current" />
-                      <span>Download</span>
+                      <FileText className="h-3.5 w-3.5 text-current" />
+                      <span>PDF Invoice</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSendTextInvoice?.(invoice)}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
+                        isLight
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-blue-500 text-black hover:bg-blue-400 font-bold'
+                      }`}
+                      title="Send SMS text message to customer"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 text-current" />
+                      <span>SMS Text</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onShareInvoice?.(invoice)}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
+                        isLight
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          : 'bg-emerald-500 text-black hover:bg-emerald-400 font-bold'
+                      }`}
+                      title="Share invoice breakdown via WhatsApp"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 text-current" />
+                      <span>WhatsApp</span>
                     </button>
                   </div>
                 </div>
