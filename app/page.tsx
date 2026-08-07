@@ -31,20 +31,7 @@ export default function EasyTraderPlatform() {
   const [activeTab, setActiveTab] = useState<TabKey>('business-suite');
   const [activeBusinessSection, setActiveBusinessSection] = useState<BusinessSectionKey>('billing');
   const [data, setData] = useState<DashboardData>(initialData);
-  
-  // Instant hydration from local cache if user previously logged in
-  const [authUser, setAuthUser] = useState<any | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('easytrader_user');
-        return cached ? JSON.parse(cached) : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
-
+  const [authUser, setAuthUser] = useState<any | null>(null);
   const [showThemeOnboarding, setShowThemeOnboarding] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -79,27 +66,22 @@ export default function EasyTraderPlatform() {
     }
   };
 
-  // Background Session Verification (Non-blocking: website opens instantly)
+  // Hydrate local cached user on mount & verify session silently in background
   useEffect(() => {
     let cancelled = false;
 
+    // 1. Instant local hydration (prevents SSR mismatch & ensures 0ms response)
+    try {
+      const cached = localStorage.getItem('easytrader_user');
+      if (cached) {
+        setAuthUser(JSON.parse(cached));
+      }
+    } catch {}
+
+    // 2. Background session check
     const checkSession = async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
-
       try {
-        const response = await fetch('/api/auth/session', { signal: controller.signal });
-        clearTimeout(timeoutId);
-
-        if (response.status === 401) {
-          if (!cancelled) {
-            setAuthUser(null);
-            localStorage.removeItem('easytrader_user');
-            setData(initialData);
-          }
-          return;
-        }
-
+        const response = await fetch('/api/auth/session');
         if (cancelled) return;
 
         if (response.ok) {
@@ -113,15 +95,14 @@ export default function EasyTraderPlatform() {
           }
         }
 
+        // Unauthenticated or invalid session
         if (!cancelled) {
           setAuthUser(null);
           localStorage.removeItem('easytrader_user');
           setData(initialData);
         }
       } catch {
-        // Silently failover to current state or cached user
-      } finally {
-        clearTimeout(timeoutId);
+        // Silently retain current state
       }
     };
 
@@ -188,7 +169,6 @@ export default function EasyTraderPlatform() {
 
   const isLight = theme === 'light';
 
-  // Instant render: website opens immediately without any blocking "Loading workspace..." black screen
   if (!authUser) {
     return <AuthScreen onAuthenticated={handleAuthenticated} />;
   }
