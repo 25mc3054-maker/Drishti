@@ -52,18 +52,18 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
   };
 
   return (
-    <div className="relative z-20 w-full">
+    <div className="relative z-20 w-full flex justify-center">
       <motion.div
         initial={{ opacity: 0, y: -6, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
-        className={`relative rounded-2xl md:rounded-full border p-1 sm:p-1.5 transition-colors shadow-lg ${
+        className={`relative w-full lg:w-auto lg:max-w-fit rounded-2xl md:rounded-full border p-1 sm:p-1.5 transition-colors shadow-lg ${
           isLight
             ? 'border-zinc-200 bg-white text-black shadow-zinc-200/50'
             : 'border-zinc-800 bg-zinc-950 text-white shadow-black/80'
         }`}
       >
-        <div className="flex items-center gap-1.5 w-full">
+        <div className="flex items-center gap-1.5 w-full lg:w-auto">
           {/* Mobile Module Quick Select Dropdown Pill (lg:hidden) */}
           <button
             type="button"
@@ -84,8 +84,8 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
           {/* Vertical Divider line on Mobile */}
           <div className="h-5 w-px shrink-0 bg-zinc-800/80 lg:hidden" />
 
-          {/* Segment Chips Track: Scrollable on Mobile, Evenly Distributed 7-Grid on Desktop/Laptop */}
-          <div className="flex flex-1 items-center gap-1 overflow-x-auto scrollbar-none scroll-smooth py-0.5 px-0.5 lg:grid lg:grid-cols-7 lg:gap-1.5 lg:overflow-visible">
+          {/* Segment Chips Track: Touch-Scrollable on Phone, Centered Floating Apple Dock on Desktop */}
+          <div className="flex flex-1 lg:flex-initial items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none scroll-smooth py-0.5 px-0.5 lg:overflow-visible">
             {navItems.map((item) => (
               <NavButton
                 key={item.key}
@@ -183,12 +183,12 @@ function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; is
       onClick={onClick}
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.96 }}
-      className={`group relative flex h-8.5 items-center justify-center gap-1.5 rounded-full px-3.5 text-center transition border-0 shrink-0 lg:shrink lg:w-full ${
+      className={`group relative flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-4 text-center transition border-0 ${
         isActive
-          ? 'text-white font-bold'
+          ? 'text-white font-extrabold'
           : isLight
-            ? 'text-zinc-600 hover:text-black'
-            : 'text-zinc-400 hover:text-white'
+            ? 'text-zinc-600 hover:text-black font-bold'
+            : 'text-zinc-400 hover:text-white font-bold'
       }`}
       aria-current={isActive ? 'page' : undefined}
     >
@@ -207,15 +207,15 @@ function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; is
           isLight ? 'bg-zinc-100' : 'bg-zinc-900/60'
         }`} />
       )}
-      <span className="relative flex items-center justify-center gap-1.5 shrink-0 z-10 whitespace-nowrap">
-        <Icon className={`h-3.5 w-3.5 shrink-0 ${
+      <span className="relative flex items-center justify-center gap-2 shrink-0 z-10 whitespace-nowrap">
+        <Icon className={`h-4 w-4 shrink-0 ${
           isActive
             ? 'text-white'
             : isLight
               ? 'text-zinc-500 group-hover:text-black'
               : 'text-zinc-400 group-hover:text-white'
         }`} />
-        <span className="whitespace-nowrap text-[12px] font-bold">{item.label}</span>
+        <span className="whitespace-nowrap text-[12.5px] font-extrabold tracking-tight">{item.label}</span>
       </span>
     </motion.button>
   );
