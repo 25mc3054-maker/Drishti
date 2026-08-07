@@ -128,7 +128,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white font-sans">
+    <main suppressHydrationWarning className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white font-sans">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,156,42,0.18),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(59,168,255,0.20),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_38%)]" />
       <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-[1180px] gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <section>
@@ -172,7 +172,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <form suppressHydrationWarning onSubmit={handleSubmit} className="mt-6 space-y-4">
               {mode === 'forgot' ? (
                 <>
                   <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
@@ -206,6 +206,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                   <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
                   <div className="flex flex-col gap-3">
                     <select
+                      suppressHydrationWarning
                       value={form.securityQuestion}
                       onChange={(e) => updateForm('securityQuestion', e.target.value)}
                       className="w-full h-12 rounded-xl border border-zinc-800 bg-zinc-950 px-4 text-base md:text-sm text-white/70 transition focus-within:border-zinc-500 outline-none"
@@ -232,6 +233,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                   <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
                   {mode === 'login' && (
                     <button
+                      suppressHydrationWarning
                       type="button"
                       onClick={() => setMode('forgot')}
                       className="text-zinc-400 text-xs text-right mt-1 hover:text-white transition touch-manipulation font-semibold block ml-auto"
@@ -249,6 +251,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               ) : null}
 
               <button
+                suppressHydrationWarning
                 type="submit"
                 disabled={isLoading}
                 className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-xl bg-white px-5 text-sm font-extrabold text-black shadow-lg transition hover:scale-[1.01] active:scale-[0.99] touch-manipulation disabled:cursor-not-allowed disabled:opacity-45"
@@ -267,6 +270,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               {/* Real Official Provider OAuth Buttons */}
               <div className="grid grid-cols-3 gap-2.5">
                 <button
+                  suppressHydrationWarning
                   type="button"
                   onClick={() => handleRealOAuthSignIn('google')}
                   disabled={isLoading}
@@ -283,6 +287,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                 </button>
 
                 <button
+                  suppressHydrationWarning
                   type="button"
                   onClick={() => handleRealOAuthSignIn('apple')}
                   disabled={isLoading}
@@ -296,6 +301,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                 </button>
 
                 <button
+                  suppressHydrationWarning
                   type="button"
                   onClick={() => handleRealOAuthSignIn('microsoft')}
                   disabled={isLoading}
@@ -322,6 +328,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 function ModeButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button
+      suppressHydrationWarning
       type="button"
       onClick={onClick}
       className={`h-9 rounded-lg px-4 text-[12.5px] font-bold transition touch-manipulation ${
@@ -335,9 +342,10 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
 
 function AuthInput({ icon: Icon, onChange, placeholder, type = 'text', value }: { icon: any; onChange: (value: string) => void; placeholder: string; type?: string; value: string }) {
   return (
-    <label className="flex h-11 items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-4 text-zinc-400 transition focus-within:border-zinc-500 focus-within:text-white">
+    <label suppressHydrationWarning className="flex h-11 items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-4 text-zinc-400 transition focus-within:border-zinc-500 focus-within:text-white">
       <Icon className="h-4 w-4 shrink-0 text-current" />
       <input
+        suppressHydrationWarning
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
