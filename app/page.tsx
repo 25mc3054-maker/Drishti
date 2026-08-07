@@ -224,6 +224,11 @@ export default function EasyTraderPlatform() {
       <div className="flex w-full min-h-[calc(100vh-65px)]">
         <LeftMiniSidebar
           activeTab={activeTab}
+          activeBusinessSection={activeBusinessSection}
+          onBusinessSectionChange={(sec) => {
+            setActiveBusinessSection(sec);
+            setIsSidebarOpen(false);
+          }}
           isOpen={activeTab !== 'overview' && isSidebarOpen}
           onTabChange={handleTabSelect}
           theme={theme}

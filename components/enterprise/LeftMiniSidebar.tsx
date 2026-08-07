@@ -4,17 +4,25 @@ import { motion } from 'framer-motion';
 import {
   BarChart3,
   Bot,
+  Boxes,
   Building2,
+  CreditCard,
   Database,
+  HandCoins,
   LayoutDashboard,
+  ReceiptText,
   ShieldAlert,
-  ShoppingBag,
+  Sparkles,
+  Truck,
+  Users,
 } from 'lucide-react';
-import type { TabKey } from './types';
+import type { BusinessSectionKey, TabKey } from './types';
 
 interface LeftMiniSidebarProps {
   activeTab: TabKey;
+  activeBusinessSection?: BusinessSectionKey;
   onTabChange: (tab: TabKey) => void;
+  onBusinessSectionChange?: (section: BusinessSectionKey) => void;
   isOpen: boolean;
   theme?: 'dark' | 'light';
 }
@@ -28,9 +36,21 @@ const menuItems: { id: TabKey; label: string; icon: any }[] = [
   { id: 'saas-admin', label: 'Admin', icon: ShieldAlert },
 ];
 
+const businessSections: { id: BusinessSectionKey; label: string; icon: any }[] = [
+  { id: 'billing', label: 'Billing POS', icon: HandCoins },
+  { id: 'stock', label: 'Stock Manager', icon: Boxes },
+  { id: 'invoices', label: 'Invoices', icon: ReceiptText },
+  { id: 'customers', label: 'Customer Ledger', icon: Users },
+  { id: 'suppliers', label: 'Suppliers', icon: Truck },
+  { id: 'marketing', label: 'AI Marketing', icon: Sparkles },
+  { id: 'expenses', label: 'Expenses', icon: CreditCard },
+];
+
 export function LeftMiniSidebar({
+  activeBusinessSection = 'billing',
   activeTab,
   isOpen,
+  onBusinessSectionChange,
   onTabChange,
   theme = 'dark',
 }: LeftMiniSidebarProps) {
@@ -71,39 +91,73 @@ export function LeftMiniSidebar({
             {menuItems.map((item) => {
               const Icon = item.icon;
               const active = activeTab === item.id;
+              const isSuite = item.id === 'business-suite';
 
               return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onTabChange(item.id)}
-                  className={`group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-[14px] md:text-[13.5px] font-semibold transition-all touch-manipulation min-h-[44px] ${
-                    active
-                      ? isLight
-                        ? 'bg-zinc-100 text-black font-semibold shadow-sm'
-                        : 'border border-zinc-800 bg-zinc-900 text-white font-semibold'
-                      : isLight
-                        ? 'text-zinc-600 hover:bg-zinc-100/70 hover:text-black'
-                        : 'text-zinc-400 hover:bg-zinc-900/60 hover:text-white'
-                  }`}
-                >
-                  <Icon
-                    className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-105 ${
+                <div key={item.id} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => onTabChange(item.id)}
+                    className={`group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-[14px] md:text-[13.5px] font-semibold transition-all touch-manipulation min-h-[44px] ${
                       active
-                        ? isLight ? 'text-black' : 'text-white'
-                        : isLight ? 'text-zinc-400 group-hover:text-black' : 'text-zinc-500 group-hover:text-white'
+                        ? isLight
+                          ? 'bg-zinc-100 text-black font-bold shadow-sm'
+                          : 'border border-zinc-800 bg-zinc-900 text-white font-bold'
+                        : isLight
+                          ? 'text-zinc-600 hover:bg-zinc-100/70 hover:text-black'
+                          : 'text-zinc-400 hover:bg-zinc-900/60 hover:text-white'
                     }`}
-                  />
-                  <span className="truncate">{item.label}</span>
-                  {active && (
-                    <motion.span
-                      layoutId="mini-sidebar-indicator"
-                      className={`ml-auto h-2 w-2 rounded-full ${
-                        isLight ? 'bg-black' : 'bg-white'
+                  >
+                    <Icon
+                      className={`h-5 w-5 shrink-0 transition-transform group-hover:scale-105 ${
+                        active
+                          ? isLight ? 'text-black' : 'text-white'
+                          : isLight ? 'text-zinc-400 group-hover:text-black' : 'text-zinc-500 group-hover:text-white'
                       }`}
                     />
+                    <span className="truncate">{item.label}</span>
+                    {active && (
+                      <motion.span
+                        layoutId="mini-sidebar-indicator"
+                        className={`ml-auto h-2 w-2 rounded-full ${
+                          isLight ? 'bg-black' : 'bg-white'
+                        }`}
+                      />
+                    )}
+                  </button>
+
+                  {/* Nested Sub-Sections for Business Suite when active */}
+                  {isSuite && active && (
+                    <div className="ml-4 pl-2 space-y-1 border-l border-zinc-800 py-1">
+                      {businessSections.map((sec) => {
+                        const SecIcon = sec.icon;
+                        const secActive = activeBusinessSection === sec.id;
+
+                        return (
+                          <button
+                            key={sec.id}
+                            type="button"
+                            onClick={() => {
+                              onBusinessSectionChange?.(sec.id);
+                            }}
+                            className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[12.5px] font-bold transition-all touch-manipulation ${
+                              secActive
+                                ? isLight
+                                  ? 'bg-black text-white'
+                                  : 'bg-zinc-800 text-white shadow-sm'
+                                : isLight
+                                  ? 'text-zinc-600 hover:bg-zinc-100'
+                                  : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                            }`}
+                          >
+                            <SecIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{sec.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
@@ -123,4 +177,3 @@ export function LeftMiniSidebar({
     </>
   );
 }
-
