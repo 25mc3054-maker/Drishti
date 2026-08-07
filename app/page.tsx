@@ -1,23 +1,20 @@
 "use client";
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import dynamic from 'next/dynamic';
-import LoadingSpinner from '../components/LoadingSpinner';
 import type { BusinessSectionKey, DashboardData, TabKey } from '@/components/enterprise/types';
 import { ThemeOnboardingModal } from '@/components/enterprise/ThemeOnboardingModal';
-
-const Navbar = dynamic(() => import('@/components/enterprise/Navbar').then(mod => mod.Navbar), { ssr: false });
-const LeftMiniSidebar = dynamic(() => import('@/components/enterprise/LeftMiniSidebar').then(mod => mod.LeftMiniSidebar), { ssr: false });
-const HeroSection = dynamic(() => import('@/components/enterprise/HeroSection').then(mod => mod.HeroSection), { loading: () => <div className="h-[400px] w-full flex justify-center items-center"><LoadingSpinner /></div> });
-const MarqueeTicker = dynamic(() => import('@/components/enterprise/MarqueeTicker').then(mod => mod.MarqueeTicker), { ssr: false });
-const AIWorkspace = dynamic(() => import('@/components/enterprise/AIWorkspace').then(mod => mod.AIWorkspace), { loading: () => <LoadingSpinner /> });
-const BusinessSuite = dynamic(() => import('@/components/enterprise/BusinessSuite').then(mod => mod.BusinessSuite), { loading: () => <LoadingSpinner /> });
-const StorefrontPage = dynamic(() => import('@/components/enterprise/StorefrontPage').then(mod => mod.StorefrontPage), { loading: () => <LoadingSpinner /> });
-const InsightsPage = dynamic(() => import('@/components/enterprise/InsightsPage').then(mod => mod.InsightsPage), { loading: () => <LoadingSpinner /> });
-const AuthScreen = dynamic(() => import('@/components/enterprise/AuthScreen').then(mod => mod.AuthScreen), { loading: () => <div className="grid min-h-screen place-items-center bg-black text-white">Loading...</div> });
-const SaaSAdminPage = dynamic(() => import('@/components/enterprise/SaaSAdminPage').then(mod => mod.SaaSAdminPage), { loading: () => <LoadingSpinner /> });
-const DatabaseManagementPage = dynamic(() => import('@/components/enterprise/DatabaseManagementPage').then(mod => mod.DatabaseManagementPage), { loading: () => <LoadingSpinner /> });
+import { Navbar } from '@/components/enterprise/Navbar';
+import { LeftMiniSidebar } from '@/components/enterprise/LeftMiniSidebar';
+import { HeroSection } from '@/components/enterprise/HeroSection';
+import { MarqueeTicker } from '@/components/enterprise/MarqueeTicker';
+import { AIWorkspace } from '@/components/enterprise/AIWorkspace';
+import { BusinessSuite } from '@/components/enterprise/BusinessSuite';
+import { StorefrontPage } from '@/components/enterprise/StorefrontPage';
+import { InsightsPage } from '@/components/enterprise/InsightsPage';
+import { AuthScreen } from '@/components/enterprise/AuthScreen';
+import { SaaSAdminPage } from '@/components/enterprise/SaaSAdminPage';
+import { DatabaseManagementPage } from '@/components/enterprise/DatabaseManagementPage';
 
 const initialData: DashboardData = {
   items: [],
@@ -34,8 +31,20 @@ export default function EasyTraderPlatform() {
   const [activeTab, setActiveTab] = useState<TabKey>('business-suite');
   const [activeBusinessSection, setActiveBusinessSection] = useState<BusinessSectionKey>('billing');
   const [data, setData] = useState<DashboardData>(initialData);
-  const [authUser, setAuthUser] = useState<any | null>(null);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  
+  // Instant hydration from local cache if user previously logged in
+  const [authUser, setAuthUser] = useState<any | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('easytrader_user');
+        return cached ? JSON.parse(cached) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
   const [showThemeOnboarding, setShowThemeOnboarding] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -47,38 +56,36 @@ export default function EasyTraderPlatform() {
   }, []);
 
   const loadData = async () => {
-    const [itemsRes, customersRes, invoicesRes, suppliersRes] = await Promise.all([
-      fetch('/api/saas/items').then((response) => response.json()),
-      fetch('/api/saas/customers').then((response) => response.json()),
-      fetch('/api/saas/invoices').then((response) => response.json()),
-      fetch('/api/saas/suppliers').then((response) => response.json()),
-    ]);
+    try {
+      const [itemsRes, customersRes, invoicesRes, suppliersRes] = await Promise.all([
+        fetch('/api/saas/items').then((response) => response.json()),
+        fetch('/api/saas/customers').then((response) => response.json()),
+        fetch('/api/saas/invoices').then((response) => response.json()),
+        fetch('/api/saas/suppliers').then((response) => response.json()),
+      ]);
 
-    return {
-      items: itemsRes.items || [],
-      customers: customersRes.customers || [],
-      invoices: invoicesRes.invoices || [],
-      orders: [],
-      expenses: [],
-      suppliers: suppliersRes.suppliers || [],
-      tasks: [],
-      storefront: null,
-    };
+      return {
+        items: itemsRes.items || [],
+        customers: customersRes.customers || [],
+        invoices: invoicesRes.invoices || [],
+        orders: [],
+        expenses: [],
+        suppliers: suppliersRes.suppliers || [],
+        tasks: [],
+        storefront: null,
+      };
+    } catch {
+      return initialData;
+    }
   };
 
+  // Background Session Verification (Non-blocking: website opens instantly)
   useEffect(() => {
     let cancelled = false;
 
     const checkSession = async () => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-        if (!cancelled) {
-          setAuthUser(null);
-          setData(initialData);
-          setIsCheckingSession(false);
-        }
-      }, 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
 
       try {
         const response = await fetch('/api/auth/session', { signal: controller.signal });
@@ -87,8 +94,8 @@ export default function EasyTraderPlatform() {
         if (response.status === 401) {
           if (!cancelled) {
             setAuthUser(null);
+            localStorage.removeItem('easytrader_user');
             setData(initialData);
-            setIsCheckingSession(false);
           }
           return;
         }
@@ -99,24 +106,22 @@ export default function EasyTraderPlatform() {
           const result = await response.json();
           if (result?.success && result?.user) {
             setAuthUser(result.user);
+            localStorage.setItem('easytrader_user', JSON.stringify(result.user));
             const nextData = await loadData();
             if (!cancelled) setData(nextData);
             return;
           }
         }
 
-        setAuthUser(null);
-        setData(initialData);
-      } catch (error: any) {
         if (!cancelled) {
           setAuthUser(null);
+          localStorage.removeItem('easytrader_user');
           setData(initialData);
         }
+      } catch {
+        // Silently failover to current state or cached user
       } finally {
-        if (!cancelled) {
-          clearTimeout(timeoutId);
-          setIsCheckingSession(false);
-        }
+        clearTimeout(timeoutId);
       }
     };
 
@@ -133,16 +138,12 @@ export default function EasyTraderPlatform() {
 
     const load = async () => {
       const nextData = await loadData();
-
       if (cancelled) return;
-
       setData(nextData);
     };
 
     load().catch(() => {
-      if (!cancelled) {
-        setData(initialData);
-      }
+      if (!cancelled) setData(initialData);
     });
 
     return () => {
@@ -156,6 +157,7 @@ export default function EasyTraderPlatform() {
       setShowThemeOnboarding(true);
     }
     setAuthUser(user);
+    localStorage.setItem('easytrader_user', JSON.stringify(user));
     setData(await loadData());
     setActiveTab('business-suite');
   };
@@ -167,6 +169,7 @@ export default function EasyTraderPlatform() {
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     setAuthUser(null);
+    localStorage.removeItem('easytrader_user');
     setData(initialData);
     setActiveTab('business-suite');
   };
@@ -185,10 +188,7 @@ export default function EasyTraderPlatform() {
 
   const isLight = theme === 'light';
 
-  if (isCheckingSession) {
-    return <div className="grid min-h-screen place-items-center bg-black text-white font-medium">Loading workspace...</div>;
-  }
-
+  // Instant render: website opens immediately without any blocking "Loading workspace..." black screen
   if (!authUser) {
     return <AuthScreen onAuthenticated={handleAuthenticated} />;
   }
@@ -215,7 +215,10 @@ export default function EasyTraderPlatform() {
         onThemeChange={setTheme}
         onTabChange={handleTabSelect}
         onLogout={() => { void logout(); }}
-        onProfileUpdate={(updatedUser) => setAuthUser(updatedUser)}
+        onProfileUpdate={(updatedUser) => {
+          setAuthUser(updatedUser);
+          localStorage.setItem('easytrader_user', JSON.stringify(updatedUser));
+        }}
         profileUser={authUser}
         shopName={authUser.shopName || `Tenant ${String(authUser.tenantId || '').slice(0, 8)}`}
       />
