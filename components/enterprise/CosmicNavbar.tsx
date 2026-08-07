@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Boxes,
+  ChevronDown,
   CreditCard,
   HandCoins,
   Menu,
@@ -26,7 +27,7 @@ interface CosmicNavbarProps {
   activeSection: BusinessSectionKey;
   onSectionChange: (section: BusinessSectionKey) => void;
   isLight?: boolean;
-  theme?: 'light' | 'dark';
+  theme?: 'dark' | 'light';
 }
 
 export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionChange, theme }: CosmicNavbarProps) {
@@ -34,8 +35,8 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
   const [isOpen, setIsOpen] = useState(false);
 
   const navItems = useMemo<NavItem[]>(() => [
-    { key: 'billing', label: 'Billing', desc: 'POS Desk & Checkout', icon: HandCoins },
-    { key: 'stock', label: 'Stock', desc: 'Inventory Management', icon: Boxes },
+    { key: 'billing', label: 'Billing', desc: 'POS Checkout & Receipts', icon: HandCoins },
+    { key: 'stock', label: 'Stock', desc: 'Inventory Control & Alerts', icon: Boxes },
     { key: 'invoices', label: 'Invoice', desc: 'Billing History & PDFs', icon: ReceiptText },
     { key: 'customers', label: 'Customer', desc: 'Ledger & Digital Khata', icon: Users },
     { key: 'suppliers', label: 'Supplier', desc: 'Vendors & Reorders', icon: Truck },
@@ -53,40 +54,38 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
   return (
     <div className="relative z-20 w-full">
       <motion.div
-        initial={{ opacity: 0, y: -8, scale: 0.985 }}
+        initial={{ opacity: 0, y: -6, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.22, ease: 'easeOut' }}
-        className={`relative overflow-hidden rounded-2xl md:rounded-full border p-1 sm:p-1.5 transition-colors ${
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className={`relative rounded-2xl md:rounded-full border p-1 sm:p-1.5 transition-colors shadow-lg ${
           isLight
-            ? 'border-zinc-200 bg-white text-black shadow-md'
-            : 'border-zinc-800 bg-zinc-950 text-white shadow-xl'
+            ? 'border-zinc-200 bg-white text-black shadow-zinc-200/50'
+            : 'border-zinc-800 bg-zinc-950 text-white shadow-black/80'
         }`}
       >
-        <div className="relative flex items-center gap-1.5 px-0.5">
-          {/* Mobile Menu Dropdown Toggle Button */}
+        <div className="flex items-center gap-1.5 w-full">
+          {/* Mobile Module Quick Select Dropdown Pill (lg:hidden) */}
           <button
             type="button"
             onClick={() => setIsOpen((current) => !current)}
-            className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-2.5 transition lg:hidden touch-manipulation min-h-[36px] ${
+            className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-bold border transition-all lg:hidden touch-manipulation min-h-[36px] ${
               isLight
-                ? 'border-zinc-200 bg-zinc-100 text-black hover:bg-zinc-200'
-                : 'border-zinc-800 bg-zinc-900 text-white hover:bg-zinc-800'
+                ? 'border-zinc-300 bg-zinc-100 text-black hover:bg-zinc-200'
+                : 'border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800'
             }`}
-            aria-label="Toggle business suite section menu"
+            aria-label="Select Business Suite Module"
             aria-expanded={isOpen}
-            title="All Business Suite Sections"
           >
-            {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-            <span className="text-[12px] font-bold lg:hidden flex items-center gap-1">
-              <activeItem.icon className="h-3.5 w-3.5 text-blue-400 sm:hidden" />
-              <span className="max-w-[70px] truncate sm:max-w-none">{activeItem.label}</span>
-            </span>
+            <Menu className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+            <span className="truncate max-w-[85px] font-bold">{activeItem.label}</span>
+            <ChevronDown className={`h-3 w-3 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Horizontal Scrollable Nav Bar for Phone & Desktop */}
-          <div className={`flex flex-1 items-center gap-1 overflow-x-auto rounded-full p-0.5 scrollbar-none scroll-smooth ${
-            isLight ? 'bg-white' : 'bg-black'
-          }`}>
+          {/* Vertical Divider line on Mobile */}
+          <div className="h-5 w-px shrink-0 bg-zinc-800/80 lg:hidden" />
+
+          {/* Horizontally Scrollable Segment Chips Track (Phone & Desktop) */}
+          <div className="flex flex-1 items-center gap-1 overflow-x-auto scrollbar-none scroll-smooth py-0.5 px-0.5">
             {navItems.map((item) => (
               <NavButton
                 key={item.key}
@@ -100,7 +99,7 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
         </div>
       </motion.div>
 
-      {/* Mobile Drawer Popup Grid Menu */}
+      {/* Mobile Drawer Popup Grid Overlay */}
       <AnimatePresence>
         {isOpen ? (
           <>
@@ -113,7 +112,7 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
               animate={{ opacity: 1, y: 8, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.96 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              className={`absolute left-0 right-0 top-full z-40 grid gap-2 rounded-2xl border p-3 shadow-2xl sm:grid-cols-2 lg:hidden ${
+              className={`absolute left-0 right-0 top-full z-40 grid gap-2 rounded-2xl border p-3.5 shadow-2xl sm:grid-cols-2 lg:hidden ${
                 isLight
                   ? 'border-zinc-200 bg-white text-black shadow-zinc-300/90'
                   : 'border-zinc-800 bg-zinc-950 text-white shadow-2xl shadow-black'
@@ -175,7 +174,7 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
   );
 }
 
-function NavButton({ isActive, isLight, item, mobile, onClick }: { isActive: boolean; isLight?: boolean; item: NavItem; mobile?: boolean; onClick: () => void }) {
+function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; isLight?: boolean; item: NavItem; onClick: () => void }) {
   const Icon = item.icon;
 
   return (
@@ -184,9 +183,7 @@ function NavButton({ isActive, isLight, item, mobile, onClick }: { isActive: boo
       onClick={onClick}
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.96 }}
-      className={`group relative flex h-9 shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-3 text-left transition border-0 ${
-        mobile ? 'justify-between w-full h-11 px-4' : 'flex-1 justify-center'
-      } ${
+      className={`group relative flex h-8.5 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-left transition border-0 ${
         isActive
           ? 'text-white font-bold'
           : isLight
@@ -210,7 +207,7 @@ function NavButton({ isActive, isLight, item, mobile, onClick }: { isActive: boo
           isLight ? 'bg-zinc-100' : 'bg-zinc-900/60'
         }`} />
       )}
-      <span className="relative flex items-center gap-1.5 shrink-0 z-10">
+      <span className="relative flex items-center gap-1.5 shrink-0 z-10 whitespace-nowrap">
         <Icon className={`h-3.5 w-3.5 shrink-0 ${
           isActive
             ? 'text-white'
@@ -218,7 +215,7 @@ function NavButton({ isActive, isLight, item, mobile, onClick }: { isActive: boo
               ? 'text-zinc-500 group-hover:text-black'
               : 'text-zinc-400 group-hover:text-white'
         }`} />
-        <span className="whitespace-nowrap text-[12px] xl:text-[12.5px] font-bold">{item.label}</span>
+        <span className="whitespace-nowrap text-[12px] font-bold">{item.label}</span>
       </span>
     </motion.button>
   );
