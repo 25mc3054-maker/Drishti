@@ -209,7 +209,7 @@ export function Navbar({
 
         {/* Middle Section: CosmicNavbar (Billing, Stock, Invoice, Customer, Supplier, Marketing, Expenses) */}
         {isBusinessSuite && (
-          <div className="hidden lg:flex flex-1 items-center justify-center max-w-4xl mx-2">
+          <div className="hidden lg:flex flex-1 items-center justify-center max-w-4xl min-w-0 mx-2">
             <CosmicNavbar
               activeSection={activeBusinessSection || 'billing'}
               onSectionChange={(sec) => handleBusinessSectionClick(sec)}
@@ -321,6 +321,46 @@ export function Navbar({
                     <ProfileLine isLight={isLight} icon={Phone} label="Mobile" value={profileUser?.mobile || 'Not added'} />
                     <ProfileLine isLight={isLight} icon={ShieldCheck} label="Role" value={profileUser?.role || 'admin'} />
                     <ProfileLine isLight={isLight} icon={Fingerprint} label="Tenant ID" value={profileUser?.tenantId || 'Not available'} />
+
+                    {/* Account Theme Selector & Status */}
+                    <div className={`mt-3.5 rounded-sm border p-3 ${
+                      isLight ? 'border-zinc-200 bg-zinc-50' : 'border-zinc-800 bg-zinc-950/80'
+                    }`}>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className={`text-[11px] font-extrabold uppercase tracking-wider ${
+                          isLight ? 'text-zinc-600' : 'text-zinc-400'
+                        }`}>Account Theme</span>
+                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-500">
+                          <CheckCircle2 className="h-3 w-3" /> Saved for Account
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onThemeChange?.('dark')}
+                          className={`flex items-center justify-center gap-2 rounded-sm py-1.5 text-[12px] font-bold transition border ${
+                            theme === 'dark' || (!isLight)
+                              ? 'border-zinc-700 bg-black text-white shadow-sm font-extrabold'
+                              : 'border-transparent bg-transparent text-zinc-500 hover:text-black dark:hover:text-white'
+                          }`}
+                        >
+                          <Moon className="h-3.5 w-3.5" />
+                          <span>Dark Mode</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onThemeChange?.('light')}
+                          className={`flex items-center justify-center gap-2 rounded-sm py-1.5 text-[12px] font-bold transition border ${
+                            theme === 'light' || isLight
+                              ? 'border-zinc-300 bg-white text-black shadow-sm font-extrabold'
+                              : 'border-transparent bg-transparent text-zinc-500 hover:text-black dark:hover:text-white'
+                          }`}
+                        >
+                          <Sun className="h-3.5 w-3.5" />
+                          <span>Light Mode</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="mt-4 space-y-3">

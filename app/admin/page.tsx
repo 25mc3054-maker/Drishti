@@ -1105,10 +1105,10 @@ export default function AdminPage() {
             <div className="premium-card neon-panel p-3">
               <div>
                 <div className="relative w-full">
-                  <Search className="w-4 h-4 text-gemini-blue-300 absolute left-3 top-3.5" />
+                  <Search className="w-4 h-4 text-gemini-blue-300 absolute left-3.5 top-3.5" />
                   <input
                     ref={sectionSearchRef}
-                    className="premium-input pl-9 w-full h-11"
+                    className="premium-input pl-10 w-full h-11 rounded-sm"
                     placeholder="Command search: jump to Billing, Stock, Marketing..."
                     value={sectionQuery}
                     onChange={(e) => setSectionQuery(e.target.value)}
@@ -1184,9 +1184,9 @@ export default function AdminPage() {
                           )}
                         </div>
                         <div className="relative">
-                          <Search className="w-4 h-4 text-gemini-blue-300 absolute left-3 top-3.5" />
+                          <Search className="w-4 h-4 text-gemini-blue-300 absolute left-3.5 top-3.5" />
                           <input
-                            className="premium-input pl-9"
+                            className="premium-input pl-10 h-11 rounded-sm w-full"
                             placeholder="Search products for billing"
                             value={billingState.search}
                             onChange={(e) => setBillingState({ ...billingState, search: e.target.value })}
@@ -1808,10 +1808,10 @@ export default function AdminPage() {
               </div>
 
               <div className="relative mb-3">
-                <Search className="w-4 h-4 text-gemini-blue-300 absolute left-3 top-3.5" />
+                <Search className="w-4 h-4 text-gemini-blue-300 absolute left-3.5 top-3.5" />
                 <input
                   ref={paletteSearchRef}
-                  className="premium-input pl-9"
+                  className="premium-input pl-10 h-11 rounded-sm w-full"
                   placeholder="Type section name..."
                   value={paletteQuery}
                   onChange={(event) => setPaletteQuery(event.target.value)}

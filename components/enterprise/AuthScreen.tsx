@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, Mail, Phone, ShieldCheck, Store, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Phone, ShieldCheck, Store, UserPlus } from 'lucide-react';
 import { signIn as nextAuthSignIn } from 'next-auth/react';
 
 type AuthUser = {
@@ -23,6 +23,8 @@ type Mode = 'login' | 'register' | 'forgot';
 
 export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const [mode, setMode] = useState<Mode>('login');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   
   const [form, setForm] = useState({
     name: '',
@@ -43,7 +45,18 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const [status, setStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({ type: 'idle', message: '' });
   const [isLoading, setIsLoading] = useState(false);
 
+  const switchMode = (newMode: Mode) => {
+    setMode(newMode);
+    setStatus({ type: 'idle', message: '' });
+  };
+
   const updateForm = (key: keyof typeof form, value: string) => {
+    if (key === 'mobile') {
+      // Restrict to digits only and max 10 digits
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+      setForm((current) => ({ ...current, mobile: digitsOnly }));
+      return;
+    }
     setForm((current) => ({ ...current, [key]: value }));
   };
 
@@ -68,12 +81,66 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   };
 
   const loginWithPassword = async () => {
-    const result = await submit('/api/auth/login', { mobile: form.mobile, password: form.password });
+    const cleanedMobile = form.mobile.replace(/\D/g, '');
+    if (cleanedMobile.length !== 10) {
+      setStatus({ type: 'error', message: 'Please enter a valid 10-digit mobile number.' });
+      return;
+    }
+
+    if (!form.password || form.password.length < 6) {
+      setStatus({ type: 'error', message: 'Password must be at least 6 characters.' });
+      return;
+    }
+
+    const result = await submit('/api/auth/login', { mobile: cleanedMobile, password: form.password });
     if (result?.user) onAuthenticated(result.user);
   };
 
   const register = async () => {
-    const result = await submit('/api/auth/register', form);
+    if (!form.name.trim()) {
+      setStatus({ type: 'error', message: 'Please enter your full name.' });
+      return;
+    }
+
+    if (!form.shopName.trim()) {
+      setStatus({ type: 'error', message: 'Please enter your shop name.' });
+      return;
+    }
+
+    const cleanedMobile = form.mobile.replace(/\D/g, '');
+    if (cleanedMobile.length !== 10) {
+      setStatus({ type: 'error', message: 'Please enter a valid 10-digit mobile number.' });
+      return;
+    }
+
+    if (!form.email.trim() || !form.email.includes('@')) {
+      setStatus({ type: 'error', message: 'Please enter a valid email address.' });
+      return;
+    }
+
+    if (!form.password || form.password.length < 6) {
+      setStatus({ type: 'error', message: 'Password must be at least 6 characters.' });
+      return;
+    }
+
+    if (!form.securityQuestion) {
+      setStatus({ type: 'error', message: 'Please select a security question.' });
+      return;
+    }
+
+    if (!form.securityAnswer.trim() || form.securityAnswer.trim().length < 3) {
+      setStatus({ type: 'error', message: 'Security answer must be at least 3 characters.' });
+      return;
+    }
+
+    const result = await submit('/api/auth/register', {
+      ...form,
+      mobile: cleanedMobile,
+      name: form.name.trim(),
+      shopName: form.shopName.trim(),
+      email: form.email.trim(),
+      securityAnswer: form.securityAnswer.trim(),
+    });
     if (result?.user) onAuthenticated(result.user);
   };
 
@@ -81,21 +148,33 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const [newPassword, setNewPassword] = useState('');
 
   const getSecurityQuestion = async () => {
-    const result = await submit('/api/auth/forgot-password', { email: form.email });
+    if (!form.email.trim() || !form.email.includes('@')) {
+      setStatus({ type: 'error', message: 'Please enter a valid email address.' });
+      return;
+    }
+    const result = await submit('/api/auth/forgot-password', { email: form.email.trim() });
     if (result?.securityQuestion) {
       setSecurityQuestion(result.securityQuestion);
     }
   };
 
   const resetPassword = async () => {
+    if (!form.securityAnswer.trim()) {
+      setStatus({ type: 'error', message: 'Please provide your security answer.' });
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setStatus({ type: 'error', message: 'New password must be at least 6 characters.' });
+      return;
+    }
     const result = await submit('/api/auth/reset-password', {
-      email: form.email,
-      securityAnswer: form.securityAnswer,
+      email: form.email.trim(),
+      securityAnswer: form.securityAnswer.trim(),
       newPassword,
     });
     if (result?.success) {
-      setMode('login');
-      setStatus({ type: 'success', message: 'Password reset successfully. Please login.' });
+      switchMode('login');
+      setStatus({ type: 'success', message: 'Password reset successfully! Please login with your new password.' });
     }
   };
 
@@ -163,22 +242,22 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                   {mode === 'register' ? 'Create Account' : mode === 'login' ? 'Shopkeeper Login' : 'Password Recovery'}
                 </h2>
                 <p className="mt-1 text-xs text-zinc-400">
-                  {mode === 'register' ? 'Setup your shop account to continue' : mode === 'login' ? 'Login with mobile or single-click social sign-in' : 'Reset your account password'}
+                  {mode === 'register' ? 'Setup your shop account to continue' : mode === 'login' ? 'Login with registered 10-digit mobile & password' : 'Reset your account password'}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-900 p-1 border border-zinc-800">
-                <ModeButton active={mode === 'login'} label="Login" onClick={() => setMode('login')} />
-                <ModeButton active={mode === 'register'} label="Register" onClick={() => setMode('register')} />
+                <ModeButton active={mode === 'login'} label="Login" onClick={() => switchMode('login')} />
+                <ModeButton active={mode === 'register'} label="Register" onClick={() => switchMode('register')} />
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <form onSubmit={handleSubmit} suppressHydrationWarning className="mt-6 space-y-4">
               {mode === 'forgot' ? (
                 <>
-                  <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
+                  <AuthInput icon={Mail} placeholder="Registered Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
                   {securityQuestion ? (
                     <>
-                      <p className="text-[13px] text-zinc-300">{securityQuestion}</p>
+                      <p className="text-[13px] text-zinc-300 font-medium">{securityQuestion}</p>
                       <AuthInput
                         icon={Lock}
                         placeholder="Security answer"
@@ -187,10 +266,20 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                       />
                       <AuthInput
                         icon={Lock}
-                        placeholder="New Password"
-                        type="password"
+                        placeholder="New Password (min 6 characters)"
+                        type={showNewPassword ? 'text' : 'password'}
                         value={newPassword}
                         onChange={setNewPassword}
+                        rightElement={
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="text-zinc-500 hover:text-zinc-300 transition"
+                            tabIndex={-1}
+                          >
+                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        }
                       />
                     </>
                   ) : null}
@@ -201,14 +290,44 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                 <>
                   <AuthInput icon={UserPlus} placeholder="Full name" value={form.name} onChange={(value) => updateForm('name', value)} />
                   <AuthInput icon={Store} placeholder="Shop name" value={form.shopName} onChange={(value) => updateForm('shopName', value)} />
-                  <AuthInput icon={Phone} placeholder="Mobile number" value={form.mobile} onChange={(value) => updateForm('mobile', value)} />
+                  <AuthInput
+                    icon={Phone}
+                    placeholder="10-digit Mobile number"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={form.mobile}
+                    onChange={(value) => updateForm('mobile', value)}
+                    rightElement={
+                      <span className={`text-[11px] font-semibold ${form.mobile.length === 10 ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                        {form.mobile.length}/10
+                      </span>
+                    }
+                  />
                   <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
-                  <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
+                  <AuthInput
+                    icon={Lock}
+                    placeholder="Password (min 6 characters)"
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={(value) => updateForm('password', value)}
+                    rightElement={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-zinc-500 hover:text-zinc-300 transition"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    }
+                  />
                   <div className="flex flex-col gap-3">
                     <select
                       value={form.securityQuestion}
                       onChange={(e) => updateForm('securityQuestion', e.target.value)}
-                      className="w-full h-12 rounded-xl border border-zinc-800 bg-zinc-950 px-4 text-base md:text-sm text-white/70 transition focus-within:border-zinc-500 outline-none"
+                      suppressHydrationWarning
+                      className="w-full h-11 rounded-xl border border-zinc-800 bg-zinc-950 px-4 text-base md:text-sm text-white/70 transition focus-within:border-zinc-500 outline-none"
                     >
                       <option value="" disabled>Select a security question</option>
                       {securityQuestions.map((q, i) => (
@@ -217,27 +336,57 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                     </select>
                     <AuthInput
                       icon={Lock}
-                      placeholder="Security answer"
+                      placeholder="Security answer (min 3 characters)"
                       value={form.securityAnswer}
                       onChange={(value) => updateForm('securityAnswer', value)}
                     />
-                    {form.securityAnswer.length > 0 && form.securityAnswer.length < 5 && (
-                      <p className="text-red-400 text-xs mt-1 font-semibold">Security question must be at least 5 characters.</p>
-                    )}
                   </div>
                 </>
               ) : mode === 'login' ? (
                 <>
-                  <AuthInput icon={Phone} placeholder="Mobile number" value={form.mobile} onChange={(value) => updateForm('mobile', value)} />
-                  <AuthInput icon={Lock} placeholder="Password" type="password" value={form.password} onChange={(value) => updateForm('password', value)} />
+                  <AuthInput
+                    icon={Phone}
+                    placeholder="10-digit Mobile number"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={form.mobile}
+                    onChange={(value) => updateForm('mobile', value)}
+                    rightElement={
+                      <span className={`text-[11px] font-semibold ${form.mobile.length === 10 ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                        {form.mobile.length}/10
+                      </span>
+                    }
+                  />
+                  <AuthInput
+                    icon={Lock}
+                    placeholder="Password (min 6 characters)"
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={(value) => updateForm('password', value)}
+                    rightElement={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-zinc-500 hover:text-zinc-300 transition"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    }
+                  />
                   {mode === 'login' && (
-                    <button
-                      type="button"
-                      onClick={() => setMode('forgot')}
-                      className="text-zinc-400 text-xs text-right mt-1 hover:text-white transition touch-manipulation font-semibold"
-                    >
-                      Forgot Password?
-                    </button>
+                    <div className="flex justify-between items-center text-xs mt-1">
+                      <span className="text-zinc-500">Only registered accounts can log in</span>
+                      <button
+                        type="button"
+                        onClick={() => switchMode('forgot')}
+                        suppressHydrationWarning
+                        className="text-zinc-400 hover:text-white transition touch-manipulation font-semibold"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
                   )}
                 </>
               ) : null}
@@ -251,6 +400,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               <button
                 type="submit"
                 disabled={isLoading}
+                suppressHydrationWarning
                 className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-xl bg-white px-5 text-sm font-extrabold text-black shadow-lg transition hover:scale-[1.01] active:scale-[0.99] touch-manipulation disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {isLoading ? 'Please wait...' : mode === 'register' ? 'Create Shop Workspace' : mode === 'login' ? 'Login with Password' : securityQuestion ? 'Reset Password' : 'Get Security Question'}
@@ -270,6 +420,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                   type="button"
                   onClick={() => handleRealOAuthSignIn('google')}
                   disabled={isLoading}
+                  suppressHydrationWarning
                   className="flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[12.5px] font-bold text-white transition hover:bg-zinc-900 hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98] touch-manipulation disabled:opacity-50"
                   title="Sign in with Google (accounts.google.com)"
                 >
@@ -286,6 +437,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                   type="button"
                   onClick={() => handleRealOAuthSignIn('apple')}
                   disabled={isLoading}
+                  suppressHydrationWarning
                   className="flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[12.5px] font-bold text-white transition hover:bg-zinc-900 hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98] touch-manipulation disabled:opacity-50"
                   title="Sign in with Apple (appleid.apple.com)"
                 >
@@ -299,6 +451,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                   type="button"
                   onClick={() => handleRealOAuthSignIn('microsoft')}
                   disabled={isLoading}
+                  suppressHydrationWarning
                   className="flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[12.5px] font-bold text-white transition hover:bg-zinc-900 hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98] touch-manipulation disabled:opacity-50"
                   title="Sign in with Microsoft (login.microsoftonline.com)"
                 >
@@ -324,6 +477,7 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
     <button
       type="button"
       onClick={onClick}
+      suppressHydrationWarning
       className={`h-9 rounded-lg px-4 text-[12.5px] font-bold transition touch-manipulation ${
         active ? 'bg-white text-black shadow-md' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
       }`}
@@ -333,17 +487,40 @@ function ModeButton({ active, label, onClick }: { active: boolean; label: string
   );
 }
 
-function AuthInput({ icon: Icon, onChange, placeholder, type = 'text', value }: { icon: any; onChange: (value: string) => void; placeholder: string; type?: string; value: string }) {
+function AuthInput({
+  icon: Icon,
+  onChange,
+  placeholder,
+  type = 'text',
+  value,
+  maxLength,
+  inputMode,
+  rightElement,
+}: {
+  icon: any;
+  onChange: (value: string) => void;
+  placeholder: string;
+  type?: string;
+  value: string;
+  maxLength?: number;
+  inputMode?: 'text' | 'numeric' | 'tel' | 'email' | 'url' | 'search' | 'none' | 'decimal';
+  rightElement?: React.ReactNode;
+}) {
   return (
     <label className="flex h-11 items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-4 text-zinc-400 transition focus-within:border-zinc-500 focus-within:text-white">
       <Icon className="h-4 w-4 shrink-0 text-current" />
       <input
         type={type}
         value={value}
+        maxLength={maxLength}
+        inputMode={inputMode}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
+        suppressHydrationWarning
         className="w-full bg-transparent text-base md:text-sm text-white outline-none placeholder:text-zinc-500 font-sans font-medium"
       />
+      {rightElement && <div className="shrink-0 flex items-center">{rightElement}</div>}
     </label>
   );
 }
+

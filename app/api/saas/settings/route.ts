@@ -39,7 +39,10 @@ export const PUT = withTenant(async (req: NextRequest, ctx) => {
     ...defaultSettings(ctx.tenantId),
     ...body,
     id,
+    updatedAt: new Date().toISOString(),
   });
 
   return NextResponse.json({ success: true, settings });
 });
+
+export const POST = PUT;

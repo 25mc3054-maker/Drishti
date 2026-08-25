@@ -15,7 +15,8 @@
     "securityAnswerHash": "edcce2a1d7432908ac94407d42c65486:75fb55f63672ff2a73c2a1c81706132420cac92224f74435c90b711fbc3cb599",
     "role": "admin",
     "createdAt": "2026-08-02T18:58:53.203Z",
-    "updatedAt": "2026-08-02T18:58:53.203Z"
+    "updatedAt": "2026-08-18T13:41:47.223Z",
+    "themePreference": "light"
   },
   {
     "PK": "TENANT#54647602-eb79-4e53-ab9c-e58b3ca66028",
@@ -28,12 +29,13 @@
     "shopName": "Maruthi Milk",
     "mobile": "7816086663",
     "email": "mannegreeshmanth@gmail.com",
-    "passwordHash": "9d2b9c573c24bcc51bad640d8273c741:fe47eb7807a817532fe56aabf3c5884dca692df4cb25b17db83cc2a6dd3e911d",
+    "passwordHash": "2212463d50fa37b1c78725a3bfd5fafe:7ec9ee0c2100ae19be38d4702edec869a3a6a3eb2db2ea2a447747b830a36454",
     "securityQuestion": "What was the name of the bank where you opened your very first business checking account?",
     "securityAnswerHash": "55e30768447b9f6395fd0be645c47f6a:319ea4db5fa3c25b32f746a336d37027fe6074d6c65dafb577a076c3fd84d9d1",
     "role": "admin",
     "createdAt": "2026-08-02T18:59:50.054Z",
-    "updatedAt": "2026-08-04T17:37:21.676Z"
+    "updatedAt": "2026-08-21T15:57:24.897Z",
+    "themePreference": "dark"
   },
   {
     "PK": "TENANT#247c24d3-f089-4489-a358-015a3942d16b",
@@ -142,5 +144,23 @@
     "role": "admin",
     "createdAt": "2026-08-07T12:42:17.282Z",
     "updatedAt": "2026-08-07T12:42:17.282Z"
+  },
+  {
+    "PK": "TENANT#c3496e29-549a-4f27-98cd-812b65026db3",
+    "SK": "tenant_user#88ba82d1-153f-4543-97e9-d1ae8f267691",
+    "id": "88ba82d1-153f-4543-97e9-d1ae8f267691",
+    "tenant_id": "c3496e29-549a-4f27-98cd-812b65026db3",
+    "shopId": "c3496e29-549a-4f27-98cd-812b65026db3",
+    "entityType": "tenant_user",
+    "name": "Test Shopkeeper",
+    "shopName": "Test Grocery",
+    "mobile": "9876500001",
+    "email": "test9876500001@example.com",
+    "passwordHash": "c1b0302e3af9133b3b20d408cfe4ecb7:07daca9b55745ed85c1a1733d1bbd1aad447a6188897c1f6a06f1a88b6417e23",
+    "securityQuestion": "What was the last name of your first boss or supervisor?",
+    "securityAnswerHash": "0330f0efdaeb0bc6f5fc31f00ebc1c8f:00c05e7276fa619d0ff2980b80b163930d3b852b903de1fcef90d7b3f65e3188",
+    "role": "admin",
+    "createdAt": "2026-08-21T15:20:36.353Z",
+    "updatedAt": "2026-08-21T15:20:36.353Z"
   }
 ]

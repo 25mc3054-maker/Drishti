@@ -31,7 +31,7 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'drishti_nextauth_default_jwt_secret_key_32chars!',
   callbacks: {
     async signIn({ user, account }) {
       if (!user.email) return false;

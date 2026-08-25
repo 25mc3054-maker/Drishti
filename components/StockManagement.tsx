@@ -100,9 +100,9 @@ export default function StockManagement({ items, onAddToBill, onRefresh, onAddPr
       </div>
 
       <div className="relative mb-4">
-        <Search className="w-4 h-4 text-gemini-blue-300 absolute left-3 top-3.5" />
+        <Search className="w-4 h-4 text-gemini-blue-300 absolute left-3.5 top-3.5" />
         <input
-          className="premium-input pl-9"
+          className="premium-input pl-10 h-11 rounded-sm w-full"
           placeholder="Search stock by product name"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}

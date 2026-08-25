@@ -261,6 +261,8 @@ export function StorefrontPage({ data, onNavigate, theme = 'dark' }: StorefrontP
         <EditProductModal
           product={editingProduct}
           mode={editingMode}
+          theme={theme}
+          isLight={isLight}
           onClose={closeEditModal}
           onUpdate={() => {
             closeEditModal();

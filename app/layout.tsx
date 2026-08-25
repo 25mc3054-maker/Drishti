@@ -137,6 +137,29 @@ export default function RootLayout({
     <html lang="en" className={`dark font-sans ${inter.variable}`} suppressHydrationWarning>
       <head>
         <script
+          dangerouslySetInnerHTML={{
+            __html: `(function() {
+              try {
+                var activeAcc = localStorage.getItem('drishti_active_account_id');
+                var theme = null;
+                if (activeAcc) {
+                  theme = localStorage.getItem('drishti_theme_' + activeAcc);
+                }
+                if (!theme) {
+                  theme = localStorage.getItem('drishti_global_theme');
+                }
+                if (theme === 'light') {
+                  document.documentElement.classList.add('light');
+                  document.documentElement.classList.remove('dark');
+                } else if (theme === 'dark') {
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.classList.remove('light');
+                }
+              } catch (e) {}
+            })();`,
+          }}
+        />
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />

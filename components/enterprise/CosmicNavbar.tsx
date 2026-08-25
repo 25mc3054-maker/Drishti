@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Boxes,
@@ -31,6 +31,7 @@ interface CosmicNavbarProps {
 export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionChange, theme }: CosmicNavbarProps) {
   const isLight = propIsLight ?? theme === 'light';
   const [isOpen, setIsOpen] = useState(false);
+  const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const navItems = useMemo<NavItem[]>(() => [
     { key: 'billing', label: 'Billing', icon: HandCoins },
@@ -42,24 +43,34 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
     { key: 'expenses', label: 'Expenses', icon: CreditCard },
   ], []);
 
+  useEffect(() => {
+    if (activeSection && itemRefs.current[activeSection]) {
+      itemRefs.current[activeSection]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [activeSection]);
+
   const selectSection = (section: BusinessSectionKey) => {
     onSectionChange(section);
     setIsOpen(false);
   };
 
   return (
-    <div className="relative z-20 w-full">
+    <div className="relative z-20 w-full min-w-0">
       <motion.div
         initial={{ opacity: 0, y: -8, scale: 0.985 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.22, ease: 'easeOut' }}
-        className={`relative overflow-hidden rounded-2xl md:rounded-full border p-1.5 ${
+        className={`relative overflow-hidden rounded-2xl md:rounded-full border p-1 md:p-1.5 transition-colors ${
           isLight
-            ? 'border-zinc-200 bg-white text-black shadow-md'
+            ? 'border-zinc-200 bg-white text-black shadow-sm'
             : 'border-zinc-800 bg-black text-white shadow-xl'
         }`}
       >
-        <div className="relative flex items-center justify-between gap-2 px-1">
+        <div className="relative flex items-center justify-between gap-1.5 px-0.5">
           {/* Mobile Menu Dropdown Toggle Button */}
           <button
             type="button"
@@ -76,12 +87,13 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
           </button>
 
           {/* Horizontal Scroll Nav Bar for all 7 items */}
-          <div className={`flex w-full flex-1 items-center justify-between gap-1 overflow-x-auto no-scrollbar rounded-full p-0.5 ${
-            isLight ? 'bg-white' : 'bg-black'
+          <div className={`flex w-full flex-1 items-center justify-between gap-0.5 sm:gap-1 overflow-x-auto no-scrollbar rounded-full p-0.5 ${
+            isLight ? 'bg-zinc-100/90' : 'bg-black'
           }`}>
             {navItems.map((item) => (
               <NavButton
                 key={item.key}
+                buttonRef={(el) => { itemRefs.current[item.key] = el; }}
                 item={item}
                 isActive={item.key === activeSection}
                 onClick={() => selectSection(item.key)}
@@ -123,50 +135,69 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
   );
 }
 
-function NavButton({ isActive, isLight, item, mobile, onClick }: { isActive: boolean; isLight?: boolean; item: NavItem; mobile?: boolean; onClick: () => void }) {
+function NavButton({
+  buttonRef,
+  isActive,
+  isLight,
+  item,
+  mobile,
+  onClick,
+}: {
+  buttonRef?: (el: HTMLButtonElement | null) => void;
+  isActive: boolean;
+  isLight?: boolean;
+  item: NavItem;
+  mobile?: boolean;
+  onClick: () => void;
+}) {
   const Icon = item.icon;
 
   return (
     <motion.button
+      ref={buttonRef}
       type="button"
       onClick={onClick}
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.98 }}
-      className={`group relative flex h-9 items-center gap-1.5 overflow-hidden rounded-full px-2.5 sm:px-3 text-left transition border-0 ${
-        mobile ? 'justify-between w-full' : 'flex-1 shrink-0 justify-center'
+      className={`group relative flex h-9 items-center gap-1 sm:gap-1.5 overflow-hidden rounded-full px-2.5 sm:px-3 text-left transition-all border-0 ${
+        mobile ? 'justify-between w-full' : 'flex-1 shrink-0 justify-center min-w-[75px] sm:min-w-[85px]'
       } ${
         isActive
-          ? 'text-white font-bold'
+          ? isLight
+            ? 'bg-black text-white shadow-md'
+            : 'bg-zinc-800 text-white shadow-md'
           : isLight
-            ? 'text-zinc-600 hover:text-black'
-            : 'text-zinc-400 hover:text-white'
+            ? 'bg-transparent text-zinc-700 hover:text-black hover:bg-zinc-200/70'
+            : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/60'
       }`}
       aria-current={isActive ? 'page' : undefined}
     >
-      {isActive ? (
+      {isActive && (
         <motion.span
           layoutId="business-suite-active-nav"
-          className={`absolute inset-0 rounded-full border ${
-            isLight
-              ? 'bg-black text-white border-black'
-              : 'bg-zinc-800 text-white border-zinc-700/60'
+          className={`absolute inset-0 rounded-full ${
+            isLight ? 'bg-black' : 'bg-zinc-800'
           }`}
           transition={{ type: 'spring', stiffness: 380, damping: 34 }}
         />
-      ) : (
-        <span className={`absolute inset-0 rounded-full opacity-0 transition group-hover:opacity-100 ${
-          isLight ? 'bg-zinc-100' : 'bg-zinc-900/40'
-        }`} />
       )}
-      <span className="relative flex items-center gap-1.5 shrink-0">
-        <Icon className={`h-3.5 w-3.5 shrink-0 ${
+      <span className="relative z-10 flex items-center gap-1.5 shrink-0">
+        <Icon className={`h-3.5 w-3.5 shrink-0 transition-colors ${
           isActive
             ? 'text-white'
             : isLight
-              ? 'text-zinc-500 group-hover:text-black'
+              ? 'text-zinc-600 group-hover:text-black'
               : 'text-zinc-400 group-hover:text-white'
         }`} />
-        <span className="whitespace-nowrap text-[12px] xl:text-[12.5px] font-bold">{item.label}</span>
+        <span className={`whitespace-nowrap text-[12px] sm:text-[12.5px] font-bold transition-colors ${
+          isActive
+            ? 'text-white'
+            : isLight
+              ? 'text-zinc-800 group-hover:text-black'
+              : 'text-zinc-300 group-hover:text-white'
+        }`}>
+          {item.label}
+        </span>
       </span>
     </motion.button>
   );
