@@ -1,12 +1,12 @@
-import { MetadataRoute } from 'next'
+import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://easytrader.onrender.com'
-  const currentDate = new Date().toISOString()
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://easytrader.onrender.com';
+  const currentDate = new Date().toISOString();
 
   return [
     {
-      url: baseUrl,
+      url: `${baseUrl}/`,
       lastModified: currentDate,
       changeFrequency: 'daily',
       priority: 1.0,
@@ -24,6 +24,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/customer-shop/demo-shop-1`,
+      lastModified: currentDate,
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    {
       url: `${baseUrl}/store-setup`,
       lastModified: currentDate,
       changeFrequency: 'weekly',
@@ -36,10 +42,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/customer-shop`,
+      url: `${baseUrl}/admin`,
       lastModified: currentDate,
       changeFrequency: 'weekly',
       priority: 0.7,
     },
-  ]
+  ];
 }
+

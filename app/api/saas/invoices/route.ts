@@ -50,7 +50,7 @@ export const POST = withTenant(async (req: NextRequest, ctx) => {
   const normalizedItems = cartItems.map((entry: any) => {
     const stockItem = itemMap.get(String(entry.id));
     const qty = Number(entry.cartQty ?? entry.qty ?? 1);
-    const price = Number(stockItem?.price ?? entry.price ?? 0);
+    const price = entry.price !== undefined && entry.price !== null && !isNaN(Number(entry.price)) ? Number(entry.price) : Number(stockItem?.price ?? 0);
     return {
       id: entry.id,
       name: stockItem?.name ?? entry.name ?? 'Unnamed Item',

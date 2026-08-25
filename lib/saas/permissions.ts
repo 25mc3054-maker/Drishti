@@ -10,6 +10,8 @@ export const rolePermissions: Record<TenantRole, TenantPermission[]> = {
     'suppliers:write',
     'invoices:read',
     'invoices:write',
+    'expenses:read',
+    'expenses:write',
     'staff:read',
     'staff:write',
     'settings:read',
@@ -22,6 +24,8 @@ export const rolePermissions: Record<TenantRole, TenantPermission[]> = {
     'customers:write',
     'invoices:read',
     'invoices:write',
+    'expenses:read',
+    'expenses:write',
     'settings:read',
   ],
 };

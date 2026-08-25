@@ -18,6 +18,7 @@ export async function PATCH(req: NextRequest) {
       email: body.email,
       currentPassword: body.currentPassword,
       newPassword: body.newPassword,
+      themePreference: body.themePreference,
     });
 
     return sessionResponse(user, 'Profile updated.');

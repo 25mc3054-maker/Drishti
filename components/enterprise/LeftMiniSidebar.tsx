@@ -11,6 +11,7 @@ import {
   HandCoins,
   LayoutDashboard,
   ReceiptText,
+  Settings,
   ShieldAlert,
   Sparkles,
   Truck,
@@ -163,15 +164,40 @@ export function LeftMiniSidebar({
           </div>
         </div>
 
-        <div className={`mt-auto rounded-xl p-3.5 border ${
-          isLight
-            ? 'border-transparent bg-zinc-100/60 text-zinc-700'
-            : 'border-zinc-800 bg-black text-zinc-300'
+        {/* Pinned Settings Tab at the Bottom of Navbar/Sidebar Menu */}
+        <div className={`mt-auto pt-3 border-t ${
+          isLight ? 'border-zinc-200/80' : 'border-zinc-800'
         }`}>
-          <div className="text-[12px] font-semibold text-current">EasyTrader Workspace</div>
-          <div className={`mt-1 text-[11px] ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
-            Click the 3 dots icon at top left to toggle this panel.
-          </div>
+          <button
+            type="button"
+            onClick={() => onTabChange('settings')}
+            className={`group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-[14px] md:text-[13.5px] font-semibold transition-all touch-manipulation min-h-[44px] ${
+              activeTab === 'settings'
+                ? isLight
+                  ? 'bg-zinc-100 text-black font-semibold shadow-sm'
+                  : 'border border-zinc-800 bg-zinc-900 text-white font-semibold'
+                : isLight
+                  ? 'text-zinc-600 hover:bg-zinc-100/70 hover:text-black'
+                  : 'text-zinc-400 hover:bg-zinc-900/60 hover:text-white'
+            }`}
+          >
+            <Settings
+              className={`h-5 w-5 shrink-0 transition-transform group-hover:rotate-45 ${
+                activeTab === 'settings'
+                  ? isLight ? 'text-black' : 'text-white'
+                  : isLight ? 'text-zinc-400 group-hover:text-black' : 'text-zinc-500 group-hover:text-white'
+              }`}
+            />
+            <span className="truncate">Settings</span>
+            {activeTab === 'settings' && (
+              <motion.span
+                layoutId="mini-sidebar-indicator"
+                className={`ml-auto h-2 w-2 rounded-full ${
+                  isLight ? 'bg-black' : 'bg-white'
+                }`}
+              />
+            )}
+          </button>
         </div>
       </motion.aside>
     </>

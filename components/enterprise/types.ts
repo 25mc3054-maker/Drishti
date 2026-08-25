@@ -9,7 +9,7 @@ export interface DashboardData {
   storefront: any | null;
 }
 
-export type TabKey = 'overview' | 'ai-workspace' | 'business-suite' | 'database-management' | 'storefront' | 'insights' | 'saas-admin';
+export type TabKey = 'overview' | 'ai-workspace' | 'business-suite' | 'database-management' | 'storefront' | 'insights' | 'saas-admin' | 'settings';
 
 export type BusinessSectionKey =
   | 'billing'

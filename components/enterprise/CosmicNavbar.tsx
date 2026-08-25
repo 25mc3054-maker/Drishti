@@ -52,7 +52,6 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
             : 'border-zinc-800 bg-zinc-950 text-white shadow-black/80'
         }`}
       >
-        {/* Touch-Scrollable Chips Track on Phone, Centered Floating Dock Capsule on Laptop */}
         <div className="flex w-full items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none scroll-smooth py-0.5 px-0.5 lg:overflow-visible">
           {navItems.map((item) => (
             <NavButton
@@ -107,7 +106,7 @@ function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; is
           isActive
             ? 'text-white'
             : isLight
-              ? 'text-zinc-500 group-hover:text-black'
+              ? 'text-zinc-600 group-hover:text-black'
               : 'text-zinc-400 group-hover:text-white'
         }`} />
         <span className="whitespace-nowrap text-[12.5px] font-extrabold tracking-tight">{item.label}</span>

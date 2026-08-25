@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const normalizedItems = cartItems.map((entry: any) => {
       const stockItem = itemMap.get(entry.id) as any;
       const qty = Number(entry.cartQty ?? entry.qty ?? 1);
-      const price = Number(stockItem?.price ?? entry.price ?? 0);
+      const price = entry.price !== undefined && entry.price !== null && !isNaN(Number(entry.price)) ? Number(entry.price) : Number(stockItem?.price ?? 0);
       return {
         id: entry.id,
         name: stockItem?.name ?? entry.name ?? 'Unnamed Item',
