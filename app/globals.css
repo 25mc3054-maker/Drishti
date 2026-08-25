@@ -119,6 +119,10 @@
   .action-button {
     @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg border-0 bg-zinc-900 px-4 text-[13px] font-medium text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-45;
   }
+
+  .premium-input {
+    @apply rounded-sm border border-zinc-300 bg-white px-3.5 py-2.5 text-sm font-medium text-black placeholder:text-zinc-400 transition-all outline-none focus:border-black focus:ring-1 focus:ring-black/10 dark:border-zinc-800 dark:bg-black/60 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-zinc-500 dark:focus:ring-white/10;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

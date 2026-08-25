@@ -155,11 +155,11 @@ export default function StorefrontPage() {
         {/* Inventory Tab */}
         {activeTab === 'inventory' && (
           <>
-            <div className="premium-card neon-panel mb-6 p-4">
+            <div className="premium-card neon-panel mb-6 p-4 rounded-sm">
               <div className="relative">
-                <Search className="h-4 w-4 text-gemini-blue-300 absolute left-3 top-3.5" />
+                <Search className="h-4 w-4 text-gemini-blue-300 absolute left-3.5 top-3.5" />
                 <input
-                  className="premium-input pl-9 w-full"
+                  className="premium-input pl-10 w-full h-11 rounded-sm"
                   placeholder="Search products in inventory"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}

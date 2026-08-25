@@ -1,17 +1,17 @@
-import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
-import Script from 'next/script'
-import './globals.css'
-import ClientToaster from '../components/ClientToaster'
-import { Analytics } from "@vercel/analytics/next"
-import { ThemeProvider } from '../contexts/ThemeContext'
-import { NextAuthProvider } from '@/components/NextAuthProvider'
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
+import Script from 'next/script';
+import './globals.css';
+import ClientToaster from '../components/ClientToaster';
+import { Analytics } from "@vercel/analytics/next";
+import { ThemeProvider } from '../contexts/ThemeContext';
+import { NextAuthProvider } from '@/components/NextAuthProvider';
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   weight: ['400', '500', '600', '700', '800'],
-})
+});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -21,9 +21,9 @@ export const viewport: Viewport = {
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
     { media: '(prefers-color-scheme: dark)', color: '#000000' },
   ],
-}
+};
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://easytrader.onrender.com'
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://easytrader.onrender.com';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -31,19 +31,25 @@ export const metadata: Metadata = {
     default: 'EasyTrader - Smart Billing, Business Suite & AI Workspace for Bharat',
     template: '%s | EasyTrader',
   },
-  description: 'AI-powered solution architect and retail operations platform for businesses in Bharat. Smart POS billing, inventory management, AI workspace, customer ledger, and digital storefronts.',
+  description: 'AI-powered solution architect and retail operations platform for businesses in Bharat. Smart POS billing, inventory management, AI workspace, supplier reordering, and customer digital storefronts.',
   keywords: [
     'EasyTrader',
+    'AI Retail Software',
+    'Kirana Billing Software',
+    'Smart POS India',
+    'Inventory Management System',
+    'Bharat MSME Operations',
+    'Computer Vision Retail Analytics',
+    'Digital Storefront Builder',
+    'Retail Automation India',
+    'E-commerce Storefront for Kirana',
+    'GST Billing App',
     'Smart Billing System',
     'Shopkeeper Management Software',
     'Retail POS Software',
-    'Inventory Management System',
     'Invoice Generator',
     'Digital Khata Book',
-    'E-commerce Storefront Generator',
     'AI Business Suite',
-    'Bharat MSME',
-    'Digital Storefront',
   ],
   authors: [{ name: 'EasyTrader Team', url: siteUrl }],
   creator: 'EasyTrader',
@@ -91,54 +97,77 @@ export const metadata: Metadata = {
     images: [`${siteUrl}/diagram-export-08-03-2026-15_08_32.png`],
     creator: '@EasyTraderApp',
   },
-}
+};
 
 const jsonLdData = {
   '@context': 'https://schema.org',
   '@graph': [
     {
-      '@type': 'WebSite',
-      '@id': `${siteUrl}/#website`,
-      url: siteUrl,
-      name: 'EasyTrader',
-      description: 'All-in-one smart billing desk, stock inventory manager, and business suite for shopkeepers.',
-      publisher: { '@id': `${siteUrl}/#organization` },
-      inLanguage: 'en-US',
-    },
-    {
       '@type': 'Organization',
       '@id': `${siteUrl}/#organization`,
       name: 'EasyTrader',
       url: siteUrl,
-      logo: {
-        '@type': 'ImageObject',
-        url: `${siteUrl}/diagram-export-08-03-2026-15_08_32.png`,
-      },
+      logo: `${siteUrl}/diagram-export-08-03-2026-15_08_32.png`,
+      sameAs: [],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${siteUrl}/#website`,
+      url: siteUrl,
+      name: 'EasyTrader',
+      description: 'AI-powered solution architect and retail operations platform for businesses in Bharat.',
+      publisher: { '@id': `${siteUrl}/#organization` },
+      inLanguage: 'en-IN',
     },
     {
       '@type': 'SoftwareApplication',
       '@id': `${siteUrl}/#software`,
       name: 'EasyTrader Business Suite',
-      operatingSystem: 'All',
+      operatingSystem: 'Web, Android, iOS, Windows, Mac',
       applicationCategory: 'BusinessApplication',
       offers: {
         '@type': 'Offer',
         price: '0',
         priceCurrency: 'INR',
       },
-      description: 'Smart retail POS, inventory control, automated invoicing, customer ledgers, and e-commerce storefront generation.',
+      description: 'AI-powered retail business suite, vision analytics, smart billing, inventory management, and customer storefront for Bharat.',
+      url: siteUrl,
+      author: { '@id': `${siteUrl}/#organization` },
     },
   ],
-}
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" className={`dark font-sans ${inter.variable}`} suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function() {
+              try {
+                var activeAcc = localStorage.getItem('drishti_active_account_id');
+                var theme = null;
+                if (activeAcc) {
+                  theme = localStorage.getItem('drishti_theme_' + activeAcc);
+                }
+                if (!theme) {
+                  theme = localStorage.getItem('drishti_global_theme');
+                }
+                if (theme === 'light') {
+                  document.documentElement.classList.add('light');
+                  document.documentElement.classList.remove('dark');
+                } else if (theme === 'dark') {
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.classList.remove('light');
+                }
+              } catch (e) {}
+            })();`,
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
@@ -155,5 +184,6 @@ export default function RootLayout({
         <Analytics />
       </body>
     </html>
-  )
+  );
 }
+

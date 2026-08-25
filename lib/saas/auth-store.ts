@@ -28,6 +28,7 @@ type AuthUser = {
   updatedAt: string;
   securityQuestion?: string;
   securityAnswerHash?: string;
+  themePreference?: 'dark' | 'light';
 };
 
 const USERS_FILE = join(process.cwd(), 'data', 'users.json');
@@ -78,7 +79,12 @@ async function getTableKeySchema(): Promise<{ partitionKey: string; sortKey?: st
 }
 
 export function normalizeMobile(mobile: string) {
-  return String(mobile || '').replace(/\D/g, '').slice(-10);
+  const digitsOnly = String(mobile || '').replace(/\D/g, '');
+  if (digitsOnly.length === 10) return digitsOnly;
+  if (digitsOnly.length > 10) {
+    return digitsOnly.slice(-10);
+  }
+  return '';
 }
 
 function tenantKeyValues(partitionKey: string, sortKey: string | undefined, tenantId: string, entityType: string, id: string) {
@@ -112,7 +118,7 @@ export function verifyPassword(password: string, stored: string) {
 
 export async function findTenantUserByMobile(mobile: string): Promise<AuthUser | null> {
   const normalized = normalizeMobile(mobile);
-  if (!normalized) return null;
+  if (!normalized || normalized.length !== 10) return null;
 
   try {
     const rows = await scanAll({
@@ -400,6 +406,7 @@ export async function updateTenantUserProfile(input: {
   email?: string;
   currentPassword?: string;
   newPassword?: string;
+  themePreference?: 'dark' | 'light';
 }) {
   const user = await findTenantUserById(input.tenantId, input.userId);
   if (!user) throw new Error('Profile owner was not found.');
@@ -408,6 +415,7 @@ export async function updateTenantUserProfile(input: {
   const nextShopName = String(input.shopName ?? user.shopName).trim() || user.shopName;
   const nextEmail = String(input.email ?? user.email).trim().toLowerCase();
   const nextMobile = input.mobile === undefined ? user.mobile : normalizeMobile(input.mobile);
+  const nextTheme = input.themePreference || user.themePreference || 'dark';
 
   if (!nextMobile || nextMobile.length !== 10) throw new Error('Enter a valid 10 digit mobile number.');
   if (!nextEmail || !nextEmail.includes('@')) throw new Error('Enter a valid email address.');
@@ -437,6 +445,7 @@ export async function updateTenantUserProfile(input: {
     mobile: nextMobile,
     email: nextEmail,
     passwordHash,
+    themePreference: nextTheme,
     updatedAt: new Date().toISOString(),
   } as AuthUser;
 
@@ -538,5 +547,6 @@ export function publicUser(user: AuthUser) {
     mobile: user.mobile,
     email: user.email,
     role: user.role,
+    themePreference: user.themePreference || 'dark',
   };
 }

@@ -193,7 +193,7 @@ export default function CustomerShopPage() {
             placeholder="Search products..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full px-6 py-4 rounded-2xl bg-gray-800/50 backdrop-blur-xl text-white placeholder-gray-400 border border-blue-500/30 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 transition-all shadow-lg shadow-blue-500/10 text-lg"
+            className="w-full px-6 py-4 rounded-sm bg-gray-800/50 backdrop-blur-xl text-white placeholder-gray-400 border border-blue-500/30 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 transition-all shadow-lg shadow-blue-500/10 text-lg"
           />
         </div>
 

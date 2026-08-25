@@ -107,7 +107,7 @@ function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; is
           isActive
             ? 'text-white'
             : isLight
-              ? 'text-zinc-500 group-hover:text-black'
+              ? 'text-zinc-600 group-hover:text-black'
               : 'text-zinc-400 group-hover:text-white'
         }`} />
         <span className="whitespace-nowrap text-[12.5px] font-extrabold tracking-tight">{item.label}</span>
