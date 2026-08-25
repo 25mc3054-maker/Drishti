@@ -75,8 +75,8 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
             {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
 
-          {/* Horizontal Scroll-Free Nav Bar for all 7 items */}
-          <div className={`flex w-full flex-1 items-center justify-between gap-0.5 rounded-full p-0.5 ${
+          {/* Horizontal Scroll Nav Bar for all 7 items */}
+          <div className={`flex w-full flex-1 items-center justify-between gap-1 overflow-x-auto no-scrollbar rounded-full p-0.5 ${
             isLight ? 'bg-white' : 'bg-black'
           }`}>
             {navItems.map((item) => (
@@ -133,7 +133,7 @@ function NavButton({ isActive, isLight, item, mobile, onClick }: { isActive: boo
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.98 }}
       className={`group relative flex h-9 items-center gap-1.5 overflow-hidden rounded-full px-2.5 sm:px-3 text-left transition border-0 ${
-        mobile ? 'justify-between w-full' : 'flex-1 justify-center'
+        mobile ? 'justify-between w-full' : 'flex-1 shrink-0 justify-center'
       } ${
         isActive
           ? 'text-white font-bold'

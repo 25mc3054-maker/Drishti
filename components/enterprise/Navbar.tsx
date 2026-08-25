@@ -383,6 +383,17 @@ export function Navbar({
         </div>
       </div>
 
+      {/* Mobile Sub-Bar: CosmicNavbar for Business Suite section switching on phone screens (< lg) */}
+      {isBusinessSuite && (
+        <div className="block lg:hidden w-full border-t px-2 py-1.5 transition-colors border-zinc-200/50 dark:border-zinc-800/50">
+          <CosmicNavbar
+            activeSection={activeBusinessSection || 'billing'}
+            onSectionChange={(sec) => handleBusinessSectionClick(sec)}
+            isLight={isLight}
+          />
+        </div>
+      )}
+
       {/* Secondary Confirmation Logout Modal */}
       <AnimatePresence>
         {isLogoutModalOpen && (

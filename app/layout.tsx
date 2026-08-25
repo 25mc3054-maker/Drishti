@@ -1,14 +1,15 @@
-import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
-import Script from 'next/script'
-import './globals.css'
-import ClientToaster from '../components/ClientToaster'
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
+import Script from 'next/script';
+import './globals.css';
+import ClientToaster from '../components/ClientToaster';
+import { NextAuthProvider } from '@/components/NextAuthProvider';
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   weight: ['400', '500', '600', '700', '800'],
-})
+});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -18,7 +19,7 @@ export const viewport: Viewport = {
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
     { media: '(prefers-color-scheme: dark)', color: '#000000' },
   ],
-}
+};
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://easytrader.onrender.com';
 
@@ -28,17 +29,19 @@ export const metadata: Metadata = {
     default: 'EasyTrader - Vision to Value Orchestrator for Bharat',
     template: '%s | EasyTrader',
   },
-  description: 'AI-powered solution architect and retail operations platform for businesses in Bharat. Smart POS billing, inventory management, AI workspace, and customer digital storefronts.',
+  description: 'AI-powered solution architect and retail operations platform for businesses in Bharat. Smart POS billing, inventory management, AI workspace, supplier reordering, and customer digital storefronts.',
   keywords: [
     'EasyTrader',
-    'AI Retail',
+    'AI Retail Software',
     'Kirana Billing Software',
     'Smart POS India',
     'Inventory Management System',
-    'Bharat MSME',
-    'Computer Vision Analytics',
-    'Digital Storefront',
-    'Amazon Hackathon',
+    'Bharat MSME Operations',
+    'Computer Vision Retail Analytics',
+    'Digital Storefront Builder',
+    'Retail Automation India',
+    'E-commerce Storefront for Kirana',
+    'GST Billing App',
   ],
   authors: [{ name: 'EasyTrader Team' }],
   creator: 'EasyTrader',
@@ -85,34 +88,50 @@ export const metadata: Metadata = {
   alternates: {
     canonical: siteUrl,
   },
-}
+};
 
 const jsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'EasyTrader',
-  operatingSystem: 'Web, Android, iOS',
-  applicationCategory: 'BusinessApplication',
-  offers: {
-    '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'INR',
-  },
-  description: 'AI-powered retail business suite, vision analytics, smart billing, inventory management, and customer storefront for Bharat.',
-  url: siteUrl,
-  author: {
-    '@type': 'Organization',
-    name: 'EasyTrader',
-    url: siteUrl,
-  },
-}
- 
-import { NextAuthProvider } from '@/components/NextAuthProvider'
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${siteUrl}/#organization`,
+      name: 'EasyTrader',
+      url: siteUrl,
+      logo: `${siteUrl}/diagram-export-08-03-2026-15_08_32.png`,
+      sameAs: [],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${siteUrl}/#website`,
+      url: siteUrl,
+      name: 'EasyTrader',
+      description: 'AI-powered solution architect and retail operations platform for businesses in Bharat.',
+      publisher: { '@id': `${siteUrl}/#organization` },
+      inLanguage: 'en-IN',
+    },
+    {
+      '@type': 'SoftwareApplication',
+      '@id': `${siteUrl}/#software`,
+      name: 'EasyTrader',
+      operatingSystem: 'Web, Android, iOS',
+      applicationCategory: 'BusinessApplication',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'INR',
+      },
+      description: 'AI-powered retail business suite, vision analytics, smart billing, inventory management, and customer storefront for Bharat.',
+      url: siteUrl,
+      author: { '@id': `${siteUrl}/#organization` },
+    },
+  ],
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" className={`dark font-sans ${inter.variable}`} suppressHydrationWarning>
@@ -130,6 +149,5 @@ export default function RootLayout({
         <ClientToaster />
       </body>
     </html>
-  )
+  );
 }
-
