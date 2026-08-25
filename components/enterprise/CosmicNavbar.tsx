@@ -1,23 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
   Boxes,
   CreditCard,
   HandCoins,
-  Menu,
   ReceiptText,
   Sparkles,
   Truck,
   Users,
-  X,
 } from 'lucide-react';
 import type { BusinessSectionKey } from './types';
 
 type NavItem = {
   key: BusinessSectionKey;
   label: string;
+  desc: string;
   icon: typeof ReceiptText;
 };
 
@@ -25,179 +24,92 @@ interface CosmicNavbarProps {
   activeSection: BusinessSectionKey;
   onSectionChange: (section: BusinessSectionKey) => void;
   isLight?: boolean;
-  theme?: 'light' | 'dark';
+  theme?: 'dark' | 'light';
 }
 
 export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionChange, theme }: CosmicNavbarProps) {
   const isLight = propIsLight ?? theme === 'light';
-  const [isOpen, setIsOpen] = useState(false);
-  const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const navItems = useMemo<NavItem[]>(() => [
-    { key: 'billing', label: 'Billing', icon: HandCoins },
-    { key: 'stock', label: 'Stock', icon: Boxes },
-    { key: 'invoices', label: 'Invoice', icon: ReceiptText },
-    { key: 'customers', label: 'Customer', icon: Users },
-    { key: 'suppliers', label: 'Supplier', icon: Truck },
-    { key: 'marketing', label: 'Marketing', icon: Sparkles },
-    { key: 'expenses', label: 'Expenses', icon: CreditCard },
+    { key: 'billing', label: 'Billing', desc: 'POS Checkout & Receipts', icon: HandCoins },
+    { key: 'stock', label: 'Stock', desc: 'Inventory Control & Alerts', icon: Boxes },
+    { key: 'invoices', label: 'Invoice', desc: 'Billing History & PDFs', icon: ReceiptText },
+    { key: 'customers', label: 'Customer', desc: 'Ledger & Digital Khata', icon: Users },
+    { key: 'suppliers', label: 'Supplier', desc: 'Vendors & Reorders', icon: Truck },
+    { key: 'marketing', label: 'Marketing', desc: 'AI Promo Posters', icon: Sparkles },
+    { key: 'expenses', label: 'Expenses', desc: 'Outflow Tracker', icon: CreditCard },
   ], []);
 
-  useEffect(() => {
-    if (activeSection && itemRefs.current[activeSection]) {
-      itemRefs.current[activeSection]?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center',
-      });
-    }
-  }, [activeSection]);
-
-  const selectSection = (section: BusinessSectionKey) => {
-    onSectionChange(section);
-    setIsOpen(false);
-  };
-
   return (
-    <div className="relative z-20 w-full min-w-0">
+    <div className="relative z-20 w-full flex justify-center">
       <motion.div
-        initial={{ opacity: 0, y: -8, scale: 0.985 }}
+        initial={{ opacity: 0, y: -6, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.22, ease: 'easeOut' }}
-        className={`relative overflow-hidden rounded-2xl md:rounded-full border p-1 md:p-1.5 transition-colors ${
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className={`relative w-full lg:w-auto lg:max-w-fit rounded-full border p-1 sm:p-1.5 transition-colors shadow-lg ${
           isLight
-            ? 'border-zinc-200 bg-white text-black shadow-sm'
-            : 'border-zinc-800 bg-black text-white shadow-xl'
+            ? 'border-zinc-200 bg-white text-black shadow-zinc-200/50'
+            : 'border-zinc-800 bg-zinc-950 text-white shadow-black/80'
         }`}
       >
-        <div className="relative flex items-center justify-between gap-1.5 px-0.5">
-          {/* Mobile Menu Dropdown Toggle Button */}
-          <button
-            type="button"
-            onClick={() => setIsOpen((current) => !current)}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition lg:hidden touch-manipulation min-h-[36px] ${
-              isLight
-                ? 'border-zinc-200 bg-white text-black hover:bg-zinc-100'
-                : 'border-zinc-800 bg-black text-white hover:bg-zinc-900'
-            }`}
-            aria-label="Toggle business suite section menu"
-            aria-expanded={isOpen}
-          >
-            {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </button>
-
-          {/* Horizontal Scroll Nav Bar for all 7 items */}
-          <div className={`flex w-full flex-1 items-center justify-between gap-0.5 sm:gap-1 overflow-x-auto no-scrollbar rounded-full p-0.5 ${
-            isLight ? 'bg-zinc-100/90' : 'bg-black'
-          }`}>
-            {navItems.map((item) => (
-              <NavButton
-                key={item.key}
-                buttonRef={(el) => { itemRefs.current[item.key] = el; }}
-                item={item}
-                isActive={item.key === activeSection}
-                onClick={() => selectSection(item.key)}
-                isLight={isLight}
-              />
-            ))}
-          </div>
+        <div className="flex w-full items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none scroll-smooth py-0.5 px-0.5 lg:overflow-visible">
+          {navItems.map((item) => (
+            <NavButton
+              key={item.key}
+              item={item}
+              isActive={item.key === activeSection}
+              onClick={() => onSectionChange(item.key)}
+              isLight={isLight}
+            />
+          ))}
         </div>
       </motion.div>
-
-      {/* Mobile Dropdown Popup Menu */}
-      <AnimatePresence>
-        {isOpen ? (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 6, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-            className={`absolute left-0 right-0 top-full z-30 grid gap-1.5 rounded-2xl border p-2.5 shadow-2xl sm:grid-cols-2 lg:hidden ${
-              isLight
-                ? 'border-zinc-200 bg-white text-black shadow-zinc-200/80'
-                : 'border-zinc-800 bg-black text-white shadow-2xl'
-            }`}
-          >
-            {navItems.map((item) => (
-              <NavButton
-                key={item.key}
-                item={item}
-                isActive={item.key === activeSection}
-                onClick={() => selectSection(item.key)}
-                isLight={isLight}
-                mobile
-              />
-            ))}
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </div>
   );
 }
 
-function NavButton({
-  buttonRef,
-  isActive,
-  isLight,
-  item,
-  mobile,
-  onClick,
-}: {
-  buttonRef?: (el: HTMLButtonElement | null) => void;
-  isActive: boolean;
-  isLight?: boolean;
-  item: NavItem;
-  mobile?: boolean;
-  onClick: () => void;
-}) {
+function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; isLight?: boolean; item: NavItem; onClick: () => void }) {
   const Icon = item.icon;
 
   return (
     <motion.button
-      ref={buttonRef}
       type="button"
       onClick={onClick}
       whileHover={{ y: -1 }}
-      whileTap={{ scale: 0.98 }}
-      className={`group relative flex h-9 items-center gap-1 sm:gap-1.5 overflow-hidden rounded-full px-2.5 sm:px-3 text-left transition-all border-0 ${
-        mobile ? 'justify-between w-full' : 'flex-1 shrink-0 justify-center min-w-[75px] sm:min-w-[85px]'
-      } ${
+      whileTap={{ scale: 0.96 }}
+      className={`group relative flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-4 text-center transition border-0 ${
         isActive
-          ? isLight
-            ? 'bg-black text-white shadow-md'
-            : 'bg-zinc-800 text-white shadow-md'
+          ? 'text-white font-extrabold'
           : isLight
-            ? 'bg-transparent text-zinc-700 hover:text-black hover:bg-zinc-200/70'
-            : 'bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/60'
+            ? 'text-zinc-600 hover:text-black font-bold'
+            : 'text-zinc-400 hover:text-white font-bold'
       }`}
       aria-current={isActive ? 'page' : undefined}
     >
-      {isActive && (
+      {isActive ? (
         <motion.span
           layoutId="business-suite-active-nav"
-          className={`absolute inset-0 rounded-full ${
-            isLight ? 'bg-black' : 'bg-zinc-800'
+          className={`absolute inset-0 rounded-full border ${
+            isLight
+              ? 'bg-black text-white border-black shadow-md'
+              : 'bg-zinc-800 text-white border-zinc-700/80 shadow-md shadow-white/5'
           }`}
           transition={{ type: 'spring', stiffness: 380, damping: 34 }}
         />
+      ) : (
+        <span className={`absolute inset-0 rounded-full opacity-0 transition group-hover:opacity-100 ${
+          isLight ? 'bg-zinc-100' : 'bg-zinc-900/60'
+        }`} />
       )}
-      <span className="relative z-10 flex items-center gap-1.5 shrink-0">
-        <Icon className={`h-3.5 w-3.5 shrink-0 transition-colors ${
+      <span className="relative flex items-center justify-center gap-2 shrink-0 z-10 whitespace-nowrap">
+        <Icon className={`h-4 w-4 shrink-0 ${
           isActive
             ? 'text-white'
             : isLight
               ? 'text-zinc-600 group-hover:text-black'
               : 'text-zinc-400 group-hover:text-white'
         }`} />
-        <span className={`whitespace-nowrap text-[12px] sm:text-[12.5px] font-bold transition-colors ${
-          isActive
-            ? 'text-white'
-            : isLight
-              ? 'text-zinc-800 group-hover:text-black'
-              : 'text-zinc-300 group-hover:text-white'
-        }`}>
-          {item.label}
-        </span>
+        <span className="whitespace-nowrap text-[12.5px] font-extrabold tracking-tight">{item.label}</span>
       </span>
     </motion.button>
   );

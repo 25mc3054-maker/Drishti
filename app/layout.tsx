@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google';
 import Script from 'next/script';
 import './globals.css';
 import ClientToaster from '../components/ClientToaster';
+import { Analytics } from "@vercel/analytics/next";
+import { ThemeProvider } from '../contexts/ThemeContext';
 import { NextAuthProvider } from '@/components/NextAuthProvider';
 
 const inter = Inter({
@@ -21,12 +23,12 @@ export const viewport: Viewport = {
   ],
 };
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://easytrader.onrender.com';
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://easytrader.onrender.com';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'EasyTrader - Vision to Value Orchestrator for Bharat',
+    default: 'EasyTrader - Smart Billing, Business Suite & AI Workspace for Bharat',
     template: '%s | EasyTrader',
   },
   description: 'AI-powered solution architect and retail operations platform for businesses in Bharat. Smart POS billing, inventory management, AI workspace, supplier reordering, and customer digital storefronts.',
@@ -42,8 +44,14 @@ export const metadata: Metadata = {
     'Retail Automation India',
     'E-commerce Storefront for Kirana',
     'GST Billing App',
+    'Smart Billing System',
+    'Shopkeeper Management Software',
+    'Retail POS Software',
+    'Invoice Generator',
+    'Digital Khata Book',
+    'AI Business Suite',
   ],
-  authors: [{ name: 'EasyTrader Team' }],
+  authors: [{ name: 'EasyTrader Team', url: siteUrl }],
   creator: 'EasyTrader',
   publisher: 'EasyTrader',
   formatDetection: {
@@ -52,27 +60,8 @@ export const metadata: Metadata = {
     telephone: false,
   },
   manifest: '/manifest.json',
-  openGraph: {
-    title: 'EasyTrader - Vision to Value Orchestrator for Bharat',
-    description: 'Empowering local retail & enterprises with AI-driven inventory, instant billing, customer insights, and digital storefronts.',
-    url: siteUrl,
-    siteName: 'EasyTrader',
-    images: [
-      {
-        url: `${siteUrl}/diagram-export-08-03-2026-15_08_32.png`,
-        width: 1200,
-        height: 630,
-        alt: 'EasyTrader Vision to Value Platform Overview',
-      },
-    ],
-    locale: 'en_IN',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'EasyTrader - Vision to Value Orchestrator for Bharat',
-    description: 'AI-powered retail business suite, vision analytics, smart billing, and inventory management for India.',
-    images: [`${siteUrl}/diagram-export-08-03-2026-15_08_32.png`],
+  alternates: {
+    canonical: siteUrl,
   },
   robots: {
     index: true,
@@ -85,12 +74,32 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  alternates: {
-    canonical: siteUrl,
+  openGraph: {
+    title: 'EasyTrader - Smart Billing & Business Workspace for Shopkeepers',
+    description: 'Manage retail billing, stock inventory, customers, suppliers, expenses, and automated storefronts effortlessly with EasyTrader.',
+    url: siteUrl,
+    siteName: 'EasyTrader',
+    locale: 'en_IN',
+    type: 'website',
+    images: [
+      {
+        url: `${siteUrl}/diagram-export-08-03-2026-15_08_32.png`,
+        width: 1200,
+        height: 630,
+        alt: 'EasyTrader Business Suite Workspace',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'EasyTrader - Smart Billing & Business Workspace',
+    description: 'Manage retail billing, stock inventory, customers, suppliers, expenses, and automated storefronts effortlessly with EasyTrader.',
+    images: [`${siteUrl}/diagram-export-08-03-2026-15_08_32.png`],
+    creator: '@EasyTraderApp',
   },
 };
 
-const jsonLd = {
+const jsonLdData = {
   '@context': 'https://schema.org',
   '@graph': [
     {
@@ -113,8 +122,8 @@ const jsonLd = {
     {
       '@type': 'SoftwareApplication',
       '@id': `${siteUrl}/#software`,
-      name: 'EasyTrader',
-      operatingSystem: 'Web, Android, iOS',
+      name: 'EasyTrader Business Suite',
+      operatingSystem: 'Web, Android, iOS, Windows, Mac',
       applicationCategory: 'BusinessApplication',
       offers: {
         '@type': 'Offer',
@@ -161,16 +170,20 @@ export default function RootLayout({
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
         />
       </head>
-      <body className="font-sans antialiased text-slate-100 bg-black selection:bg-blue-500 selection:text-white" suppressHydrationWarning>
+      <body className={`${inter.className} font-sans antialiased text-slate-100 bg-black selection:bg-blue-500 selection:text-white`} suppressHydrationWarning>
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
         <NextAuthProvider>
-          {children}
+          <ThemeProvider>
+            {children}
+            <ClientToaster />
+          </ThemeProvider>
         </NextAuthProvider>
-        <ClientToaster />
+        <Analytics />
       </body>
     </html>
   );
 }
+

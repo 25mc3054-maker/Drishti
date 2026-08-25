@@ -11,8 +11,10 @@ import {
   CreditCard,
   Download,
   ExternalLink,
+  FileText,
   Minus,
   MessageCircle,
+  MessageSquare,
   PackagePlus,
   PhoneCall,
   Plus,
@@ -36,6 +38,8 @@ import { RecentSearchInput } from './RecentSearchInput';
 import { WebCallModal, ContactActionGroup, type CallRecipient } from './WebCallModal';
 import type { BusinessSectionKey, DashboardData } from './types';
 import { formatDate, formatMoney } from './utils';
+import { downloadInvoicePDF } from '@/lib/saas/invoice-pdf';
+import { sendInvoiceTextMessage } from '@/lib/saas/invoice-sms';
 
 interface BusinessSuiteProps {
   data: DashboardData;
@@ -323,7 +327,29 @@ export function BusinessSuite({
       setDiscount('');
       setTax('');
       setNotes('');
-      setBillingStatus({ type: 'success', message: `Bill ${String(result.invoice.id).slice(0, 10)} created. Inventory is updated.` });
+
+      // AUTOMATIC POST-BILLING DISPATCH: BOTH INVOICE PDF & TEXT MESSAGE
+      try {
+        downloadInvoicePDF(result.invoice, { shopName: 'EasyTrader' });
+      } catch (err) {
+        console.error('PDF invoice download error:', err);
+      }
+
+      let textStatus = '';
+      try {
+        const textResult = await sendInvoiceTextMessage(result.invoice, { shopName: 'EasyTrader', channel: 'auto' });
+        if (textResult?.success) {
+          textStatus = ' & Text Message sent to customer';
+        }
+      } catch (err) {
+        console.error('SMS text dispatch error:', err);
+      }
+
+      setBillingStatus({
+        type: 'success',
+        message: `Bill #${String(result.invoice.id).slice(0, 8).toUpperCase()} created! PDF Invoice downloaded${textStatus}. Inventory updated.`,
+      });
+
       depletedItems.forEach((item: any) => {
         if (confirm(`${item.name || 'A product'} is now out of stock. Place an order from the linked supplier?`)) {
           placeSupplierOrder(item);
@@ -341,50 +367,90 @@ export function BusinessSuite({
     window.print();
   };
 
-  const shareLastBill = () => {
-    if (!lastInvoice) return;
-    const customerPhone = lastInvoice.customer?.phone ? String(lastInvoice.customer.phone).replace(/\D/g, '') : '';
+  const shareInvoiceOnWhatsApp = async (invoice: any) => {
+    if (!invoice) return;
+
+    const customerPhone = invoice.customer?.phone ? String(invoice.customer.phone).replace(/\D/g, '') : '';
+    const customerName = invoice.customer?.name || 'Walk-in Customer';
+    const invoiceId = String(invoice.id).slice(0, 8).toUpperCase();
+    const formattedDate = formatDate(invoice.createdAt);
+    const paymentMethod = String(invoice.paymentMethod || 'cash').toUpperCase();
+
+    // 1. Build Itemized Text List
+    const itemsList = (invoice.items || []).map((item: any) => (
+      `• *${item.name || 'Item'}*\n  ${item.qty || 1} ${item.unit || 'pcs'} × ₹${formatMoney(Number(item.price || 0))} = ₹${formatMoney(Number(item.lineTotal || 0))}`
+    )).join('\n');
+
+    // 2. Build Full Structured Bill Message
     const billText = [
-      `EasyTrader bill ${String(lastInvoice.id).slice(0, 10)}`,
-      ...lastInvoice.items.map((item: any) => `${item.name} x ${item.qty} = ₹${formatMoney(Number(item.lineTotal || 0))}`),
-      `Total: ₹${formatMoney(Number(lastInvoice.total || 0))}`,
-    ].join('\n');
+      `🧾 *INVOICE RECEIPT - EASYTRADER*`,
+      `────────────────────────`,
+      `📄 *Invoice No:* #${invoiceId}`,
+      `📅 *Date:* ${formattedDate}`,
+      `👤 *Customer:* ${customerName}${customerPhone ? ` (${customerPhone})` : ''}`,
+      `💳 *Payment Method:* ${paymentMethod}`,
+      `────────────────────────`,
+      `📦 *ITEMS PURCHASED:*`,
+      itemsList,
+      `────────────────────────`,
+      `Subtotal: ₹${formatMoney(Number(invoice.subtotal || 0))}`,
+      Number(invoice.discount || 0) > 0 ? `Discount: -₹${formatMoney(Number(invoice.discount || 0))}` : '',
+      Number(invoice.tax || 0) > 0 ? `Tax (GST): +₹${formatMoney(Number(invoice.tax || 0))}` : '',
+      `------------------------`,
+      `💰 *TOTAL PAID:* ₹${formatMoney(Number(invoice.total || 0))}`,
+      invoice.notes ? `📝 *Notes:* ${invoice.notes}` : '',
+      `────────────────────────`,
+      `✨ *Thank you for shopping with us!*`,
+    ].filter(Boolean).join('\n');
+
+    // 3. Prepare Invoice Text/Document File
+    const fileName = `EasyTrader_Invoice_${customerName.replace(/\s+/g, '_')}_${invoiceId}.txt`;
+    const invoiceBlob = new Blob([billText], { type: 'text/plain;charset=utf-8' });
+
+    // 4. Try Web Share API (Mobile Phones) for attaching document file + text together
+    if (typeof navigator !== 'undefined' && (navigator as any).share && (navigator as any).canShare) {
+      try {
+        const invoiceFile = new File([invoiceBlob], fileName, { type: 'text/plain' });
+        if ((navigator as any).canShare({ files: [invoiceFile] })) {
+          await (navigator as any).share({
+            title: `Invoice #${invoiceId}`,
+            text: billText,
+            files: [invoiceFile],
+          });
+          return;
+        }
+      } catch (err: any) {
+        // Fall back to wa.me if share canceled or unhandled
+      }
+    }
+
+    // 5. Fallback for Desktop/Web Browsers: Trigger invoice file download & open WhatsApp web
+    const blobUrl = URL.createObjectURL(invoiceBlob);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.href = blobUrl;
+    downloadAnchor.download = fileName;
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    document.body.removeChild(downloadAnchor);
+    URL.revokeObjectURL(blobUrl);
+
     const phoneParam = customerPhone ? `91${customerPhone.slice(-10)}` : '';
     window.open(`https://wa.me/${phoneParam}?text=${encodeURIComponent(billText)}`, '_blank', 'noopener,noreferrer');
   };
 
+  const shareLastBill = () => {
+    if (!lastInvoice) return;
+    void shareInvoiceOnWhatsApp(lastInvoice);
+  };
+
   const downloadInvoice = (invoice: any) => {
     if (!invoice) return;
+    downloadInvoicePDF(invoice, { shopName: 'EasyTrader' });
+  };
 
-    const customerName = invoice.customer?.name ? invoice.customer.name.replace(/\s/g, '_') : 'Walk-in';
-    const invoiceId = String(invoice.id).slice(0, 6);
-    const fileName = `EasyTrader_Invoice_${customerName}_${invoiceId}.txt`;
-
-    const billText = [
-      `EasyTrader Invoice: ${String(invoice.id)}`,
-      `Date: ${formatDate(invoice.createdAt)}`,
-      `Customer: ${invoice.customer?.name || 'Walk-in'}`,
-      `Payment Method: ${invoice.paymentMethod || 'cash'}`,
-      '---',
-      'Items:',
-      ...invoice.items.map((item: any) => `- ${item.name} x ${item.qty} @ ₹${formatMoney(Number(item.price || 0))} = ₹${formatMoney(Number(item.lineTotal || 0))}`),
-      '---',
-      `Subtotal: ₹${formatMoney(Number(invoice.subtotal || 0))}`,
-      `Discount: ₹${formatMoney(Number(invoice.discount || 0))}`,
-      `Tax: ₹${formatMoney(Number(invoice.tax || 0))}`,
-      `Total: ₹${formatMoney(Number(invoice.total || 0))}`,
-      invoice.notes ? `Notes: ${invoice.notes}` : '',
-    ].filter(Boolean).join('\n');
-
-    const blob = new Blob([billText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const sendTextInvoice = (invoice: any, channel: 'sms' | 'whatsapp' | 'auto' = 'sms') => {
+    if (!invoice) return;
+    void sendInvoiceTextMessage(invoice, { shopName: 'EasyTrader', channel });
   };
 
   const getPromoHashtags = () => {
@@ -716,6 +782,8 @@ export function BusinessSuite({
                 onGeneratePromo={generatePromo}
                 onMarketingFormChange={setMarketingForm}
                 onPlaceSupplierOrder={placeSupplierOrder}
+                onShareInvoice={shareInvoiceOnWhatsApp}
+                onSendTextInvoice={(inv) => sendTextInvoice(inv, 'sms')}
                 onSharePromo={sharePromoOnWhatsApp}
                 onSyncGoogleBusiness={syncGoogleBusiness}
                 onOpenCallModal={openCallModal}
@@ -1008,30 +1076,52 @@ function BillingDesk({
     }`}>
       <div className="relative space-y-2.5">
         {/* Mobile Phone Segment Control (< xl ONLY) */}
-        <div className="flex xl:hidden items-center justify-between gap-1.5 rounded-sm border border-zinc-800 bg-black p-1 shadow-md">
+        <div className={`flex xl:hidden items-center justify-between gap-1 rounded-xl p-1 border shadow-sm transition-colors ${
+          isLight
+            ? 'border-zinc-200 bg-zinc-100 text-black'
+            : 'border-zinc-800 bg-zinc-950 text-white'
+        }`}>
           <button
             type="button"
             onClick={() => setMobileBillingTab('products')}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-sm py-2 text-[12.5px] font-bold transition-all touch-manipulation ${
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2 px-2 text-[12px] sm:text-[12.5px] font-extrabold transition-all touch-manipulation border ${
               mobileBillingTab === 'products'
-                ? isLight ? 'bg-black text-white shadow' : 'bg-white text-black shadow'
-                : isLight ? 'text-zinc-600 hover:text-black' : 'text-zinc-400 hover:text-white'
+                ? isLight
+                  ? 'bg-white text-black border-zinc-200 shadow-md'
+                  : 'bg-zinc-800 text-white border-zinc-700 shadow-md'
+                : isLight
+                  ? 'border-transparent text-zinc-600 hover:text-black hover:bg-zinc-200/60'
+                  : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/60'
             }`}
           >
-            <Boxes className="h-4 w-4" />
+            <Boxes className={`h-4 w-4 shrink-0 ${mobileBillingTab === 'products' ? (isLight ? 'text-black' : 'text-blue-400') : 'text-zinc-500'}`} />
             <span>Products & Customer</span>
           </button>
+
+          <div className={`h-4 w-px shrink-0 ${isLight ? 'bg-zinc-300' : 'bg-zinc-800'}`} />
+
           <button
             type="button"
             onClick={() => setMobileBillingTab('cart')}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-sm py-2 text-[12.5px] font-bold transition-all touch-manipulation ${
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 px-2 text-[12px] sm:text-[12.5px] font-extrabold transition-all touch-manipulation border ${
               mobileBillingTab === 'cart'
-                ? isLight ? 'bg-black text-white shadow' : 'bg-white text-black shadow'
-                : isLight ? 'text-zinc-600 hover:text-black' : 'text-zinc-400 hover:text-white'
+                ? isLight
+                  ? 'bg-white text-black border-zinc-200 shadow-md'
+                  : 'bg-zinc-800 text-white border-zinc-700 shadow-md'
+                : isLight
+                  ? 'border-transparent text-zinc-600 hover:text-black hover:bg-zinc-200/60'
+                  : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/60'
             }`}
           >
-            <ReceiptText className="h-4 w-4" />
-            <span>Cart ({itemCount}) • ₹{formatMoney(grandTotal)}</span>
+            <ReceiptText className={`h-4 w-4 shrink-0 ${mobileBillingTab === 'cart' ? (isLight ? 'text-black' : 'text-emerald-400') : 'text-zinc-500'}`} />
+            <span className="truncate">Cart ({itemCount})</span>
+            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-extrabold ${
+              mobileBillingTab === 'cart'
+                ? isLight ? 'bg-black text-white' : 'bg-emerald-500 text-black'
+                : isLight ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-900 text-zinc-300'
+            }`}>
+              ₹{formatMoney(grandTotal)}
+            </span>
           </button>
         </div>
 
@@ -1590,8 +1680,8 @@ function BillingDesk({
               </div>
             ) : null}
 
-            {/* Action CTAs: Create Bill, Print & WhatsApp */}
-            <div className="mt-2 grid gap-1.5 sm:grid-cols-[1fr_auto_auto]">
+            {/* Action CTAs: Create Bill, PDF, SMS, WhatsApp & Print */}
+            <div className="mt-2 grid gap-1.5 sm:grid-cols-[1fr_auto_auto_auto_auto]">
               <button
                 type="button"
                 onClick={onCreateBill}
@@ -1605,8 +1695,10 @@ function BillingDesk({
                 <CheckCircle2 className="h-4.5 w-4.5" />
                 {isBilling ? 'Creating bill...' : 'Create Bill & Deduct Stock'}
               </button>
-              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onPrint} icon={Printer} label="Print" className="!h-10 sm:!h-11 !px-4 !text-[12.5px] !rounded-sm" />
-              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onShare} icon={MessageCircle} label="WhatsApp" className="!h-10 sm:!h-11 !px-4 !text-[12.5px] !rounded-sm" />
+              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={() => lastInvoice && downloadInvoicePDF(lastInvoice, { shopName: 'EasyTrader' })} icon={FileText} label="PDF" />
+              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={() => lastInvoice && sendInvoiceTextMessage(lastInvoice, { shopName: 'EasyTrader', channel: 'sms' })} icon={MessageSquare} label="SMS" />
+              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onShare} icon={MessageCircle} label="WhatsApp" />
+              <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onPrint} icon={Printer} label="Print" />
             </div>
 
             {/* CREATIVE POS Live Utility & Quick Reference Bar (Utilizes bottom space purposefully) */}
@@ -1709,6 +1801,8 @@ function ModuleGallery({
   onDeleteSupplier,
   onDeleteStock,
   onPlaceSupplierOrder,
+  onShareInvoice,
+  onSendTextInvoice,
   onSharePromo,
   onSyncGoogleBusiness,
   onQuickRestock,
@@ -1719,6 +1813,8 @@ function ModuleGallery({
   theme?: 'dark' | 'light';
   onDataRefresh?: () => Promise<void>;
   onDownloadInvoice: (invoice: any) => void;
+  onShareInvoice?: (invoice: any) => void;
+  onSendTextInvoice?: (invoice: any) => void;
   onAddCustomer: () => void;
   onAddSupplier: () => void;
   onAddStock: () => void;
@@ -2052,21 +2148,48 @@ function ModuleGallery({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-[15px] font-extrabold ${isLight ? 'text-black' : 'text-white'}`}>
                       ₹{formatMoney(Number(invoice.total || 0))}
                     </span>
                     <button
                       type="button"
                       onClick={() => onDownloadInvoice(invoice)}
-                      className={`inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-[12px] font-bold transition border-0 ${
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
                         isLight
                           ? 'bg-black text-white hover:bg-zinc-800'
                           : 'bg-white text-black hover:bg-zinc-200'
                       }`}
+                      title="Download PDF Tax Invoice"
                     >
-                      <Download className="h-3.5 w-3.5 text-current" />
-                      <span>Download</span>
+                      <FileText className="h-3.5 w-3.5 text-current" />
+                      <span>PDF Invoice</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSendTextInvoice?.(invoice)}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
+                        isLight
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-blue-500 text-black hover:bg-blue-400 font-bold'
+                      }`}
+                      title="Send SMS text message to customer"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 text-current" />
+                      <span>SMS Text</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onShareInvoice?.(invoice)}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
+                        isLight
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          : 'bg-emerald-500 text-black hover:bg-emerald-400 font-bold'
+                      }`}
+                      title="Share invoice breakdown via WhatsApp"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 text-current" />
+                      <span>WhatsApp</span>
                     </button>
                   </div>
                 </div>

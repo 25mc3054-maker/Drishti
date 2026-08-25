@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useState, Suspense } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { motion } from 'framer-motion';
 import type { BusinessSectionKey, DashboardData, TabKey } from '@/components/enterprise/types';
 import { toast } from 'sonner';
+
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center p-8">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+    </div>
+  );
+}
 
 const AuthScreen = dynamic(() => import('@/components/enterprise/AuthScreen').then(mod => mod.AuthScreen), {
   ssr: false,
@@ -55,7 +62,7 @@ export default function EasyTraderPlatform() {
 
     // Fast hydrate user & data from local cache if present for instant rendering
     try {
-      const cachedUserStr = localStorage.getItem('drishti_cached_user');
+      const cachedUserStr = localStorage.getItem('drishti_cached_user') || localStorage.getItem('easytrader_user');
       if (cachedUserStr) {
         const cachedUser = JSON.parse(cachedUserStr);
         if (cachedUser && (cachedUser.id || cachedUser.email)) {
@@ -210,6 +217,7 @@ export default function EasyTraderPlatform() {
             setAuthUser(result.user);
             if (typeof window !== 'undefined') {
               localStorage.setItem('drishti_cached_user', JSON.stringify(result.user));
+              localStorage.setItem('easytrader_user', JSON.stringify(result.user));
             }
           }
         })
@@ -251,6 +259,7 @@ export default function EasyTraderPlatform() {
     });
   };
 
+  // Hydrate local cached user on mount & verify session silently in background
   useEffect(() => {
     let cancelled = false;
 
@@ -262,7 +271,6 @@ export default function EasyTraderPlatform() {
 
       try {
         const response = await fetch('/api/auth/session', { signal: controller.signal });
-        clearTimeout(timeoutId);
         if (cancelled) return;
 
         if (response.ok) {
@@ -271,6 +279,7 @@ export default function EasyTraderPlatform() {
             setAuthUser(result.user);
             if (typeof window !== 'undefined') {
               localStorage.setItem('drishti_cached_user', JSON.stringify(result.user));
+              localStorage.setItem('easytrader_user', JSON.stringify(result.user));
             }
             void loadData().then((nextData) => {
               if (!cancelled) setData(nextData);
@@ -283,6 +292,7 @@ export default function EasyTraderPlatform() {
         setAuthUser(null);
         if (typeof window !== 'undefined') {
           localStorage.removeItem('drishti_cached_user');
+          localStorage.removeItem('easytrader_user');
           localStorage.removeItem('drishti_cached_dashboard_data');
         }
         setData(initialData);
@@ -313,9 +323,7 @@ export default function EasyTraderPlatform() {
     };
 
     load().catch(() => {
-      if (!cancelled) {
-        setData(initialData);
-      }
+      if (!cancelled) setData(initialData);
     });
 
     return () => {
@@ -327,6 +335,7 @@ export default function EasyTraderPlatform() {
     setAuthUser(user);
     if (typeof window !== 'undefined') {
       localStorage.setItem('drishti_cached_user', JSON.stringify(user));
+      localStorage.setItem('easytrader_user', JSON.stringify(user));
     }
 
     const accSavedTheme =
@@ -368,6 +377,7 @@ export default function EasyTraderPlatform() {
   const logout = async () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('drishti_cached_user');
+      localStorage.removeItem('easytrader_user');
       localStorage.removeItem('drishti_cached_dashboard_data');
     }
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
@@ -414,7 +424,7 @@ export default function EasyTraderPlatform() {
     <div className={`relative h-screen max-h-screen overflow-hidden flex flex-col font-sans transition-colors duration-200 ${
       isLight ? 'bg-white text-black' : 'bg-black text-white'
     }`}>
-      {/* Top Navigation Bar with Billing, Stock, Invoice... sub-nav */}
+      {/* Top Navigation Bar */}
       <Navbar
         activeTab={activeTab}
         activeBusinessSection={activeBusinessSection}
@@ -425,7 +435,11 @@ export default function EasyTraderPlatform() {
         onThemeChange={handleThemeChange}
         onTabChange={handleTabSelect}
         onLogout={() => { void logout(); }}
-        onProfileUpdate={(updatedUser) => setAuthUser(updatedUser)}
+        onProfileUpdate={(updatedUser) => {
+          setAuthUser(updatedUser);
+          localStorage.setItem('easytrader_user', JSON.stringify(updatedUser));
+          localStorage.setItem('drishti_cached_user', JSON.stringify(updatedUser));
+        }}
         profileUser={authUser}
         shopName={authUser.shopName || `Tenant ${String(authUser.tenantId || '').slice(0, 8)}`}
       />
@@ -435,6 +449,11 @@ export default function EasyTraderPlatform() {
         {/* Left Mini Sidebar (Visible on all pages EXCEPT overview) */}
         <LeftMiniSidebar
           activeTab={activeTab}
+          activeBusinessSection={activeBusinessSection}
+          onBusinessSectionChange={(sec) => {
+            setActiveBusinessSection(sec);
+            setIsSidebarOpen(false);
+          }}
           isOpen={activeTab !== 'overview' && isSidebarOpen}
           onTabChange={handleTabSelect}
           theme={theme}
@@ -471,6 +490,8 @@ export default function EasyTraderPlatform() {
                 );
               case 'database-management':
                 return <div className="mx-auto max-w-[1400px]"><DatabaseManagementPage theme={theme} data={data} /></div>;
+              case 'storefront':
+                return <div className="mx-auto max-w-[1400px]"><StorefrontPage data={data} onNavigate={setActiveTab} /></div>;
               case 'insights':
                 return <div className="mx-auto max-w-[1400px]"><InsightsPage theme={theme} data={data} onDataRefresh={async () => setData(await loadData())} /></div>;
               case 'saas-admin':
@@ -494,3 +515,4 @@ export default function EasyTraderPlatform() {
     </div>
   );
 }
+

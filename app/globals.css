@@ -13,11 +13,40 @@
   unicode-range: U+0020-0024, U+0026-002A, U+003A-0040, U+0041-005A, U+005B-0060, U+0061-007A, U+007B-007E, U+00C0-00FF;
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 @layer base {
+  :root {
+    --background: 0 0% 0%; /* Pure black for dark theme */
+    --foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+  }
+
+  html.dark {
+    --background: 0 0% 0%; /* Pure black for dark theme */
+    --foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+  }
+
+  html.light {
+    --background: 210 20% 96.1%;
+    --foreground: 215 27.9% 16.9%;
+    --muted-foreground: 215 13.8% 51.4%;
+    --primary: 207 100% 50%;
+    --primary-foreground: 210 40% 98%;
+    --accent: 207 100% 50%;
+    --border: 213 19% 91%;
+    --card-background: 0 0% 100%;
+    --card-foreground: 215 27.9% 16.9%;
+    --card-border: 213 19% 91%;
+    --active-background: 210 100% 97.1%;
+    --active-foreground: 207 100% 50%;
+  }
+
   *, ::before, ::after {
     font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
@@ -27,11 +56,12 @@
     font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background: hsl(var(--background));
   }
 
   body {
-    @apply antialiased min-h-screen transition-colors duration-200;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply antialiased min-h-screen transition-colors duration-200 bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "rlig" 1, "calt" 1;
     font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 
@@ -59,9 +89,13 @@
     font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   }
 
+  * {
+    border-color: hsl(var(--border));
+  }
+
   ::selection {
-    background: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
+    background: rgba(99, 102, 241, 0.35);
+    color: hsl(var(--foreground));
   }
 }
 
@@ -132,4 +166,3 @@
     transform: translate3d(-50%, 0, 0);
   }
 }
-

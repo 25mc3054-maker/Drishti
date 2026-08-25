@@ -1,6 +1,7 @@
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
+  darkMode: 'class',
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -12,6 +13,18 @@ const config: Config = {
         sans: ['KalenorOX', 'system-ui', 'sans-serif'],
       },
       colors: {
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        primary: 'hsl(var(--primary))',
+        'primary-foreground': 'hsl(var(--primary-foreground))',
+        accent: 'hsl(var(--accent))',
+        border: 'hsl(var(--border))',
+        card: 'hsl(var(--card-background))',
+        'card-foreground': 'hsl(var(--card-foreground))',
+        'card-border': 'hsl(var(--card-border))',
+        'muted-foreground': 'hsl(var(--muted-foreground))',
+        'active-background': 'hsl(var(--active-background))',
+        'active-foreground': 'hsl(var(--active-foreground))',
         'gemini-blue': {
           50: '#e6f1ff',
           100: '#b3d9ff',
