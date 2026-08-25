@@ -22,6 +22,7 @@ import {
   ReceiptText,
   Search,
   Sparkles,
+  Pencil,
   Trash2,
   Truck,
   UserPlus,
@@ -30,6 +31,7 @@ import {
   X,
 } from 'lucide-react';
 import { AddStockModal } from './AddStockModal';
+import { EditProductModal } from './EditProductModal';
 import { AddCustomerModal } from './AddCustomerModal';
 import { AddSupplierModal } from './AddSupplierModal';
 import { ExpensesManager } from './ExpensesManager';
@@ -92,6 +94,7 @@ export function BusinessSuite({
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [isAddingStock, setIsAddingStock] = useState(false);
   const [isAddingSupplier, setIsAddingSupplier] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [restockingItem, setRestockingItem] = useState<any | null>(null);
   const [restockQty, setRestockQty] = useState('');
   const [restockMode, setRestockMode] = useState<'add' | 'replace'>('add');
@@ -684,6 +687,7 @@ export function BusinessSuite({
                 onAddSupplier={() => setIsAddingSupplier(true)}
                 onDeleteCustomer={deleteCustomer}
                 onDeleteStock={deleteStockItem}
+                onEditStock={(item) => setEditingProduct(item)}
                 onDeleteSupplier={deleteSupplier}
                 onQuickRestock={(item) => {
                   setRestockingItem(item);
@@ -721,6 +725,19 @@ export function BusinessSuite({
                 if (newCustomer?.id) {
                   setCustomerId(String(newCustomer.id));
                 }
+              }}
+              theme={theme}
+              isLight={isLight}
+            />
+          )}
+          {editingProduct && (
+            <EditProductModal
+              product={editingProduct}
+              suppliers={data.suppliers}
+              onClose={() => setEditingProduct(null)}
+              onUpdate={() => {
+                onDataRefresh?.();
+                setEditingProduct(null);
               }}
               theme={theme}
               isLight={isLight}
@@ -1722,6 +1739,7 @@ function ModuleGallery({
   onMarketingFormChange,
   onDeleteSupplier,
   onDeleteStock,
+  onEditStock,
   onPlaceSupplierOrder,
   onShareInvoice,
   onSendTextInvoice,
@@ -1756,6 +1774,7 @@ function ModuleGallery({
   onMarketingFormChange: (form: MarketingForm) => void;
   onDeleteSupplier: (supplierId: string) => void;
   onDeleteStock: (itemId: string) => void;
+  onEditStock?: (item: any) => void;
   onPlaceSupplierOrder: (item: any, supplier?: any) => void;
   onSharePromo: () => void;
   onSyncGoogleBusiness: () => void;
@@ -1949,6 +1968,19 @@ function ModuleGallery({
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => onEditStock?.(item)}
+                      className={`inline-flex items-center gap-1 rounded-sm px-2.5 py-1 text-[11.5px] font-bold transition border ${
+                        isLight
+                          ? 'border-zinc-300 bg-zinc-100 text-black hover:bg-zinc-200'
+                          : 'border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800'
+                      }`}
+                      title="Edit Product Details"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span>Edit</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => onQuickRestock?.(item)}

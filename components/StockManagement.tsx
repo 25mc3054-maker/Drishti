@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Package, Plus, Minus, RefreshCw, Search } from 'lucide-react';
+import { Package, Plus, Minus, RefreshCw, Search, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import { EditProductModal } from './enterprise/EditProductModal';
 
 type StockItem = {
   id: string;
@@ -10,6 +11,12 @@ type StockItem = {
   price: number;
   qty: number;
   category?: string;
+  brand?: string;
+  description?: string;
+  unit?: string;
+  supplierId?: string;
+  supplierName?: string;
+  imageUrl?: string;
 };
 
 interface StockManagementProps {
@@ -23,6 +30,7 @@ export default function StockManagement({ items, onAddToBill, onRefresh, onAddPr
   const [draftQty, setDraftQty] = useState<Record<string, number>>({});
   const [isSaving, setIsSaving] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingProduct, setEditingProduct] = useState<StockItem | null>(null);
 
   const totalUnits = useMemo(() => items.reduce((sum, item) => sum + Number(item.qty || 0), 0), [items]);
   const lowStock = useMemo(() => items.filter((item) => Number(item.qty || 0) <= 5).length, [items]);
@@ -119,9 +127,19 @@ export default function StockManagement({ items, onAddToBill, onRefresh, onAddPr
                   <p className="text-white font-medium">{item.name}</p>
                   <p className="text-xs text-gemini-blue-300">₹{item.price} • Current stock: {item.qty}</p>
                 </div>
-                <button type="button" className="premium-button-ghost float-on-hover text-xs" onClick={() => onAddToBill(item)}>
-                  Add to Bill
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    className="premium-button-ghost float-on-hover text-xs inline-flex items-center gap-1"
+                    onClick={() => setEditingProduct(item)}
+                  >
+                    <Pencil className="h-3 w-3" />
+                    <span>Edit</span>
+                  </button>
+                  <button type="button" className="premium-button-ghost float-on-hover text-xs" onClick={() => onAddToBill(item)}>
+                    Add to Bill
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -160,6 +178,17 @@ export default function StockManagement({ items, onAddToBill, onRefresh, onAddPr
         })}
         {filteredItems.length === 0 && <p className="text-sm text-gemini-blue-300">No products found. Try another search or add products first.</p>}
       </div>
+
+      {editingProduct && (
+        <EditProductModal
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onUpdate={() => {
+            onRefresh();
+            setEditingProduct(null);
+          }}
+        />
+      )}
     </div>
   );
 }
