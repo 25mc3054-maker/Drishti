@@ -68,7 +68,7 @@ export function EditProductModal({ product, mode, onClose, onUpdate }: EditProdu
         <button onClick={onClose} className="absolute top-4 right-4 premium-button-ghost p-2">
           <X className="h-4 w-4" />
         </button>
-        <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+        <h2 className="text-xl font-semibold !text-white mb-4 flex items-center gap-2" style={{ color: '#ffffff' }}>
           {mode === 'image' ? <ImageIcon className="w-5 h-5 text-current" /> : <Pilcrow className="w-5 h-5 text-current" />}
           Update {product.name}
         </h2>

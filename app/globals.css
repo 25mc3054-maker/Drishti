@@ -76,13 +76,9 @@
     color: #000000 !important;
   }
 
-  /* Solid white crisp text for headings in dark mode */
-  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
-    color: #ffffff !important;
-  }
-
-  .light h1, .light h2, .light h3, .light h4, .light h5, .light h6 {
-    color: #000000 !important;
+  /* Headings inherit text color naturally so utility classes like text-white/text-black work reliably */
+  h1, h2, h3, h4, h5, h6 {
+    color: inherit;
   }
 
   input, select, textarea, .tabular-nums {
@@ -136,13 +132,26 @@
   }
 }
 
+.scrollbar-none,
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #000000;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {

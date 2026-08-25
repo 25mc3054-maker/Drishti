@@ -63,8 +63,9 @@ export function HeroSection({ data, onNavigate, theme = 'dark' }: HeroSectionPro
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ duration: 0.65, delay: 0.08, ease: 'easeOut' }}
             className={`max-w-[15ch] text-3xl font-extrabold leading-[1.08] tracking-tight sm:text-[54px] md:text-[72px] lg:text-[92px] ${
-              isLight ? 'text-slate-900' : 'text-white'
+              isLight ? '!text-slate-900' : '!text-white'
             }`}
+            style={{ color: isLight ? '#0f172a' : '#ffffff' }}
           >
             Everything Your Business Needs. One Platform.
           </motion.h1>
@@ -139,7 +140,7 @@ export function HeroSection({ data, onNavigate, theme = 'dark' }: HeroSectionPro
                 }`}>
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className={`mt-8 text-[20px] font-bold ${isLight ? 'text-black' : 'text-white'}`}>{thought.title}</h3>
+                <h3 className={`mt-8 text-[20px] font-bold ${isLight ? '!text-black' : '!text-white'}`} style={{ color: isLight ? '#000000' : '#ffffff' }}>{thought.title}</h3>
                 <p className={`mt-3 text-[14.5px] leading-7 ${isLight ? 'text-zinc-600 font-medium' : 'text-zinc-400'}`}>{thought.description}</p>
               </div>
             </motion.article>
@@ -151,8 +152,8 @@ export function HeroSection({ data, onNavigate, theme = 'dark' }: HeroSectionPro
         <div>
           <div className={`text-[12px] font-bold uppercase tracking-[0.2em] ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>EasyTrader AI Suite</div>
           <h2 className={`mt-4 max-w-[11ch] text-[42px] font-extrabold leading-[1.02] tracking-tight md:text-[58px] ${
-            isLight ? 'text-black' : 'text-white'
-          }`}>
+            isLight ? '!text-black' : '!text-white'
+          }`} style={{ color: isLight ? '#000000' : '#ffffff' }}>
             What sets EasyTrader apart
           </h2>
         </div>

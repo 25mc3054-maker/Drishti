@@ -383,18 +383,7 @@ export function Navbar({
         </div>
       </div>
 
-      {/* Mobile Sub-Navbar for Business Suite (Visible on Mobile Phone when in Business Suite) */}
-      {isBusinessSuite && (
-        <div className={`lg:hidden border-t px-2 py-1.5 backdrop-blur-md shadow-md transition-colors ${
-          isLight ? 'border-zinc-200 bg-white/95' : 'border-zinc-800/80 bg-zinc-950/95'
-        }`}>
-          <CosmicNavbar
-            activeSection={activeBusinessSection || 'billing'}
-            onSectionChange={(sec) => handleBusinessSectionClick(sec)}
-            isLight={isLight}
-          />
-        </div>
-      )}
+
 
       {/* Secondary Confirmation Logout Modal */}
       <AnimatePresence>

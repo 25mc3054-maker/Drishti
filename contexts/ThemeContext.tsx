@@ -25,30 +25,37 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({
   children,
   defaultTheme = 'dark',
-  storageKey = 'vite-ui-theme',
+  storageKey = 'easytrader_theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme);
-
-  useEffect(() => {
-    const storedTheme = localStorage.getItem(storageKey) as Theme | null;
-    if (storedTheme) {
-      setTheme(storedTheme);
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const storedTheme = localStorage.getItem(storageKey) as Theme | null;
+        if (storedTheme === 'dark' || storedTheme === 'light') return storedTheme;
+        const fallback = localStorage.getItem('vite-ui-theme') as Theme | null;
+        if (fallback === 'dark' || fallback === 'light') return fallback;
+      } catch {}
     }
-  }, [storageKey]);
+    return defaultTheme;
+  });
 
   useEffect(() => {
     const root = window.document.documentElement;
-
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
   }, [theme]);
 
   const value = {
     theme,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
+    setTheme: (newTheme: Theme) => {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(storageKey, newTheme);
+          localStorage.setItem('vite-ui-theme', newTheme);
+        } catch {}
+      }
+      setTheme(newTheme);
     },
   };
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Box, X, UploadCloud, Check } from 'lucide-react';
+import { X, UploadCloud, Check } from 'lucide-react';
 
 interface AddStockModalProps {
   onClose: () => void;
@@ -193,42 +193,42 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm overflow-y-auto"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-800 bg-[#0A0C0F] p-5 sm:p-6 shadow-2xl text-white"
+        exit={{ opacity: 0, scale: 0.98, y: 10 }}
+        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-none border border-zinc-800 bg-[#000000] p-6 shadow-2xl text-white"
       >
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-          <h2 className="flex items-center gap-3 text-xl font-bold text-white">
-            <Box className="h-5 w-5 text-[#7EA7FF]" />
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+          <h2 className="text-lg font-bold uppercase tracking-wider text-white" style={{ color: '#ffffff' }}>
             Add New Stock
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-white/50 transition hover:bg-white/10 hover:text-white"
+            className="rounded-none p-1.5 text-zinc-400 transition hover:bg-zinc-800 hover:text-white border border-transparent hover:border-zinc-700"
+            aria-label="Close modal"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+        <form onSubmit={handleSubmit} className="mt-5 space-y-5">
           {/* Top Row: Image Upload (Left) + Product Name * (Right) */}
           <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
                 Product Image (Optional)
               </label>
               <div className="flex items-center gap-3">
-                <div className="w-16 h-16 rounded-xl border border-dashed border-zinc-700 flex items-center justify-center bg-black/40 shrink-0 overflow-hidden">
+                <div className="w-16 h-16 rounded-none border border-dashed border-zinc-700 flex items-center justify-center bg-zinc-950 shrink-0 overflow-hidden">
                   {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover rounded-xl"/>
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover rounded-none"/>
                   ) : (
-                    <UploadCloud className="h-6 w-6 text-white/40" />
+                    <UploadCloud className="h-5 w-5 text-zinc-500" />
                   )}
                 </div>
                 <div>
@@ -239,17 +239,17 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                     onChange={handleImageChange}
                     className="hidden"
                   />
-                  <label htmlFor="stock-image-upload" className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-zinc-800">
+                  <label htmlFor="stock-image-upload" className="cursor-pointer inline-flex items-center gap-1.5 rounded-none border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-800 hover:text-white">
                     {image ? 'Change Image' : 'Upload Image'}
                   </label>
-                  <p className="text-[10.5px] text-white/40 mt-1">PNG, JPG up to 5MB.</p>
+                  <p className="text-[10.5px] text-zinc-500 mt-1">PNG, JPG up to 5MB.</p>
                 </div>
               </div>
             </div>
 
             {/* 1. Product Name beside Image */}
             <div>
-              <label htmlFor="stock-name" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+              <label htmlFor="stock-name" className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                 Product Name *
               </label>
               <input
@@ -260,7 +260,7 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => handleKeyDownNext(e, brandInputRef)}
                 required
-                className="mt-1 block w-full h-11 rounded-xl border border-zinc-800 bg-black/60 px-4 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-semibold"
+                className="mt-1.5 block w-full h-10 rounded-none border border-zinc-800 bg-zinc-950 px-3.5 text-sm text-white outline-none placeholder:text-zinc-600 transition focus:border-zinc-500 font-medium"
                 placeholder="e.g. Organic Honey or Cow Milk"
               />
             </div>
@@ -268,7 +268,7 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
 
           {/* 2. Second Row: Brand Name (Optional) */}
           <div>
-            <label htmlFor="stock-brand" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+            <label htmlFor="stock-brand" className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400">
               Brand Name (Optional)
             </label>
             <input
@@ -278,14 +278,14 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
               onKeyDown={(e) => handleKeyDownNext(e, descriptionInputRef)}
-              className="mt-1 block w-full h-11 rounded-xl border border-zinc-800 bg-black/60 px-4 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-semibold"
+              className="mt-1.5 block w-full h-10 rounded-none border border-zinc-800 bg-zinc-950 px-3.5 text-sm text-white outline-none placeholder:text-zinc-600 transition focus:border-zinc-500 font-medium"
               placeholder="e.g. Dabur, Amul, Nestlé, Nike, Tata (Optional)"
             />
           </div>
 
           {/* 3. Description (Optional) */}
           <div>
-            <label htmlFor="stock-description" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+            <label htmlFor="stock-description" className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400">
               Description (Optional)
             </label>
             <textarea
@@ -295,7 +295,7 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
               onChange={(e) => setDescription(e.target.value)}
               onKeyDown={(e) => handleKeyDownNext(e, priceInputRef)}
               rows={2}
-              className="mt-1 block w-full rounded-xl border border-zinc-800 bg-black/60 px-4 py-2.5 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-medium"
+              className="mt-1.5 block w-full rounded-none border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 transition focus:border-zinc-500 font-medium"
               placeholder="e.g. Raw organic forest honey, 100% natural, glass jar packaging"
             />
           </div>
@@ -304,7 +304,7 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
           <div className="grid gap-4 sm:grid-cols-3">
             {/* Price */}
             <div>
-              <label htmlFor="stock-price" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+              <label htmlFor="stock-price" className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                 Price (₹) *
               </label>
               <input
@@ -316,17 +316,17 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                 onChange={(e) => setPrice(e.target.value)}
                 onKeyDown={(e) => handleKeyDownNext(e, qtyInputRef)}
                 required
-                className="mt-1 block w-full h-11 rounded-xl border border-zinc-800 bg-black/60 px-4 text-base md:text-sm text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-bold"
+                className="mt-1.5 block w-full h-10 rounded-none border border-zinc-800 bg-zinc-950 px-3.5 text-sm text-white outline-none placeholder:text-zinc-600 transition focus:border-zinc-500 font-semibold"
                 placeholder="e.g. 250"
               />
             </div>
 
-            {/* 5. Quantity + Unit of Measurement */}
+            {/* 5. Quantity & Unit */}
             <div>
-              <label htmlFor="stock-qty" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+              <label htmlFor="stock-qty" className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                 Quantity & Unit *
               </label>
-              <div className="mt-1 flex items-center gap-1.5">
+              <div className="mt-1.5 flex items-center gap-1.5">
                 <input
                   ref={qtyInputRef}
                   id="stock-qty"
@@ -345,13 +345,13 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                     }
                   }}
                   required
-                  className="block w-full flex-1 h-11 rounded-xl border border-zinc-800 bg-black/60 px-3 text-[13px] text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-bold"
+                  className="block w-full flex-1 h-10 rounded-none border border-zinc-800 bg-zinc-950 px-3 text-sm text-white outline-none placeholder:text-zinc-600 transition focus:border-zinc-500 font-semibold"
                   placeholder="e.g. 50"
                 />
                 <select
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  className="h-11 rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 text-[12px] font-bold text-white outline-none transition focus:border-zinc-500"
+                  className="h-10 rounded-none border border-zinc-800 bg-zinc-900 px-2 text-xs font-semibold text-white outline-none transition focus:border-zinc-500"
                   title="Unit of Measurement"
                 >
                   <option value="pcs">pcs (units)</option>
@@ -368,7 +368,7 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
 
             {/* 6. Category (Optional) */}
             <div>
-              <label htmlFor="stock-category" className="block text-xs font-bold uppercase tracking-wider text-white/70">
+              <label htmlFor="stock-category" className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                 Category (Optional)
               </label>
               {!isAddingNewCat ? (
@@ -385,7 +385,7 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                     }
                   }}
                   onKeyDown={handleCategoryEnter}
-                  className="mt-1 h-11 w-full rounded-xl border border-zinc-800 bg-black/60 px-3 text-[12.5px] font-semibold text-white outline-none transition focus:border-zinc-500"
+                  className="mt-1.5 h-10 w-full rounded-none border border-zinc-800 bg-zinc-950 px-3 text-xs font-medium text-white outline-none transition focus:border-zinc-500"
                 >
                   <option value="">General (Default)</option>
                   {categories.map((cat) => (
@@ -394,7 +394,7 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                   <option value="new-category">+ Add New Category</option>
                 </select>
               ) : (
-                <div className="mt-1 flex items-center gap-1.5">
+                <div className="mt-1.5 flex items-center gap-1.5">
                   <input
                     ref={newCategoryInputRef}
                     type="text"
@@ -402,14 +402,14 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                     onChange={(e) => setNewCategory(e.target.value)}
                     onKeyDown={handleCategoryEnter}
                     autoFocus
-                    className="h-11 flex-1 rounded-xl border border-zinc-700 bg-black/80 px-3 text-[12.5px] text-white outline-none placeholder:text-white/34 font-semibold"
+                    className="h-10 flex-1 rounded-none border border-zinc-700 bg-zinc-950 px-3 text-xs text-white outline-none placeholder:text-zinc-600 font-medium"
                     placeholder="Type category & press Enter..."
                   />
                   <button
                     type="button"
                     onClick={applyNewCategory}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-                    title="Apply category and proceed to new supplier"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border border-emerald-600 bg-emerald-950/50 text-emerald-400 hover:bg-emerald-900/60"
+                    title="Apply category"
                   >
                     <Check className="h-4 w-4" />
                   </button>
@@ -418,9 +418,9 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
             </div>
           </div>
 
-          {/* 7. Supplier Link (Optional) - Switching to New Supplier on Enter */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-white/80">
+          {/* 7. Supplier Link (Optional) */}
+          <div className="rounded-none border border-zinc-800 bg-zinc-950/40 p-4">
+            <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-zinc-400">
               Supplier Link (Optional)
             </div>
 
@@ -428,10 +428,10 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
               <button
                 type="button"
                 onClick={() => setSupplierMode('existing')}
-                className={`h-9 rounded-xl border px-4 text-xs font-bold transition ${
+                className={`h-9 rounded-none border px-4 text-xs font-semibold transition ${
                   supplierMode === 'existing'
-                    ? 'border-zinc-600 bg-white text-black'
-                    : 'border-zinc-800 bg-black/50 text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                    ? 'border-zinc-500 bg-zinc-200 text-black'
+                    : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white'
                 }`}
               >
                 Existing Supplier
@@ -439,10 +439,10 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
               <button
                 type="button"
                 onClick={() => setSupplierMode('new')}
-                className={`h-9 rounded-xl border px-4 text-xs font-bold transition ${
+                className={`h-9 rounded-none border px-4 text-xs font-semibold transition ${
                   supplierMode === 'new'
-                    ? 'border-zinc-600 bg-white text-black'
-                    : 'border-zinc-800 bg-black/50 text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                    ? 'border-zinc-500 bg-zinc-200 text-black'
+                    : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white'
                 }`}
               >
                 New Supplier
@@ -460,7 +460,7 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                     setTimeout(() => newSupplierNameRef.current?.focus(), 50);
                   }
                 }}
-                className="mt-3 h-11 w-full rounded-xl border border-zinc-800 bg-black/60 px-4 text-[12.5px] font-semibold text-white outline-none transition focus:border-zinc-500"
+                className="mt-3 h-10 w-full rounded-none border border-zinc-800 bg-zinc-950 px-3.5 text-xs font-medium text-white outline-none transition focus:border-zinc-500"
               >
                 <option value="">Select supplier (Optional)</option>
                 {suppliers.map((supplier) => (
@@ -476,15 +476,15 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                   value={newSupplierName}
                   onChange={(event) => setNewSupplierName(event.target.value)}
                   onKeyDown={(e) => handleKeyDownNext(e, newSupplierPhoneRef)}
-                  className="h-10 rounded-xl border border-zinc-800 bg-black/60 px-3 text-[12.5px] text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-semibold"
-                  placeholder="New Supplier Name (Optional)"
+                  className="h-10 rounded-none border border-zinc-800 bg-zinc-950 px-3 text-xs text-white outline-none placeholder:text-zinc-600 transition focus:border-zinc-500 font-medium"
+                  placeholder="New Supplier Name"
                 />
                 <input
                   ref={newSupplierPhoneRef}
                   value={newSupplierPhone}
                   onChange={(event) => setNewSupplierPhone(event.target.value)}
                   onKeyDown={(e) => handleKeyDownNext(e, newSupplierLeadTimeRef)}
-                  className="h-10 rounded-xl border border-zinc-800 bg-black/60 px-3 text-[12.5px] text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-semibold"
+                  className="h-10 rounded-none border border-zinc-800 bg-zinc-950 px-3 text-xs text-white outline-none placeholder:text-zinc-600 transition focus:border-zinc-500 font-medium"
                   placeholder="Phone"
                 />
                 <input
@@ -493,20 +493,20 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
                   value={newSupplierLeadTime}
                   onChange={(event) => setNewSupplierLeadTime(event.target.value)}
                   onKeyDown={(e) => handleKeyDownNext(e, submitBtnRef)}
-                  className="h-10 rounded-xl border border-zinc-800 bg-black/60 px-3 text-[12.5px] text-white outline-none placeholder:text-white/34 transition focus:border-zinc-500 font-semibold"
+                  className="h-10 rounded-none border border-zinc-800 bg-zinc-950 px-3 text-xs text-white outline-none placeholder:text-zinc-600 transition focus:border-zinc-500 font-medium"
                   placeholder="Lead days"
                 />
               </div>
             )}
           </div>
 
-          {error && <p className="text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 p-2.5 rounded-xl">{error}</p>}
+          {error && <p className="text-xs font-semibold text-red-400 bg-red-950/40 border border-red-800/60 p-3 rounded-none">{error}</p>}
 
-          <div className="flex justify-end gap-3 pt-3">
+          <div className="flex justify-end gap-3 pt-3 border-t border-zinc-800/80">
             <button
               type="button"
               onClick={onClose}
-              className="h-11 rounded-xl bg-zinc-900 px-6 text-xs font-bold text-zinc-300 transition hover:bg-zinc-800 hover:text-white border border-zinc-800"
+              className="h-10 rounded-none bg-zinc-900 px-5 text-xs font-semibold text-zinc-300 transition hover:bg-zinc-800 hover:text-white border border-zinc-800"
             >
               Cancel
             </button>
@@ -514,7 +514,7 @@ export function AddStockModal({ onClose, onStockAdded, suppliers }: AddStockModa
               ref={submitBtnRef}
               type="submit"
               disabled={isSubmitting}
-              className="h-11 rounded-xl bg-white px-6 text-xs font-extrabold text-black shadow-md transition hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 border-0"
+              className="h-10 rounded-none bg-white px-6 text-xs font-bold text-black transition hover:bg-zinc-200 active:bg-zinc-300 disabled:opacity-50 border-0"
             >
               {isSubmitting ? 'Adding Stock...' : 'Add Stock'}
             </button>

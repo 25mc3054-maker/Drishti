@@ -62,10 +62,10 @@ export function AddSupplierModal({ onClose, onSupplierAdded }: AddSupplierModalP
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#0A0C0F] p-5 sm:p-6 shadow-2xl"
+        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-none border border-zinc-800 bg-[#000000] p-5 sm:p-6 shadow-2xl"
       >
         <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-3 text-xl font-semibold text-white">
+          <h2 className="flex items-center gap-3 text-xl font-semibold !text-white" style={{ color: '#ffffff' }}>
             <Truck className="h-5 w-5 text-[#7EA7FF]" />
             Add Supplier
           </h2>
