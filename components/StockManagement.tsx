@@ -125,7 +125,9 @@ export default function StockManagement({ items, onAddToBill, onRefresh, onAddPr
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div>
                   <p className="text-white font-medium">{item.name}</p>
-                  <p className="text-xs text-gemini-blue-300">₹{item.price} • Current stock: {item.qty}</p>
+                  <p className="text-xs text-gemini-blue-300">
+                    ₹{item.price} • Stock: {item.qty}{item.category ? ` • ${item.category}` : ''}{item.supplierName ? ` • Supplier: ${item.supplierName}` : ''}
+                  </p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button

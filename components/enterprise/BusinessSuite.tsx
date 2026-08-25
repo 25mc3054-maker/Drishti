@@ -1962,8 +1962,26 @@ function ModuleGallery({
                       <span className={`font-bold ${isLight ? 'text-zinc-800' : 'text-zinc-200'}`}>
                         {Number(item.qty || 0)} in stock
                       </span>
-                      <span>•</span>
-                      <span className="truncate">{item.supplierName || item.category || 'General'}</span>
+                      {item.category && (
+                        <>
+                          <span>•</span>
+                          <span className="truncate">{item.category}</span>
+                        </>
+                      )}
+                      {item.supplierName && (
+                        <>
+                          <span>•</span>
+                          <span className={`truncate font-semibold ${isLight ? 'text-zinc-700' : 'text-zinc-300'}`}>
+                            Supplier: {item.supplierName}
+                          </span>
+                        </>
+                      )}
+                      {!item.category && !item.supplierName && (
+                        <>
+                          <span>•</span>
+                          <span className="truncate">General</span>
+                        </>
+                      )}
                     </div>
                   </div>
 
