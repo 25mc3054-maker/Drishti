@@ -157,12 +157,14 @@ export default function RootLayout({
                 if (!theme) {
                   theme = localStorage.getItem('drishti_global_theme');
                 }
-                if (theme === 'light') {
-                  document.documentElement.classList.add('light');
-                  document.documentElement.classList.remove('dark');
-                } else if (theme === 'dark') {
-                  document.documentElement.classList.add('dark');
+                if (['light', 'dark'].includes(theme)) {
+                  document.documentElement.classList.remove('light', 'dark');
+                  document.documentElement.classList.add(theme);
+                  document.documentElement.setAttribute('data-theme', theme);
+                } else {
                   document.documentElement.classList.remove('light');
+                  document.documentElement.classList.add('dark');
+                  document.documentElement.setAttribute('data-theme', 'dark');
                 }
               } catch (e) {}
             })();`,

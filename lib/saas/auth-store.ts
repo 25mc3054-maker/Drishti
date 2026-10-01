@@ -120,6 +120,9 @@ export async function findTenantUserByMobile(mobile: string): Promise<AuthUser |
   const normalized = normalizeMobile(mobile);
   if (!normalized || normalized.length !== 10) return null;
 
+  const currentLocal = loadLocalUsers();
+  const localMatch = currentLocal.find((u) => u.mobile === normalized) || localUsersStore.find((u) => u.mobile === normalized);
+
   try {
     const rows = await scanAll({
       TableName: tableName,
@@ -133,14 +136,31 @@ export async function findTenantUserByMobile(mobile: string): Promise<AuthUser |
         ':mobile': normalized,
       },
     });
-    return (rows[0] as AuthUser | undefined) || null;
-  } catch {
-    return localUsersStore.find((u) => u.mobile === normalized) || null;
-  }
+    const dbUser = rows[0] as AuthUser | undefined;
+    if (dbUser) {
+      if (localMatch && (!dbUser.updatedAt || new Date(localMatch.updatedAt).getTime() >= new Date(dbUser.updatedAt).getTime())) {
+        try {
+          await docClient.send(new PutCommand({ TableName: tableName, Item: localMatch }));
+        } catch {}
+        return localMatch;
+      }
+      const idx = localUsersStore.findIndex((u) => u.id === dbUser.id || u.mobile === dbUser.mobile);
+      if (idx !== -1) localUsersStore[idx] = dbUser;
+      else localUsersStore.push(dbUser);
+      saveLocalUsers(localUsersStore);
+      return dbUser;
+    }
+  } catch {}
+
+  return localMatch || null;
 }
 
 export async function findTenantUserById(tenantId: string, userId: string): Promise<AuthUser | null> {
   if (!tenantId || !userId) return null;
+
+  const currentLocal = loadLocalUsers();
+  const localMatch = currentLocal.find((u) => u.id === userId || (u.tenant_id === tenantId && u.id === userId)) ||
+                     localUsersStore.find((u) => u.id === userId);
 
   try {
     const rows = await scanAll({
@@ -157,10 +177,19 @@ export async function findTenantUserById(tenantId: string, userId: string): Prom
         ':id': userId,
       },
     });
-    return (rows[0] as AuthUser | undefined) || null;
-  } catch {
-    return localUsersStore.find((u) => u.tenant_id === tenantId && u.id === userId) || null;
-  }
+    const dbUser = rows[0] as AuthUser | undefined;
+    if (dbUser) {
+      if (localMatch && (!dbUser.updatedAt || new Date(localMatch.updatedAt).getTime() >= new Date(dbUser.updatedAt).getTime())) {
+        try {
+          await docClient.send(new PutCommand({ TableName: tableName, Item: localMatch }));
+        } catch {}
+        return localMatch;
+      }
+      return dbUser;
+    }
+  } catch {}
+
+  return localMatch || null;
 }
 
 export async function findTenantUserByEmail(emailInput: string): Promise<AuthUser | null> {
@@ -449,14 +478,14 @@ export async function updateTenantUserProfile(input: {
     updatedAt: new Date().toISOString(),
   } as AuthUser;
 
+  const idx = localUsersStore.findIndex((u) => u.id === user.id || u.mobile === user.mobile);
+  if (idx !== -1) localUsersStore[idx] = updated;
+  else localUsersStore.push(updated);
+  saveLocalUsers(localUsersStore);
+
   try {
     await docClient.send(new PutCommand({ TableName: tableName, Item: updated }));
-  } catch {
-    const idx = localUsersStore.findIndex((u) => u.id === user.id);
-    if (idx !== -1) localUsersStore[idx] = updated;
-    else localUsersStore.push(updated);
-    saveLocalUsers(localUsersStore);
-  }
+  } catch {}
 
   return updated;
 }

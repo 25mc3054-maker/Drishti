@@ -2,17 +2,19 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 
-type Theme = 'dark' | 'light';
+export type AppTheme = 'dark' | 'light';
+
+export type Theme = AppTheme;
 
 type ThemeProviderProps = {
   children: React.ReactNode;
-  defaultTheme?: Theme;
+  defaultTheme?: AppTheme;
   storageKey?: string;
 };
 
 type ThemeProviderState = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
+  theme: AppTheme;
+  setTheme: (theme: AppTheme) => void;
 };
 
 const initialState: ThemeProviderState = {
@@ -25,33 +27,40 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({
   children,
   defaultTheme = 'dark',
-  storageKey = 'easytrader_theme',
+  storageKey = 'drishti_global_theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const storedTheme = localStorage.getItem(storageKey) as Theme | null;
-        if (storedTheme === 'dark' || storedTheme === 'light') return storedTheme;
-        const fallback = localStorage.getItem('vite-ui-theme') as Theme | null;
-        if (fallback === 'dark' || fallback === 'light') return fallback;
-      } catch {}
+  const [theme, setTheme] = useState<AppTheme>(defaultTheme);
+
+  useEffect(() => {
+    try {
+      const storedTheme = (localStorage.getItem(storageKey) ||
+        localStorage.getItem('easytrader_theme') ||
+        localStorage.getItem('vite-ui-theme')) as AppTheme | null;
+      if (storedTheme === 'light' || storedTheme === 'dark') {
+        setTheme(storedTheme);
+      } else {
+        setTheme('dark');
+      }
+    } catch {
+      setTheme('dark');
     }
-    return defaultTheme;
-  });
+  }, [storageKey]);
 
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
+    root.setAttribute('data-theme', theme);
   }, [theme]);
 
   const value = {
     theme,
-    setTheme: (newTheme: Theme) => {
+    setTheme: (newTheme: AppTheme) => {
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem(storageKey, newTheme);
+          localStorage.setItem('easytrader_theme', newTheme);
           localStorage.setItem('vite-ui-theme', newTheme);
         } catch {}
       }

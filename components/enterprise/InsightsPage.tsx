@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
   TrendingDown,
@@ -22,17 +22,30 @@ import {
   ArrowDownRight,
   Calculator,
   HelpCircle,
-  CheckCircle2
+  CheckCircle2,
+  SlidersHorizontal,
+  Sparkles,
+  ChevronDown,
+  Search,
+  Filter,
+  Eye,
+  ZoomIn,
+  Table,
+  LayoutGrid
 } from 'lucide-react';
 import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
-  Cell
+  Cell,
+  Brush,
+  Legend
 } from 'recharts';
 import { ContactActionGroup, WebCallModal, type CallRecipient } from './WebCallModal';
 import type { DashboardData } from './types';
@@ -44,8 +57,29 @@ interface InsightsPageProps {
   theme?: 'dark' | 'light';
 }
 
-type TimePeriod = 'today' | 'last10days' | 'last30days' | 'last12months' | 'lastyears';
-type ChartMetric = 'revenue' | 'invoices' | 'collected';
+type TimePeriodPreset =
+  | 'today'
+  | 'yesterday'
+  | 'last7days'
+  | 'last10days'
+  | 'last30days'
+  | 'thismonth'
+  | 'lastmonth'
+  | 'thisyear'
+  | 'last12months'
+  | 'last5years'
+  | 'last10years'
+  | 'last20years'
+  | 'alltime'
+  | 'specific_year'
+  | 'specific_month'
+  | 'specific_day'
+  | 'year_range'
+  | 'custom_range';
+
+type ChartMetric = 'revenue' | 'collected' | 'invoices' | 'credit' | 'items_sold';
+type ChartVisualType = 'bar' | 'area' | 'dual';
+type GranularityOption = 'auto' | 'hour' | 'day' | 'week' | 'month' | 'year';
 
 type ReminderDue = {
   invoiceId: string;
@@ -72,6 +106,20 @@ const VIBRANT_BAR_COLORS = [
   '#84CC16', // Lime
   '#E11D48', // Rose
   '#0EA5E9', // Sky Blue
+  '#D946EF', // Fuchsia
+  '#F43F5E', // Coral Rose
+  '#10B981', // Mint
+  '#FBBF24', // Yellow Gold
+];
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const SHORT_MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
 ];
 
 function paymentMethod(invoice: any) {
@@ -95,13 +143,49 @@ function isOpenCreditInvoice(invoice: any) {
   return paymentMethod(invoice) === 'credit' && !invoice.creditClearedAt && invoice.status !== 'paid';
 }
 
+function parseDate(inv: any): Date {
+  if (inv.createdAt) {
+    const d = new Date(inv.createdAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (inv.date) {
+    const d = new Date(inv.date);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
 export function InsightsPage({ data, onDataRefresh, theme = 'dark' }: InsightsPageProps) {
   const isLight = theme === 'light';
   const [mounted, setMounted] = useState(false);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('last10days');
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  // Primary filter controls
+  const [timePeriod, setTimePeriod] = useState<TimePeriodPreset>('last10days');
   const [activeMetric, setActiveMetric] = useState<ChartMetric>('revenue');
+  const [chartVisual, setChartVisual] = useState<ChartVisualType>('bar');
+  const [granularity, setGranularity] = useState<GranularityOption>('auto');
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
   const [showFormulaGuide, setShowFormulaGuide] = useState(false);
+  const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
+  const [enableBrushZoom, setEnableBrushZoom] = useState(false);
+
+  // Custom picker states
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [customEndDate, setCustomEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [startYear, setStartYear] = useState<number>(currentYear - 5);
+  const [endYear, setEndYear] = useState<number>(currentYear);
+  const [specificYear, setSpecificYear] = useState<number>(currentYear);
+  const [specificMonth, setSpecificMonth] = useState<number>(now.getMonth());
+  const [specificDay, setSpecificDay] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [slotSearchQuery, setSlotSearchQuery] = useState('');
+  const [breakdownView, setBreakdownView] = useState<'compact' | 'table'>('compact');
+  const [onlyActiveSlots, setOnlyActiveSlots] = useState(false);
 
   // Credit reminders state
   const [dueReminders, setDueReminders] = useState<ReminderDue[]>([]);
@@ -116,6 +200,23 @@ export function InsightsPage({ data, onDataRefresh, theme = 'dark' }: InsightsPa
   const invoices = useMemo(() => data.invoices || [], [data.invoices]);
   const items = useMemo(() => data.items || [], [data.items]);
   const customers = useMemo(() => data.customers || [], [data.customers]);
+
+  // Compute available history range
+  const { minYear, maxYear, earliestDate } = useMemo(() => {
+    if (invoices.length === 0) {
+      return { minYear: currentYear - 20, maxYear: currentYear, earliestDate: new Date(currentYear - 1, 0, 1) };
+    }
+    const timestamps = invoices.map((inv: any) => parseDate(inv).getTime());
+    const minT = Math.min(...timestamps);
+    const maxT = Math.max(...timestamps, Date.now());
+    const minDateObj = new Date(minT);
+    const minCalculatedYear = Math.min(minDateObj.getFullYear(), currentYear - 20);
+    return {
+      minYear: Math.max(2000, minCalculatedYear),
+      maxYear: Math.max(currentYear, new Date(maxT).getFullYear()),
+      earliestDate: minDateObj,
+    };
+  }, [invoices, currentYear]);
 
   // 100% Real Summary Metrics Computed Directly from Database
   const summary = useMemo(() => {
@@ -135,13 +236,12 @@ export function InsightsPage({ data, onDataRefresh, theme = 'dark' }: InsightsPa
     const collectionRate = grossRevenue > 0 ? Math.round((collectedRevenue / grossRevenue) * 100) : 100;
 
     // Real Month-over-Month calculation
-    const now = new Date();
     const thisMonthInvoices = invoices.filter((inv: any) => {
-      const d = new Date(inv.createdAt || inv.date || now);
+      const d = parseDate(inv);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
     const lastMonthInvoices = invoices.filter((inv: any) => {
-      const d = new Date(inv.createdAt || inv.date || now);
+      const d = parseDate(inv);
       const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
       const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
       return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
@@ -181,168 +281,334 @@ export function InsightsPage({ data, onDataRefresh, theme = 'dark' }: InsightsPa
       cardCustomers: uniqueCustomersForMethod(invoices, 'card'),
       creditCustomers: uniqueCustomersForMethod(invoices.filter(isOpenCreditInvoice), 'credit'),
     };
-  }, [invoices, items, customers]);
+  }, [invoices, items, customers, now]);
 
-  // Aggregate Real chart data strictly matching actual invoices
+  // Helper to aggregate list of invoices into a standardized chart item
+  const buildSlot = (
+    label: string,
+    shortLabel: string,
+    matchingInvoices: any[],
+    index: number
+  ) => {
+    const rev = matchingInvoices.reduce((s, inv) => s + Number(inv.total || 0), 0);
+    const collected = matchingInvoices
+      .filter((inv: any) => paymentMethod(inv) !== 'credit' || inv.status === 'paid' || inv.creditClearedAt)
+      .reduce((s, inv) => s + Number(inv.total || 0), 0);
+    const credit = matchingInvoices
+      .filter(isOpenCreditInvoice)
+      .reduce((s, inv) => s + Number(inv.total || 0), 0);
+    const itemsCount = matchingInvoices.reduce((s, inv) => (
+      s + (inv.items || []).reduce((isum: number, it: any) => isum + Number(it.qty || 1), 0)
+    ), 0);
+    const upiInvoices = matchingInvoices.filter((inv: any) => {
+      const m = paymentMethod(inv);
+      return m === 'upi' || m === 'qr' || m === 'online' || m === 'card' || m.includes('upi') || m.includes('qr') || m.includes('online');
+    });
+    const upiPaymentsCount = upiInvoices.length;
+
+    return {
+      label,
+      shortLabel,
+      revenue: rev,
+      collected,
+      credit,
+      invoices: matchingInvoices.length,
+      upiPayments: upiPaymentsCount,
+      items_sold: itemsCount,
+      color: VIBRANT_BAR_COLORS[index % VIBRANT_BAR_COLORS.length],
+    };
+  };
+
+  // AGGREGATE CHART DATA ACROSS ANY TIMELINE OR USER-SELECTED RANGE
   const chartData = useMemo(() => {
-    const now = new Date();
+    // 1. Single Day Hourly Breakdown (Today, Yesterday, or Specific Day)
+    if (timePeriod === 'today' || timePeriod === 'yesterday' || timePeriod === 'specific_day') {
+      let targetDate = new Date();
+      if (timePeriod === 'yesterday') {
+        targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() - 1);
+      } else if (timePeriod === 'specific_day') {
+        targetDate = new Date(specificDay || Date.now());
+      }
 
-    if (timePeriod === 'today') {
       const hours = [
-        '8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM'
+        '6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM', '12 PM',
+        '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM',
+        '8 PM', '9 PM', '10 PM', '11 PM'
       ];
+
       return hours.map((hourLabel, index) => {
-        const hourNum = 8 + index;
-        const matchingInvoices = invoices.filter((inv: any) => {
-          if (!inv.createdAt && !inv.date) return false;
-          const invDate = new Date(inv.createdAt || inv.date);
-          const isSameDay = invDate.getDate() === now.getDate() &&
-                            invDate.getMonth() === now.getMonth() &&
-                            invDate.getFullYear() === now.getFullYear();
-          return isSameDay && invDate.getHours() === hourNum;
+        const hourNum = 6 + index;
+        const matching = invoices.filter((inv: any) => {
+          const invDate = parseDate(inv);
+          return (
+            invDate.getDate() === targetDate.getDate() &&
+            invDate.getMonth() === targetDate.getMonth() &&
+            invDate.getFullYear() === targetDate.getFullYear() &&
+            invDate.getHours() === hourNum
+          );
         });
-
-        const rev = matchingInvoices.reduce((s, inv) => s + Number(inv.total || 0), 0);
-        const collected = matchingInvoices
-          .filter((inv: any) => paymentMethod(inv) !== 'credit' || inv.status === 'paid' || inv.creditClearedAt)
-          .reduce((s, inv) => s + Number(inv.total || 0), 0);
-
-        return {
-          label: hourLabel,
-          shortLabel: hourLabel,
-          revenue: rev,
-          collected: collected,
-          invoices: matchingInvoices.length,
-          color: VIBRANT_BAR_COLORS[index % VIBRANT_BAR_COLORS.length],
-        };
+        return buildSlot(
+          `${targetDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} ${hourLabel}`,
+          hourLabel,
+          matching,
+          index
+        );
       });
     }
 
-    if (timePeriod === 'last10days') {
+    // 2. Day-by-Day ranges (Last 7 Days, Last 10 Days, Last 30 Days)
+    if (timePeriod === 'last7days' || timePeriod === 'last10days' || timePeriod === 'last30days') {
+      const numDays = timePeriod === 'last7days' ? 7 : timePeriod === 'last10days' ? 10 : 30;
       const days = [];
-      for (let i = 9; i >= 0; i--) {
+      for (let i = numDays - 1; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const dateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
         const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
 
-        const matchingInvoices = invoices.filter((inv: any) => {
-          if (!inv.createdAt && !inv.date) return false;
-          const invDate = new Date(inv.createdAt || inv.date);
-          return invDate.getDate() === d.getDate() &&
-                 invDate.getMonth() === d.getMonth() &&
-                 invDate.getFullYear() === d.getFullYear();
+        const matching = invoices.filter((inv: any) => {
+          const invDate = parseDate(inv);
+          return (
+            invDate.getDate() === d.getDate() &&
+            invDate.getMonth() === d.getMonth() &&
+            invDate.getFullYear() === d.getFullYear()
+          );
         });
 
-        const rev = matchingInvoices.reduce((s, inv) => s + Number(inv.total || 0), 0);
-        const collected = matchingInvoices
-          .filter((inv: any) => paymentMethod(inv) !== 'credit' || inv.status === 'paid' || inv.creditClearedAt)
-          .reduce((s, inv) => s + Number(inv.total || 0), 0);
-
-        days.push({
-          label: `${dateStr} (${dayName})`,
-          shortLabel: dateStr,
-          revenue: rev,
-          collected: collected,
-          invoices: matchingInvoices.length,
-          color: VIBRANT_BAR_COLORS[(9 - i) % VIBRANT_BAR_COLORS.length],
-        });
+        days.push(buildSlot(`${dateStr} (${dayName})`, numDays > 14 && i % 2 !== 0 ? '' : dateStr, matching, numDays - 1 - i));
       }
       return days;
     }
 
-    if (timePeriod === 'last30days') {
-      const intervals = [
-        'Days 1-5', 'Days 6-10', 'Days 11-15', 'Days 16-20', 'Days 21-25', 'Days 26-30'
-      ];
-      return intervals.map((intLabel, idx) => {
-        const matchingInvoices = invoices.filter((inv: any) => {
-          if (!inv.createdAt && !inv.date) return false;
-          const invDate = new Date(inv.createdAt || inv.date);
-          const diffDays = Math.floor((now.getTime() - invDate.getTime()) / (1000 * 60 * 60 * 24));
-          return diffDays >= (5 - idx) * 5 && diffDays < (6 - idx) * 5;
+    // 3. Current Month or Previous Month (All Days 1 to Month-End)
+    if (timePeriod === 'thismonth' || timePeriod === 'lastmonth') {
+      const targetMonth = timePeriod === 'thismonth' ? now.getMonth() : now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+      const targetYear = timePeriod === 'thismonth' ? now.getFullYear() : now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const totalDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+      const days = [];
+
+      for (let day = 1; day <= totalDays; day++) {
+        const matching = invoices.filter((inv: any) => {
+          const invDate = parseDate(inv);
+          return (
+            invDate.getDate() === day &&
+            invDate.getMonth() === targetMonth &&
+            invDate.getFullYear() === targetYear
+          );
         });
 
-        const rev = matchingInvoices.reduce((s, inv) => s + Number(inv.total || 0), 0);
-        const collected = matchingInvoices
-          .filter((inv: any) => paymentMethod(inv) !== 'credit' || inv.status === 'paid' || inv.creditClearedAt)
-          .reduce((s, inv) => s + Number(inv.total || 0), 0);
+        const shortLabel = day === 1 || day % 5 === 0 || day === totalDays ? `${day} ${SHORT_MONTH_NAMES[targetMonth]}` : `${day}`;
+        days.push(buildSlot(`Day ${day} ${MONTH_NAMES[targetMonth]} ${targetYear}`, shortLabel, matching, day - 1));
+      }
+      return days;
+    }
 
-        return {
-          label: intLabel,
-          shortLabel: intLabel,
-          revenue: rev,
-          collected: collected,
-          invoices: matchingInvoices.length,
-          color: VIBRANT_BAR_COLORS[idx % VIBRANT_BAR_COLORS.length],
-        };
+    // 4. Specific Month Deep-Dive (Day 1 to 31 for picked month & year)
+    if (timePeriod === 'specific_month') {
+      const totalDays = new Date(specificYear, specificMonth + 1, 0).getDate();
+      const days = [];
+
+      for (let day = 1; day <= totalDays; day++) {
+        const matching = invoices.filter((inv: any) => {
+          const invDate = parseDate(inv);
+          return (
+            invDate.getDate() === day &&
+            invDate.getMonth() === specificMonth &&
+            invDate.getFullYear() === specificYear
+          );
+        });
+
+        const shortLabel = day === 1 || day % 5 === 0 || day === totalDays ? `${day} ${SHORT_MONTH_NAMES[specificMonth]}` : `${day}`;
+        days.push(buildSlot(`Day ${day} ${MONTH_NAMES[specificMonth]} ${specificYear}`, shortLabel, matching, day - 1));
+      }
+      return days;
+    }
+
+    // 5. Single Year Deep-Dive (This Year or Specific Year: 12 Months Jan - Dec)
+    if (timePeriod === 'thisyear' || timePeriod === 'specific_year') {
+      const yearToGraph = timePeriod === 'thisyear' ? currentYear : specificYear;
+      return SHORT_MONTH_NAMES.map((mName, mIdx) => {
+        const matching = invoices.filter((inv: any) => {
+          const invDate = parseDate(inv);
+          return invDate.getMonth() === mIdx && invDate.getFullYear() === yearToGraph;
+        });
+        return buildSlot(`${MONTH_NAMES[mIdx]} ${yearToGraph}`, mName, matching, mIdx);
       });
     }
 
+    // 6. Rolling 12 Months
     if (timePeriod === 'last12months') {
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
       const currentMonth = now.getMonth();
-      const orderedMonths = [];
+      const slots = [];
 
       for (let i = 11; i >= 0; i--) {
         const monthIdx = (currentMonth - i + 12) % 12;
-        const monthName = months[monthIdx];
+        const monthName = SHORT_MONTH_NAMES[monthIdx];
         const targetYear = now.getFullYear() - (currentMonth - i < 0 ? 1 : 0);
 
-        const matchingInvoices = invoices.filter((inv: any) => {
-          if (!inv.createdAt && !inv.date) return false;
-          const invDate = new Date(inv.createdAt || inv.date);
+        const matching = invoices.filter((inv: any) => {
+          const invDate = parseDate(inv);
           return invDate.getMonth() === monthIdx && invDate.getFullYear() === targetYear;
         });
 
-        const rev = matchingInvoices.reduce((s, inv) => s + Number(inv.total || 0), 0);
-        const collected = matchingInvoices
-          .filter((inv: any) => paymentMethod(inv) !== 'credit' || inv.status === 'paid' || inv.creditClearedAt)
-          .reduce((s, inv) => s + Number(inv.total || 0), 0);
-
-        orderedMonths.push({
-          label: `${monthName} ${targetYear}`,
-          shortLabel: monthName,
-          revenue: rev,
-          collected: collected,
-          invoices: matchingInvoices.length,
-          color: VIBRANT_BAR_COLORS[(11 - i) % VIBRANT_BAR_COLORS.length],
-        });
+        slots.push(buildSlot(`${MONTH_NAMES[monthIdx]} ${targetYear}`, monthName, matching, 11 - i));
       }
-      return orderedMonths;
+      return slots;
     }
 
-    if (timePeriod === 'lastyears') {
-      const currentYear = now.getFullYear();
-      const years = [currentYear - 3, currentYear - 2, currentYear - 1, currentYear];
+    // 7. Multi-Year Insights: Last 5 Years, Last 10 Years, Last 20 Years, or Custom Year Range!
+    if (
+      timePeriod === 'last5years' ||
+      timePeriod === 'last10years' ||
+      timePeriod === 'last20years' ||
+      timePeriod === 'year_range'
+    ) {
+      let fromY = currentYear - 4;
+      let toY = currentYear;
 
-      return years.map((yr, index) => {
-        const matchingInvoices = invoices.filter((inv: any) => {
-          if (!inv.createdAt && !inv.date) return false;
-          const invDate = new Date(inv.createdAt || inv.date);
+      if (timePeriod === 'last10years') fromY = currentYear - 9;
+      if (timePeriod === 'last20years') fromY = currentYear - 19;
+      if (timePeriod === 'year_range') {
+        fromY = Math.min(startYear, endYear);
+        toY = Math.max(startYear, endYear);
+      }
+
+      const yearsList: number[] = [];
+      for (let y = fromY; y <= toY; y++) {
+        yearsList.push(y);
+      }
+
+      return yearsList.map((yr, idx) => {
+        const matching = invoices.filter((inv: any) => {
+          const invDate = parseDate(inv);
           return invDate.getFullYear() === yr;
         });
-
-        const rev = matchingInvoices.reduce((s, inv) => s + Number(inv.total || 0), 0);
-        const collected = matchingInvoices
-          .filter((inv: any) => paymentMethod(inv) !== 'credit' || inv.status === 'paid' || inv.creditClearedAt)
-          .reduce((s, inv) => s + Number(inv.total || 0), 0);
-
-        return {
-          label: `Year ${yr}`,
-          shortLabel: `${yr}`,
-          revenue: rev,
-          collected: collected,
-          invoices: matchingInvoices.length,
-          color: VIBRANT_BAR_COLORS[index % VIBRANT_BAR_COLORS.length],
-        };
+        return buildSlot(`Year ${yr}`, `${yr}`, matching, idx);
       });
     }
 
+    // 8. All Time (Since Day 1)
+    if (timePeriod === 'alltime') {
+      if (invoices.length === 0) {
+        return [buildSlot('Day 1 - Present', 'All Time', [], 0)];
+      }
+
+      const startY = earliestDate.getFullYear();
+      const endY = currentYear;
+      const spanYears = endY - startY + 1;
+
+      if (spanYears > 3 && granularity !== 'month' && granularity !== 'day') {
+        // Multi-year breakdown
+        const yearsList: number[] = [];
+        for (let y = startY; y <= endY; y++) yearsList.push(y);
+        return yearsList.map((yr, idx) => {
+          const matching = invoices.filter((inv: any) => parseDate(inv).getFullYear() === yr);
+          return buildSlot(`Year ${yr}`, `${yr}`, matching, idx);
+        });
+      }
+
+      // Monthly breakdown across all-time history
+      const totalMonths = (endY - startY) * 12 + (now.getMonth() - earliestDate.getMonth()) + 1;
+      const slots = [];
+      const safeTotalMonths = Math.min(totalMonths, 48); // limit to 48 recent slots for clean render if huge
+
+      for (let m = 0; m < safeTotalMonths; m++) {
+        const d = new Date(earliestDate.getFullYear(), earliestDate.getMonth() + m, 1);
+        if (d > now) break;
+        const matching = invoices.filter((inv: any) => {
+          const invDate = parseDate(inv);
+          return invDate.getFullYear() === d.getFullYear() && invDate.getMonth() === d.getMonth();
+        });
+        slots.push(buildSlot(`${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, `${SHORT_MONTH_NAMES[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`, matching, m));
+      }
+      return slots;
+    }
+
+    // 9. Custom Date Range Explorer (Between any two exact dates)
+    if (timePeriod === 'custom_range') {
+      const start = new Date(customStartDate || Date.now());
+      const end = new Date(customEndDate || Date.now());
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+      // Grouping decision
+      const chosenGranularity =
+        granularity === 'auto'
+          ? diffDays <= 31
+            ? 'day'
+            : diffDays <= 365
+            ? 'month'
+            : 'year'
+          : granularity;
+
+      if (chosenGranularity === 'day') {
+        const safeDays = Math.min(diffDays, 90);
+        const days = [];
+        for (let i = 0; i < safeDays; i++) {
+          const d = new Date(start);
+          d.setDate(d.getDate() + i);
+          if (d > end) break;
+          const matching = invoices.filter((inv: any) => {
+            const invDate = parseDate(inv);
+            return (
+              invDate.getFullYear() === d.getFullYear() &&
+              invDate.getMonth() === d.getMonth() &&
+              invDate.getDate() === d.getDate()
+            );
+          });
+          const dStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+          days.push(buildSlot(`${dStr} (${d.toLocaleDateString('en-IN', { weekday: 'short' })})`, dStr, matching, i));
+        }
+        return days;
+      }
+
+      if (chosenGranularity === 'month') {
+        const slots = [];
+        let curr = new Date(start.getFullYear(), start.getMonth(), 1);
+        let idx = 0;
+        while (curr <= end && idx < 60) {
+          const mIdx = curr.getMonth();
+          const y = curr.getFullYear();
+          const matching = invoices.filter((inv: any) => {
+            const invDate = parseDate(inv);
+            return invDate.getFullYear() === y && invDate.getMonth() === mIdx;
+          });
+          slots.push(buildSlot(`${MONTH_NAMES[mIdx]} ${y}`, `${SHORT_MONTH_NAMES[mIdx]} '${String(y).slice(2)}`, matching, idx));
+          curr.setMonth(curr.getMonth() + 1);
+          idx++;
+        }
+        return slots;
+      }
+
+      if (chosenGranularity === 'year') {
+        const slots = [];
+        let idx = 0;
+        for (let y = start.getFullYear(); y <= end.getFullYear(); y++) {
+          const matching = invoices.filter((inv: any) => parseDate(inv).getFullYear() === y);
+          slots.push(buildSlot(`Year ${y}`, `${y}`, matching, idx));
+          idx++;
+        }
+        return slots;
+      }
+    }
+
     return [];
-  }, [timePeriod, invoices]);
+  }, [
+    timePeriod,
+    invoices,
+    specificDay,
+    specificMonth,
+    specificYear,
+    startYear,
+    endYear,
+    customStartDate,
+    customEndDate,
+    granularity,
+    earliestDate,
+    currentYear,
+    now
+  ]);
 
   // Calculate Real Growth & Downfall statistics
   const periodStats = useMemo(() => {
@@ -591,13 +857,14 @@ export function InsightsPage({ data, onDataRefresh, theme = 'dark' }: InsightsPa
         />
       </div>
 
-      {/* Main Bar Chart & Sales Momentum Command Center */}
+      {/* Main Bar/Area Chart & Sales Momentum Command Center */}
       <div className={`rounded-sm border p-5 sm:p-6 relative transition-all shadow-xs ${
         isLight ? 'border-zinc-200 bg-zinc-50/90 text-black' : 'border-zinc-800 bg-[#090b0e] text-white'
       }`}>
+        {/* Top Header with Dynamic Stats & Growth Indicator */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 border-b pb-5 border-zinc-200 dark:border-zinc-800">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-sm text-xs font-extrabold border ${
                 isLight
                   ? 'bg-zinc-200 text-black border-zinc-300'
@@ -627,33 +894,39 @@ export function InsightsPage({ data, onDataRefresh, theme = 'dark' }: InsightsPa
               </span>
             </h2>
             <p className={`text-xs sm:text-[13px] font-medium ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
-              {periodStats.maxBar ? (
+              {periodStats.maxBar && periodStats.maxBar.revenue > 0 ? (
                 <>
-                  🔥 <strong>Peak Selling Period:</strong> {periodStats.maxBar.label} (₹{formatMoney(periodStats.maxBar.revenue)} recorded across {periodStats.maxBar.invoices} bills).
+                  🔥 <strong>Peak Selling Window:</strong> {periodStats.maxBar.label} (₹{formatMoney(periodStats.maxBar.revenue)} recorded across {periodStats.maxBar.invoices} bills).
                 </>
               ) : (
-                'No sales transactions found in this period. Create new bills in the Billing tab to see live analytics.'
+                'No sales transactions found in this period. Adjust your date range or create bills to view analytics.'
               )}
             </p>
           </div>
 
-          {/* Time Period Selector - Sharp Buttons */}
+          {/* Quick Preset Buttons */}
           <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
             <div className={`p-1 rounded-sm border flex items-center gap-1 flex-wrap ${
               isLight ? 'bg-white border-zinc-300' : 'bg-black border-zinc-800'
             }`}>
               {[
-                { id: 'today', label: 'Day-Wise (Today)' },
+                { id: 'today', label: 'Today (Hourly)' },
+                { id: 'last7days', label: 'Last 7 Days' },
                 { id: 'last10days', label: 'Last 10 Days' },
                 { id: 'last30days', label: 'Last 30 Days' },
-                { id: 'last12months', label: 'Last 12 Months' },
-                { id: 'lastyears', label: 'Last Years' },
+                { id: 'thismonth', label: 'This Month' },
+                { id: 'thisyear', label: 'This Year (12 Mo)' },
+                { id: 'last5years', label: 'Last 5 Yrs' },
+                { id: 'last20years', label: 'Last 20 Yrs' },
+                { id: 'alltime', label: '🚀 All Time (Day 1)' },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setTimePeriod(tab.id as TimePeriod)}
-                  className={`px-3.5 py-2 rounded-sm text-xs font-extrabold transition ${
+                  onClick={() => {
+                    setTimePeriod(tab.id as TimePeriodPreset);
+                  }}
+                  className={`px-3 py-1.5 rounded-sm text-xs font-extrabold transition ${
                     timePeriod === tab.id
                       ? (isLight ? 'bg-black text-white shadow-xs' : 'bg-white text-black shadow-xs')
                       : (isLight ? 'text-zinc-600 hover:text-black hover:bg-zinc-100' : 'text-zinc-400 hover:text-white hover:bg-zinc-900')
@@ -662,19 +935,273 @@ export function InsightsPage({ data, onDataRefresh, theme = 'dark' }: InsightsPa
                   {tab.label}
                 </button>
               ))}
+
+              {/* Advanced Custom Filter Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowAdvancedFilter((prev) => !prev)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-black border transition ${
+                  showAdvancedFilter || ['custom_range', 'year_range', 'specific_year', 'specific_month', 'specific_day'].includes(timePeriod)
+                    ? 'border-blue-500 bg-blue-500/20 text-blue-400 font-extrabold'
+                    : isLight
+                    ? 'border-zinc-300 bg-zinc-100 text-black hover:bg-zinc-200'
+                    : 'border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800'
+                }`}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                <span>Custom Explorer</span>
+                <ChevronDown className={`h-3 w-3 transition-transform ${showAdvancedFilter ? 'rotate-180' : ''}`} />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Metric Toggle Buttons */}
+        {/* Expandable Advanced Timeline & Deep-Dive Controls */}
+        <AnimatePresence>
+          {(showAdvancedFilter || ['custom_range', 'year_range', 'specific_year', 'specific_month', 'specific_day'].includes(timePeriod)) && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className={`mt-4 p-4 rounded-sm border space-y-4 ${
+                isLight ? 'bg-white border-zinc-300 shadow-sm' : 'bg-zinc-950 border-zinc-800 shadow-sm'
+              }`}
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b pb-3 border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-blue-500" />
+                  <span className="text-xs font-black uppercase tracking-wider">Advanced Timeline & Multi-Year Explorer</span>
+                </div>
+
+                {/* Sub-mode selector */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { id: 'custom_range', label: '📅 Custom Date Range' },
+                    { id: 'year_range', label: '🏛️ Between Two Years' },
+                    { id: 'specific_year', label: '📆 Specific Year (12 Mo)' },
+                    { id: 'specific_month', label: '🗓️ Specific Month (Day 1..31)' },
+                    { id: 'specific_day', label: '⏰ Specific Day (Hourly)' },
+                  ].map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => setTimePeriod(mode.id as TimePeriodPreset)}
+                      className={`px-3 py-1 text-xs font-bold rounded-sm border transition ${
+                        timePeriod === mode.id
+                          ? (isLight ? 'bg-black text-white border-black' : 'bg-white text-black border-white')
+                          : (isLight ? 'border-zinc-200 text-zinc-600 hover:bg-zinc-100' : 'border-zinc-800 text-zinc-400 hover:bg-zinc-900')
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dynamic Inputs Based on Active Deep-Dive Mode */}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-1">
+                {/* 1. Custom Date Range Pickers */}
+                {timePeriod === 'custom_range' && (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold uppercase opacity-70">From Date</label>
+                      <input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        className={`w-full h-10 px-3 text-xs font-bold rounded-sm border ${
+                          isLight ? 'bg-zinc-50 border-zinc-300 text-black' : 'bg-zinc-900 border-zinc-700 text-white'
+                        }`}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold uppercase opacity-70">To Date</label>
+                      <input
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        className={`w-full h-10 px-3 text-xs font-bold rounded-sm border ${
+                          isLight ? 'bg-zinc-50 border-zinc-300 text-black' : 'bg-zinc-900 border-zinc-700 text-white'
+                        }`}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold uppercase opacity-70">Grouping</label>
+                      <select
+                        value={granularity}
+                        onChange={(e) => setGranularity(e.target.value as GranularityOption)}
+                        className={`w-full h-10 px-3 text-xs font-bold rounded-sm border ${
+                          isLight ? 'bg-zinc-50 border-zinc-300 text-black' : 'bg-zinc-900 border-zinc-700 text-white'
+                        }`}
+                      >
+                        <option value="auto">Auto (Best Fit)</option>
+                        <option value="day">By Day</option>
+                        <option value="month">By Month</option>
+                        <option value="year">By Year</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* 2. Between Two Years */}
+                {timePeriod === 'year_range' && (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold uppercase opacity-70">Start Year</label>
+                      <select
+                        value={startYear}
+                        onChange={(e) => setStartYear(Number(e.target.value))}
+                        className={`w-full h-10 px-3 text-xs font-bold rounded-sm border ${
+                          isLight ? 'bg-zinc-50 border-zinc-300 text-black' : 'bg-zinc-900 border-zinc-700 text-white'
+                        }`}
+                      >
+                        {Array.from({ length: 30 }, (_, i) => currentYear - 25 + i).map((y) => (
+                          <option key={y} value={y}>Year {y}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold uppercase opacity-70">End Year</label>
+                      <select
+                        value={endYear}
+                        onChange={(e) => setEndYear(Number(e.target.value))}
+                        className={`w-full h-10 px-3 text-xs font-bold rounded-sm border ${
+                          isLight ? 'bg-zinc-50 border-zinc-300 text-black' : 'bg-zinc-900 border-zinc-700 text-white'
+                        }`}
+                      >
+                        {Array.from({ length: 30 }, (_, i) => currentYear - 25 + i).map((y) => (
+                          <option key={y} value={y}>Year {y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* 3. Specific Year Breakdown */}
+                {timePeriod === 'specific_year' && (
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] font-bold uppercase opacity-70">Select Target Year (12 Months Jan - Dec)</label>
+                    <select
+                      value={specificYear}
+                      onChange={(e) => setSpecificYear(Number(e.target.value))}
+                      className={`w-full h-10 px-3 text-xs font-bold rounded-sm border ${
+                        isLight ? 'bg-zinc-50 border-zinc-300 text-black' : 'bg-zinc-900 border-zinc-700 text-white'
+                      }`}
+                    >
+                      {Array.from({ length: 30 }, (_, i) => currentYear - 25 + i).map((y) => (
+                        <option key={y} value={y}>Year {y}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* 4. Specific Month Breakdown */}
+                {timePeriod === 'specific_month' && (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold uppercase opacity-70">Select Month</label>
+                      <select
+                        value={specificMonth}
+                        onChange={(e) => setSpecificMonth(Number(e.target.value))}
+                        className={`w-full h-10 px-3 text-xs font-bold rounded-sm border ${
+                          isLight ? 'bg-zinc-50 border-zinc-300 text-black' : 'bg-zinc-900 border-zinc-700 text-white'
+                        }`}
+                      >
+                        {MONTH_NAMES.map((m, idx) => (
+                          <option key={m} value={idx}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold uppercase opacity-70">Select Year</label>
+                      <select
+                        value={specificYear}
+                        onChange={(e) => setSpecificYear(Number(e.target.value))}
+                        className={`w-full h-10 px-3 text-xs font-bold rounded-sm border ${
+                          isLight ? 'bg-zinc-50 border-zinc-300 text-black' : 'bg-zinc-900 border-zinc-700 text-white'
+                        }`}
+                      >
+                        {Array.from({ length: 30 }, (_, i) => currentYear - 25 + i).map((y) => (
+                          <option key={y} value={y}>Year {y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* 5. Specific Day Breakdown */}
+                {timePeriod === 'specific_day' && (
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] font-bold uppercase opacity-70">Pick Any Exact Date in History (Hourly)</label>
+                    <input
+                      type="date"
+                      value={specificDay}
+                      onChange={(e) => setSpecificDay(e.target.value)}
+                      className={`w-full h-10 px-3 text-xs font-bold rounded-sm border ${
+                        isLight ? 'bg-zinc-50 border-zinc-300 text-black' : 'bg-zinc-900 border-zinc-700 text-white'
+                      }`}
+                    />
+                  </div>
+                )}
+
+                {/* Visual Type & Zoom Slider Toggles */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold uppercase opacity-70">Graph Style</label>
+                  <div className="flex items-center gap-1">
+                    {[
+                      { id: 'bar', label: '📊 Bar' },
+                      { id: 'area', label: '📈 Area' },
+                      { id: 'dual', label: '⚖️ Dual' },
+                    ].map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => setChartVisual(st.id as ChartVisualType)}
+                        className={`flex-1 h-10 text-xs font-bold rounded-sm border transition ${
+                          chartVisual === st.id
+                            ? (isLight ? 'bg-black text-white border-black' : 'bg-white text-black border-white')
+                            : (isLight ? 'border-zinc-300 text-zinc-600 hover:bg-zinc-100' : 'border-zinc-800 text-zinc-400 hover:bg-zinc-900')
+                        }`}
+                      >
+                        {st.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold uppercase opacity-70">Zoom Slider</label>
+                  <button
+                    type="button"
+                    onClick={() => setEnableBrushZoom((prev) => !prev)}
+                    className={`w-full h-10 flex items-center justify-center gap-2 text-xs font-bold rounded-sm border transition ${
+                      enableBrushZoom
+                        ? 'border-blue-500 bg-blue-500/20 text-blue-400 font-extrabold'
+                        : isLight
+                        ? 'border-zinc-300 bg-zinc-50 text-zinc-600 hover:bg-zinc-100'
+                        : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                    }`}
+                  >
+                    <ZoomIn className="h-3.5 w-3.5" />
+                    <span>{enableBrushZoom ? 'Zoom Slider Active' : 'Enable Zoom Drag'}</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Metric Selection Chips */}
         <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>Graph Metric:</span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {[
-                { id: 'revenue', label: '💰 Total Revenue (₹)' },
+                { id: 'revenue', label: '💰 Gross Revenue (₹)' },
                 { id: 'collected', label: '💵 Collected Cash / UPI (₹)' },
+                { id: 'credit', label: '⏳ Credit / Khata (₹)' },
                 { id: 'invoices', label: '🧾 Bills Count' },
+                { id: 'items_sold', label: '📦 Items Sold Qty' },
               ].map((m) => (
                 <button
                   key={m.id}
@@ -691,50 +1218,62 @@ export function InsightsPage({ data, onDataRefresh, theme = 'dark' }: InsightsPa
               ))}
             </div>
           </div>
+
+          <div className={`text-xs font-bold ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
+            Showing {chartData.length} data slots
+          </div>
         </div>
 
-        {/* Sharp Tall Colourful Bar Graph */}
-        <div className="mt-6 h-[360px] sm:h-[420px] w-full">
+        {/* Responsive Recharts Visual Display */}
+        <div className="mt-6 h-[380px] sm:h-[430px] w-full">
           {mounted ? (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 10, left: -10, bottom: 25 }}>
-                <CartesianGrid
-                  strokeDasharray="2 2"
-                  stroke={isLight ? '#E4E4E7' : '#22242A'}
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="shortLabel"
-                  stroke={isLight ? '#71717A' : '#71717A'}
-                  fontSize={12}
-                  fontWeight={700}
-                  tickLine={false}
-                  dy={10}
-                />
-                <YAxis
-                  stroke={isLight ? '#71717A' : '#71717A'}
-                  fontSize={12}
-                  fontWeight={700}
-                  tickLine={false}
-                  tickFormatter={(val) => (activeMetric === 'invoices' ? val : `₹${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`)}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)' }} />
-                <Bar
-                  dataKey={activeMetric}
-                  radius={[0, 0, 0, 0]}
-                  animationDuration={600}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={entry.color || VIBRANT_BAR_COLORS[index % VIBRANT_BAR_COLORS.length]}
-                      opacity={hoveredBarIndex === null || hoveredBarIndex === index ? 1 : 0.45}
-                      onMouseEnter={() => setHoveredBarIndex(index)}
-                      onMouseLeave={() => setHoveredBarIndex(null)}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
+              {chartVisual === 'area' ? (
+                <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -10, bottom: 25 }}>
+                  <defs>
+                    <linearGradient id="areaColorMetric" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 2" stroke={isLight ? '#E4E4E7' : '#22242A'} vertical={false} />
+                  <XAxis dataKey="shortLabel" stroke="#71717A" fontSize={11} fontWeight={700} tickLine={false} dy={10} />
+                  <YAxis stroke="#71717A" fontSize={11} fontWeight={700} tickLine={false} tickFormatter={(val) => (['invoices', 'items_sold'].includes(activeMetric) ? val : `₹${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`)} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey={activeMetric} stroke="#3B82F6" strokeWidth={3} fillOpacity={1} fill="url(#areaColorMetric)" />
+                  {enableBrushZoom && <Brush dataKey="shortLabel" height={28} stroke="#3B82F6" fill={isLight ? '#F4F4F5' : '#18181B'} />}
+                </AreaChart>
+              ) : chartVisual === 'dual' ? (
+                <BarChart data={chartData} margin={{ top: 20, right: 10, left: -10, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="2 2" stroke={isLight ? '#E4E4E7' : '#22242A'} vertical={false} />
+                  <XAxis dataKey="shortLabel" stroke="#71717A" fontSize={11} fontWeight={700} tickLine={false} dy={10} />
+                  <YAxis stroke="#71717A" fontSize={11} fontWeight={700} tickLine={false} tickFormatter={(val) => `₹${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)' }} />
+                  <Legend wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', paddingTop: '10px' }} />
+                  <Bar dataKey="revenue" name="💰 Gross Revenue" fill="#3B82F6" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="collected" name="💵 Collected Cash" fill="#10B981" radius={[0, 0, 0, 0]} />
+                  {enableBrushZoom && <Brush dataKey="shortLabel" height={28} stroke="#3B82F6" fill={isLight ? '#F4F4F5' : '#18181B'} />}
+                </BarChart>
+              ) : (
+                <BarChart data={chartData} margin={{ top: 20, right: 10, left: -10, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="2 2" stroke={isLight ? '#E4E4E7' : '#22242A'} vertical={false} />
+                  <XAxis dataKey="shortLabel" stroke="#71717A" fontSize={11} fontWeight={700} tickLine={false} dy={10} />
+                  <YAxis stroke="#71717A" fontSize={11} fontWeight={700} tickLine={false} tickFormatter={(val) => (['invoices', 'items_sold'].includes(activeMetric) ? val : `₹${val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val}`)} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)' }} />
+                  <Bar dataKey={activeMetric} radius={[0, 0, 0, 0]} animationDuration={600}>
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color || VIBRANT_BAR_COLORS[index % VIBRANT_BAR_COLORS.length]}
+                        opacity={hoveredBarIndex === null || hoveredBarIndex === index ? 1 : 0.45}
+                        onMouseEnter={() => setHoveredBarIndex(index)}
+                        onMouseLeave={() => setHoveredBarIndex(null)}
+                      />
+                    ))}
+                  </Bar>
+                  {enableBrushZoom && <Brush dataKey="shortLabel" height={28} stroke="#3B82F6" fill={isLight ? '#F4F4F5' : '#18181B'} />}
+                </BarChart>
+              )}
             </ResponsiveContainer>
           ) : (
             <div className="flex h-full items-center justify-center text-sm font-bold opacity-50">
@@ -743,52 +1282,179 @@ export function InsightsPage({ data, onDataRefresh, theme = 'dark' }: InsightsPa
           )}
         </div>
 
-        {/* Spacious, Normal-Sized Data Summary Grid */}
+        {/* Compact, High-Density Breakdown per Slot with Instant Filtering & View Toggles */}
         <div className={`mt-6 pt-5 border-t ${isLight ? 'border-zinc-200' : 'border-zinc-800'}`}>
-          <div className="flex items-center justify-between mb-3.5">
-            <div className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
-              📊 Detailed Breakdown per Slot ({timePeriod.toUpperCase()})
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                📊 Detailed Breakdown per Slot
+              </span>
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-xs ${
+                isLight ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-800 text-zinc-300'
+              }`}>
+                {chartData.length} slots
+              </span>
             </div>
-            <div className={`text-xs font-semibold ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
-              Total Revenue: <strong>₹{formatMoney(periodStats.totalPeriodRevenue)}</strong> | Total Bills: <strong>{periodStats.totalPeriodBills}</strong>
-            </div>
-          </div>
-
-          {/* Normal, Big, Spacious Grid (5-columns for 10 days = 2 neat rows) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-            {chartData.map((item, i) => (
-              <div
-                key={i}
-                className={`p-4 rounded-sm border transition-all ${
-                  isLight
-                    ? 'border-zinc-300 bg-white text-black shadow-xs hover:border-black'
-                    : 'border-zinc-800 bg-black text-white hover:border-zinc-600'
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Only Active Slots Filter Toggle */}
+              <button
+                type="button"
+                onClick={() => setOnlyActiveSlots((prev) => !prev)}
+                className={`h-7 px-2.5 text-[11px] font-bold rounded-sm border transition flex items-center gap-1 ${
+                  onlyActiveSlots
+                    ? 'border-blue-500 bg-blue-500/20 text-blue-400 font-extrabold'
+                    : isLight
+                    ? 'border-zinc-300 bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                    : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
                 }`}
               >
-                {/* Header with Color Dot and Date */}
-                <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-zinc-100 dark:border-zinc-900">
-                  <div className="w-2.5 h-2.5 rounded-none shrink-0" style={{ backgroundColor: item.color }} />
-                  <span className="text-[13px] font-black truncate">{item.label || item.shortLabel}</span>
-                </div>
+                <span>Sales &gt; 0 Only</span>
+              </button>
 
-                {/* Revenue Value */}
-                <div className="space-y-1">
-                  <div className="text-[11px] font-semibold opacity-70">Total Revenue</div>
-                  <div className={`text-xl font-black ${isLight ? 'text-black' : 'text-white'}`}>
-                    ₹{formatMoney(item.revenue)}
-                  </div>
-                </div>
-
-                {/* Collected & Bills Stats */}
-                <div className={`mt-2.5 pt-2 border-t text-xs flex items-center justify-between font-medium ${
-                  isLight ? 'border-zinc-200 text-zinc-600' : 'border-zinc-800 text-zinc-400'
-                }`}>
-                  <span>{item.invoices} bills created</span>
-                  <span className="font-bold">Collected: ₹{formatMoney(item.collected)}</span>
-                </div>
+              {/* View Switcher: Compact Grid vs Table */}
+              <div className={`p-0.5 rounded-sm border flex items-center gap-0.5 ${
+                isLight ? 'bg-zinc-100 border-zinc-300' : 'bg-zinc-900 border-zinc-800'
+              }`}>
+                <button
+                  type="button"
+                  onClick={() => setBreakdownView('compact')}
+                  className={`h-6 px-2 text-[11px] font-bold rounded-xs flex items-center gap-1 transition ${
+                    breakdownView === 'compact'
+                      ? (isLight ? 'bg-white text-black shadow-2xs font-extrabold' : 'bg-black text-white shadow-2xs font-extrabold')
+                      : 'opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <LayoutGrid className="h-3 w-3" />
+                  <span>Compact</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBreakdownView('table')}
+                  className={`h-6 px-2 text-[11px] font-bold rounded-xs flex items-center gap-1 transition ${
+                    breakdownView === 'table'
+                      ? (isLight ? 'bg-white text-black shadow-2xs font-extrabold' : 'bg-black text-white shadow-2xs font-extrabold')
+                      : 'opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <Table className="h-3 w-3" />
+                  <span>Table</span>
+                </button>
               </div>
-            ))}
+
+              {/* Fast Search Input */}
+              <div className="relative">
+                <Search className="h-3.5 w-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Filter slots..."
+                  value={slotSearchQuery}
+                  onChange={(e) => setSlotSearchQuery(e.target.value)}
+                  className={`h-7 pl-7 pr-2.5 text-[11px] font-semibold rounded-sm border w-32 sm:w-40 ${
+                    isLight ? 'bg-white border-zinc-300 text-black' : 'bg-black border-zinc-800 text-white'
+                  }`}
+                />
+              </div>
+            </div>
           </div>
+
+          {/* Compact View Mode: High-Density 6 to 8 Columns Micro-Cards */}
+          {breakdownView === 'compact' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2 max-h-[380px] overflow-y-auto pr-1">
+              {chartData
+                .filter((item) => (!onlyActiveSlots || item.revenue > 0) && (!slotSearchQuery || item.label.toLowerCase().includes(slotSearchQuery.toLowerCase()) || item.shortLabel.toLowerCase().includes(slotSearchQuery.toLowerCase())))
+                .map((item, i) => {
+                  const hasSales = item.revenue > 0;
+                  return (
+                    <div
+                      key={i}
+                      className={`p-2.5 rounded-sm border transition-all ${
+                        hasSales
+                          ? isLight
+                            ? 'border-zinc-300 bg-white text-black shadow-xs hover:border-black'
+                            : 'border-zinc-700 bg-zinc-950 text-white hover:border-zinc-500'
+                          : isLight
+                          ? 'border-zinc-200/80 bg-zinc-100/50 text-zinc-500 hover:border-zinc-300'
+                          : 'border-zinc-900 bg-black/60 text-zinc-500 hover:border-zinc-800'
+                      }`}
+                    >
+                      {/* Top row: Color indicator + Label + Bills count */}
+                      <div className="flex items-center justify-between gap-1 mb-1 pb-1 border-b border-zinc-100 dark:border-zinc-900">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="w-2 h-2 rounded-xs shrink-0" style={{ backgroundColor: item.color }} />
+                          <span className="text-[11px] font-black truncate" title={item.label}>
+                            {item.shortLabel || item.label}
+                          </span>
+                        </div>
+                        {item.invoices > 0 ? (
+                          <span className="text-[10px] font-extrabold px-1 py-0.2 rounded-xs bg-blue-500/15 text-blue-400 shrink-0">
+                            {item.invoices} bills
+                          </span>
+                        ) : (
+                          <span className="text-[10px] opacity-40 font-bold shrink-0">0</span>
+                        )}
+                      </div>
+
+                      {/* Bottom row: Revenue & Collected */}
+                      <div className="flex items-baseline justify-between gap-1 pt-0.5">
+                        <div className={`text-[13px] font-black tracking-tight ${hasSales ? (isLight ? 'text-black' : 'text-white') : 'opacity-40'}`}>
+                          ₹{formatMoney(item.revenue)}
+                        </div>
+                        {item.collected > 0 && (
+                          <div className="text-[10px] font-bold text-emerald-500 truncate" title={`Collected: ₹${formatMoney(item.collected)}`}>
+                            ✓₹{formatMoney(item.collected)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            /* Table View Mode: Ultra-Dense Striped List */
+            <div className={`border rounded-sm overflow-hidden max-h-[380px] overflow-y-auto ${
+              isLight ? 'border-zinc-200 bg-white' : 'border-zinc-800 bg-black'
+            }`}>
+              <table className="w-full text-left text-xs">
+                <thead className={`sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider border-b ${
+                  isLight ? 'bg-zinc-100 border-zinc-200 text-zinc-600' : 'bg-zinc-950 border-zinc-800 text-zinc-400'
+                }`}>
+                  <tr>
+                    <th className="py-2 px-3">Slot / Date</th>
+                    <th className="py-2 px-3">Gross Revenue</th>
+                    <th className="py-2 px-3">Collected Cash</th>
+                    <th className="py-2 px-3">Credit (Khata)</th>
+                    <th className="py-2 px-3">UPI / QR / Online</th>
+                    <th className="py-2 px-3 text-right">Bills Count</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
+                  {chartData
+                    .filter((item) => (!onlyActiveSlots || item.revenue > 0) && (!slotSearchQuery || item.label.toLowerCase().includes(slotSearchQuery.toLowerCase()) || item.shortLabel.toLowerCase().includes(slotSearchQuery.toLowerCase())))
+                    .map((item, i) => (
+                      <tr
+                        key={i}
+                        className={`transition-colors ${
+                          isLight ? 'hover:bg-zinc-50' : 'hover:bg-zinc-900/50'
+                        }`}
+                      >
+                        <td className="py-2 px-3 flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-xs shrink-0" style={{ backgroundColor: item.color }} />
+                          <span className="font-bold">{item.label}</span>
+                        </td>
+                        <td className="py-2 px-3 font-black">₹{formatMoney(item.revenue)}</td>
+                        <td className="py-2 px-3 font-semibold text-emerald-500">₹{formatMoney(item.collected)}</td>
+                        <td className="py-2 px-3 font-semibold text-amber-500">₹{formatMoney(item.credit)}</td>
+                        <td className="py-2 px-3 font-semibold text-purple-400">
+                          {item.upiPayments} {item.upiPayments === 1 ? 'online / QR' : 'online / QR'}
+                        </td>
+                        <td className="py-2 px-3 font-bold text-right">{item.invoices} bills</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

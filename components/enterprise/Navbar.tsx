@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -60,6 +61,7 @@ interface NavbarProps {
   onTabChange: (tab: TabKey) => void;
   onLogout?: () => void;
   onProfileUpdate?: (updatedUser: any) => void;
+  onOpenAuthModal?: (mode?: 'login' | 'register') => void;
 }
 
 export function Navbar({
@@ -68,6 +70,7 @@ export function Navbar({
   isSidebarOpen = true,
   onBusinessSectionChange,
   onLogout,
+  onOpenAuthModal,
   onProfileUpdate,
   onTabChange,
   onThemeChange,
@@ -87,6 +90,10 @@ export function Navbar({
   const displayShop = profileUser?.shopName || shopName || 'Shop workspace';
   const isLight = theme === 'light';
   const isBusinessSuite = activeTab === 'business-suite';
+  const themeOptions: Array<{ id: 'dark' | 'light'; label: string; icon: any }> = [
+    { id: 'dark', label: 'Dark (Black)', icon: Moon },
+    { id: 'light', label: 'Light (White)', icon: Sun },
+  ];
 
   const [editForm, setEditForm] = useState({
     name: profileUser?.name || '',
@@ -132,19 +139,41 @@ export function Navbar({
     setIsEditingProfile(false);
   }, [activeTab, activeBusinessSection]);
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     const updated = {
       ...profileUser,
-      name: editForm.name,
-      shopName: editForm.shopName,
-      email: editForm.email,
-      mobile: editForm.mobile,
+      name: editForm.name.trim(),
+      shopName: editForm.shopName.trim(),
+      email: editForm.email.trim(),
+      mobile: editForm.mobile.trim(),
       role: editForm.role,
     };
     onProfileUpdate?.(updated);
     setIsEditingProfile(false);
-    setProfileStatus({ type: 'success', message: 'Profile updated!' });
-    setTimeout(() => setProfileStatus({ type: 'idle', message: '' }), 3000);
+
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: updated.name,
+          shopName: updated.shopName,
+          email: updated.email,
+          mobile: updated.mobile,
+        }),
+      });
+      const data = await res.json();
+      if (data?.success && data?.user) {
+        onProfileUpdate?.(data.user);
+        setProfileStatus({ type: 'success', message: 'Profile saved permanently!' });
+      } else {
+        setProfileStatus({ type: 'success', message: 'Profile updated!' });
+      }
+    } catch {
+      setProfileStatus({ type: 'success', message: 'Profile updated.' });
+    }
+
+    setTimeout(() => setProfileStatus({ type: 'idle', message: '' }), 3500);
   };
 
   const handleNavTabClick = (tab: TabKey) => {
@@ -160,10 +189,10 @@ export function Navbar({
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-colors duration-200 ${
+      className={`sticky top-0 z-50 border-b transition-all duration-300 ${
         isLight
-          ? 'bg-white text-black border-b border-zinc-100'
-          : 'bg-black text-white border-b border-zinc-900'
+          ? 'bg-white text-black border-zinc-200'
+          : 'bg-black text-white border-zinc-900'
       }`}
     >
       <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between gap-3 px-3 py-2.5 md:px-6 md:py-3">
@@ -211,6 +240,7 @@ export function Navbar({
         {isBusinessSuite && (
           <div className="hidden lg:flex flex-1 items-center justify-center max-w-4xl min-w-0 mx-2">
             <CosmicNavbar
+              instanceId="desktop"
               activeSection={activeBusinessSection || 'billing'}
               onSectionChange={(sec) => handleBusinessSectionClick(sec)}
               isLight={isLight}
@@ -219,7 +249,8 @@ export function Navbar({
         )}
 
         {/* Right Section: Profile Trigger Container (Fixed in Top Right on Mobile, Laptop & Desktop) */}
-        <div ref={profileRef} className="relative flex items-center gap-2.5">
+        {profileUser ? (
+          <div ref={profileRef} className="relative flex items-center gap-2.5">
             <button
               type="button"
               onClick={() => setIsProfileOpen((current) => !current)}
@@ -323,7 +354,7 @@ export function Navbar({
                     <ProfileLine isLight={isLight} icon={Fingerprint} label="Tenant ID" value={profileUser?.tenantId || 'Not available'} />
 
                     {/* Account Theme Selector & Status */}
-                    <div className={`mt-3.5 rounded-sm border p-3 ${
+                    <div className={`mt-3.5 rounded-2xl border p-3 ${
                       isLight ? 'border-zinc-200 bg-zinc-50' : 'border-zinc-800 bg-zinc-950/80'
                     }`}>
                       <div className="flex items-center justify-between gap-2 mb-2">
@@ -331,34 +362,32 @@ export function Navbar({
                           isLight ? 'text-zinc-600' : 'text-zinc-400'
                         }`}>Account Theme</span>
                         <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-500">
-                          <CheckCircle2 className="h-3 w-3" /> Saved for Account
+                          <CheckCircle2 className="h-3 w-3" /> Saved
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => onThemeChange?.('dark')}
-                          className={`flex items-center justify-center gap-2 rounded-sm py-1.5 text-[12px] font-bold transition border ${
-                            theme === 'dark' || (!isLight)
-                              ? 'border-zinc-700 bg-black text-white shadow-sm font-extrabold'
-                              : 'border-transparent bg-transparent text-zinc-500 hover:text-black dark:hover:text-white'
-                          }`}
-                        >
-                          <Moon className="h-3.5 w-3.5" />
-                          <span>Dark Mode</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onThemeChange?.('light')}
-                          className={`flex items-center justify-center gap-2 rounded-sm py-1.5 text-[12px] font-bold transition border ${
-                            theme === 'light' || isLight
-                              ? 'border-zinc-300 bg-white text-black shadow-sm font-extrabold'
-                              : 'border-transparent bg-transparent text-zinc-500 hover:text-black dark:hover:text-white'
-                          }`}
-                        >
-                          <Sun className="h-3.5 w-3.5" />
-                          <span>Light Mode</span>
-                        </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        {themeOptions.map(({ id, label, icon: Icon }) => {
+                          const selected = theme === id;
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => onThemeChange?.(id)}
+                              className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold transition ${
+                                selected
+                                  ? isLight
+                                    ? 'border-black bg-black text-white shadow-sm'
+                                    : 'border-white bg-white text-black shadow-sm'
+                                  : isLight
+                                    ? 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:text-black'
+                                    : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700 hover:text-white'
+                              }`}
+                            >
+                              <Icon className="h-3.5 w-3.5" />
+                              <span>{label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -421,9 +450,57 @@ export function Navbar({
             ) : null}
           </AnimatePresence>
         </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={() => onThemeChange?.(isLight ? 'dark' : 'light')}
+              className={`flex h-9 w-9 items-center justify-center rounded-xl transition border-0 ${
+                isLight ? 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-black' : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-white'
+              }`}
+              title={isLight ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
+              aria-label="Toggle Theme"
+            >
+              {isLight ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+
+            {/* Sign In Button */}
+            <Link
+              href="/login"
+              className={`flex h-9 items-center justify-center rounded-xl px-3.5 text-[13px] font-bold transition border-0 ${
+                isLight ? 'bg-zinc-100 text-black hover:bg-zinc-200' : 'bg-zinc-900 text-white hover:bg-zinc-800'
+              }`}
+            >
+              Sign In
+            </Link>
+
+            {/* Register / Get Started Button */}
+            <Link
+              href="/register"
+              className={`flex h-9 items-center justify-center rounded-xl px-4 text-[13px] font-extrabold shadow-sm transition border-0 hover:scale-[1.02] ${
+                isLight ? 'bg-black text-white hover:bg-zinc-800' : 'bg-white text-black hover:bg-zinc-200'
+              }`}
+            >
+              Register
+            </Link>
+          </div>
+        )}
       </div>
 
-
+      {/* Mobile Sub-Navbar for Business Suite (Visible on Mobile Phone when in Business Suite) */}
+      {isBusinessSuite && (
+        <div className={`lg:hidden border-t px-2 py-1.5 backdrop-blur-md shadow-md transition-colors ${
+          isLight ? 'border-zinc-200 bg-white/95' : 'border-zinc-800/80 bg-zinc-950/95'
+        }`}>
+          <CosmicNavbar
+            instanceId="mobile"
+            activeSection={activeBusinessSection || 'billing'}
+            onSectionChange={(sec) => handleBusinessSectionClick(sec)}
+            isLight={isLight}
+          />
+        </div>
+      )}
 
       {/* Secondary Confirmation Logout Modal */}
       <AnimatePresence>

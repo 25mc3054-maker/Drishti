@@ -6,8 +6,8 @@
     "tenant_id": "3f7d91d7-7a21-47d6-9c21-932a3ed0508b",
     "shopId": "3f7d91d7-7a21-47d6-9c21-932a3ed0508b",
     "entityType": "tenant_user",
-    "name": "Shopkeeper",
-    "shopName": "My Isolated Shop",
+    "name": "Eshwar",
+    "shopName": "Sapthagiri Store",
     "mobile": "7483960412",
     "email": "7483960412@drishti.local",
     "passwordHash": "57f641e1adfb8917ce173d46a68bc998:ca99bbc09a2c400ef7cb3ae5c1eda56828120d4ca0a60ee43fcae87170971ca9",
@@ -15,8 +15,8 @@
     "securityAnswerHash": "edcce2a1d7432908ac94407d42c65486:75fb55f63672ff2a73c2a1c81706132420cac92224f74435c90b711fbc3cb599",
     "role": "admin",
     "createdAt": "2026-08-02T18:58:53.203Z",
-    "updatedAt": "2026-08-18T13:41:47.223Z",
-    "themePreference": "light"
+    "updatedAt": "2026-09-04T04:47:46.902Z",
+    "themePreference": "dark"
   },
   {
     "PK": "TENANT#54647602-eb79-4e53-ab9c-e58b3ca66028",
@@ -29,13 +29,13 @@
     "shopName": "Maruthi Milk",
     "mobile": "7816086663",
     "email": "mannegreeshmanth@gmail.com",
-    "passwordHash": "2212463d50fa37b1c78725a3bfd5fafe:7ec9ee0c2100ae19be38d4702edec869a3a6a3eb2db2ea2a447747b830a36454",
+    "passwordHash": "fd9acf1836beb26531ce8f18a5056896:5400e7985fcde41d848e2983297be490e0f15819bec014989a5a41b405f339c9",
     "securityQuestion": "What was the name of the bank where you opened your very first business checking account?",
     "securityAnswerHash": "55e30768447b9f6395fd0be645c47f6a:319ea4db5fa3c25b32f746a336d37027fe6074d6c65dafb577a076c3fd84d9d1",
     "role": "admin",
     "createdAt": "2026-08-02T18:59:50.054Z",
-    "updatedAt": "2026-08-21T15:57:24.897Z",
-    "themePreference": "dark"
+    "updatedAt": "2026-09-04T05:33:54.364Z",
+    "themePreference": "light"
   },
   {
     "PK": "TENANT#247c24d3-f089-4489-a358-015a3942d16b",

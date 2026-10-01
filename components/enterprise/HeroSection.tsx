@@ -9,9 +9,11 @@ interface HeroSectionProps {
   data: DashboardData;
   onNavigate: (tab: TabKey) => void;
   theme?: 'dark' | 'light';
+  isAuthenticated?: boolean;
+  onRequireAuth?: () => void;
 }
 
-export function HeroSection({ data, onNavigate, theme = 'dark' }: HeroSectionProps) {
+export function HeroSection({ data, isAuthenticated = false, onNavigate, onRequireAuth, theme = 'dark' }: HeroSectionProps) {
   const isLight = theme === 'light';
 
   const capabilities = [

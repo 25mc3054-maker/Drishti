@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false,
   images: {
     remotePatterns: [
       { protocol: 'http', hostname: 'localhost' },
@@ -8,6 +8,18 @@ const nextConfig = {
       { protocol: 'https', hostname: '**' },
     ],
   },
-}
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'framer-motion',
+      '@aws-sdk/client-s3',
+      '@aws-sdk/client-rekognition',
+      '@aws-sdk/client-dynamodb',
+      'recharts',
+      'three',
+      'sonner',
+    ],
+  },
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

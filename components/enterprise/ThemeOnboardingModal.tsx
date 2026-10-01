@@ -19,6 +19,7 @@ export function ThemeOnboardingModal({ onComplete, onThemeSelect }: ThemeOnboard
     }
     if (typeof window !== 'undefined') {
       localStorage.setItem('theme_onboarding_complete', 'true');
+      localStorage.setItem('drishti_global_theme', theme);
       localStorage.setItem('easytrader_theme', theme);
     }
     onComplete();

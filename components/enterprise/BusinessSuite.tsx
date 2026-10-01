@@ -1,28 +1,39 @@
 "use client"
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
+  ArrowRightLeft,
   BadgePercent,
   Boxes,
+  Check,
   CheckCircle2,
+  Clock,
   Copy,
   CreditCard,
   Download,
+  Edit3,
   ExternalLink,
   FileText,
+  LayoutGrid,
+  Layers,
   Minus,
   MessageCircle,
   MessageSquare,
   PackagePlus,
+  Pause,
   PhoneCall,
+  Play,
   Plus,
   Printer,
   ReceiptText,
   Search,
+  ShoppingBag,
   Sparkles,
   Pencil,
+  SplitSquareVertical,
+  Tag,
   Trash2,
   Truck,
   UserPlus,
@@ -52,7 +63,7 @@ interface BusinessSuiteProps {
   theme?: 'dark' | 'light';
 }
 
-type CartItem = {
+export type CartItem = {
   id: string;
   name: string;
   price: number;
@@ -62,6 +73,20 @@ type CartItem = {
   availableQty: number;
   checked?: boolean;
 };
+
+export interface BillSession {
+  id: string;
+  label: string;
+  customerId: string;
+  customTag?: string;
+  cart: CartItem[];
+  paymentMethod: string;
+  discount: string;
+  tax: string;
+  notes: string;
+  isHeld?: boolean;
+  createdAt: number;
+}
 
 type MarketingForm = {
   shopName: string;
@@ -155,13 +180,242 @@ export function BusinessSuite({
       setRestockQty('');
     }
   };
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerId, setCustomerId] = useState('walk-in');
+  const createDefaultSession = (id = 'bill-1', label = 'Bill #1'): BillSession => ({
+    id,
+    label,
+    customerId: 'walk-in',
+    customTag: '',
+    cart: [],
+    paymentMethod: 'cash',
+    discount: '',
+    tax: '',
+    notes: '',
+    isHeld: false,
+    createdAt: Date.now(),
+  });
+
+  const [billSessions, setBillSessions] = useState<BillSession[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('drishti_multi_bill_sessions');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load multi-bill sessions from cache:', err);
+      }
+    }
+    return [createDefaultSession('bill-1', 'Bill #1')];
+  });
+
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedId = localStorage.getItem('drishti_active_bill_session_id');
+        if (savedId) return savedId;
+      } catch {}
+    }
+    return 'bill-1';
+  });
+
+  // Keep active session ID valid and persist sessions to LocalStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('drishti_multi_bill_sessions', JSON.stringify(billSessions));
+      localStorage.setItem('drishti_active_bill_session_id', activeSessionId);
+    } catch (err) {
+      console.error('Failed to cache bill sessions:', err);
+    }
+  }, [billSessions, activeSessionId]);
+
+  // Ensure activeSessionId points to an existing session
+  useEffect(() => {
+    if (billSessions.length > 0 && !billSessions.some((s) => s.id === activeSessionId)) {
+      setActiveSessionId(billSessions[0].id);
+    }
+  }, [billSessions, activeSessionId]);
+
+  const activeSession = useMemo(() => {
+    return billSessions.find((s) => s.id === activeSessionId) || billSessions[0] || createDefaultSession();
+  }, [billSessions, activeSessionId]);
+
+  // Convenience helper to update the currently active session
+  const updateActiveSession = (updater: (session: BillSession) => BillSession) => {
+    setBillSessions((current) =>
+      current.map((session) => (session.id === activeSession.id ? updater(session) : session))
+    );
+  };
+
+  const cart = activeSession.cart || [];
+  const customerId = activeSession.customerId || 'walk-in';
+  const paymentMethod = activeSession.paymentMethod || 'cash';
+  const discount = activeSession.discount || '';
+  const tax = activeSession.tax || '';
+  const notes = activeSession.notes || '';
+
+  const setCart = (action: CartItem[] | ((curr: CartItem[]) => CartItem[])) => {
+    updateActiveSession((session) => ({
+      ...session,
+      cart: typeof action === 'function' ? action(session.cart || []) : action,
+    }));
+  };
+
+  const setCustomerId = (newCustomerId: string) => {
+    updateActiveSession((session) => {
+      // Auto-label tab if linked to a named customer
+      let updatedLabel = session.label;
+      if (newCustomerId !== 'walk-in') {
+        const matched = data.customers.find((c: any) => String(c.id) === String(newCustomerId));
+        if (matched && (!session.customTag || session.customTag === '')) {
+          updatedLabel = matched.name ? matched.name.split(' ')[0] : session.label;
+        }
+      }
+      return { ...session, customerId: newCustomerId, label: updatedLabel };
+    });
+  };
+
+  const setPaymentMethod = (newPaymentMethod: string) => {
+    updateActiveSession((session) => ({ ...session, paymentMethod: newPaymentMethod }));
+  };
+
+  const setDiscount = (newDiscount: string) => {
+    updateActiveSession((session) => ({ ...session, discount: newDiscount }));
+  };
+
+  const setTax = (newTax: string) => {
+    updateActiveSession((session) => ({ ...session, tax: newTax }));
+  };
+
+  const setNotes = (newNotes: string) => {
+    updateActiveSession((session) => ({ ...session, notes: newNotes }));
+  };
+
+  // Multi-Customer Session Operations
+  const addNewBillSession = (customLabel?: string, initialCustomer?: any) => {
+    const nextNumber = billSessions.length + 1;
+    const newId = `bill-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const label = customLabel || (initialCustomer?.name ? initialCustomer.name.split(' ')[0] : `Bill #${nextNumber}`);
+    const newSession: BillSession = {
+      id: newId,
+      label,
+      customerId: initialCustomer ? String(initialCustomer.id) : 'walk-in',
+      customTag: '',
+      cart: [],
+      paymentMethod: 'cash',
+      discount: '',
+      tax: '',
+      notes: '',
+      isHeld: false,
+      createdAt: Date.now(),
+    };
+
+    setBillSessions((prev) => [...prev, newSession]);
+    setActiveSessionId(newId);
+    setBillingStatus({ type: 'idle', message: '' });
+  };
+
+  const switchBillSession = (sessionId: string) => {
+    setActiveSessionId(sessionId);
+    setBillingStatus({ type: 'idle', message: '' });
+  };
+
+  const closeBillSession = (sessionId: string) => {
+    const targetSession = billSessions.find((s) => s.id === sessionId);
+    if (targetSession && (targetSession.cart?.length || 0) > 0) {
+      if (!confirm(`Close ${targetSession.label || 'this bill'}? It has ${targetSession.cart.length} item(s) in cart.`)) {
+        return;
+      }
+    }
+
+    if (billSessions.length <= 1) {
+      // Reset the only session
+      const resetSession = createDefaultSession();
+      setBillSessions([resetSession]);
+      setActiveSessionId(resetSession.id);
+      return;
+    }
+
+    const remaining = billSessions.filter((s) => s.id !== sessionId);
+    setBillSessions(remaining);
+    if (activeSessionId === sessionId) {
+      const closedIndex = billSessions.findIndex((s) => s.id === sessionId);
+      const nextActive = remaining[Math.max(0, closedIndex - 1)] || remaining[0];
+      setActiveSessionId(nextActive.id);
+    }
+  };
+
+  const toggleHoldSession = (sessionId: string) => {
+    setBillSessions((prev) =>
+      prev.map((s) => (s.id === sessionId ? { ...s, isHeld: !s.isHeld } : s))
+    );
+  };
+
+  const renameSession = (sessionId: string, newLabel: string, customTag?: string) => {
+    setBillSessions((prev) =>
+      prev.map((s) => (s.id === sessionId ? { ...s, label: newLabel, customTag: customTag ?? s.customTag } : s))
+    );
+  };
+
+  const duplicateBillSession = (sessionId: string) => {
+    const source = billSessions.find((s) => s.id === sessionId);
+    if (!source) return;
+    const newId = `bill-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const clone: BillSession = {
+      ...source,
+      id: newId,
+      label: `${source.label} (Copy)`,
+      cart: (source.cart || []).map((i) => ({ ...i })),
+      createdAt: Date.now(),
+    };
+    setBillSessions((prev) => [...prev, clone]);
+    setActiveSessionId(newId);
+  };
+
+  const transferItem = (fromSessionId: string, toSessionId: string, itemId: string) => {
+    const fromSession = billSessions.find((s) => s.id === fromSessionId);
+    const toSession = billSessions.find((s) => s.id === toSessionId);
+    if (!fromSession || !toSession || fromSessionId === toSessionId) return;
+
+    const itemToMove = fromSession.cart?.find((i) => i.id === itemId);
+    if (!itemToMove) return;
+
+    setBillSessions((prev) =>
+      prev.map((session) => {
+        if (session.id === fromSessionId) {
+          return {
+            ...session,
+            cart: (session.cart || []).filter((i) => i.id !== itemId),
+          };
+        }
+        if (session.id === toSessionId) {
+          const existing = (session.cart || []).find((i) => i.id === itemId);
+          if (existing) {
+            return {
+              ...session,
+              cart: session.cart.map((i) =>
+                i.id === itemId ? { ...i, qty: Math.min(i.availableQty, i.qty + itemToMove.qty) } : i
+              ),
+            };
+          }
+          return {
+            ...session,
+            cart: [...(session.cart || []), { ...itemToMove }],
+          };
+        }
+        return session;
+      })
+    );
+  };
+
+  const clearActiveCart = () => {
+    setCart([]);
+  };
+
   const [productQuery, setProductQuery] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [discount, setDiscount] = useState('');
-  const [tax, setTax] = useState('');
-  const [notes, setNotes] = useState('');
   const [lastInvoice, setLastInvoice] = useState<any | null>(null);
   const [billingStatus, setBillingStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({ type: 'idle', message: '' });
   const [isBilling, setIsBilling] = useState(false);
@@ -325,11 +579,27 @@ export function BusinessSuite({
         .filter((entry: any) => entry && Number(entry.qty || 0) <= 0);
 
       setLastInvoice(result.invoice);
-      setCart([]);
-      setCustomerId('walk-in');
-      setDiscount('');
-      setTax('');
-      setNotes('');
+
+      // Handle multi-bill transition smoothly:
+      // If there are multiple customer bills open, retire this completed bill and switch to the next open bill!
+      if (billSessions.length > 1) {
+        const remaining = billSessions.filter((s) => s.id !== activeSession.id);
+        setBillSessions(remaining);
+        const nextWithItems = remaining.find((s) => (s.cart?.length || 0) > 0) || remaining[0];
+        setActiveSessionId(nextWithItems.id);
+      } else {
+        // Reset the single session
+        updateActiveSession((session) => ({
+          ...session,
+          cart: [],
+          customerId: 'walk-in',
+          customTag: '',
+          discount: '',
+          tax: '',
+          notes: '',
+          isHeld: false,
+        }));
+      }
 
       setBillingStatus({
         type: 'success',
@@ -655,6 +925,16 @@ export function BusinessSuite({
                 tax={tax}
                 taxAmount={taxAmount}
                 theme={theme}
+                billSessions={billSessions}
+                activeSessionId={activeSessionId}
+                onAddNewSession={addNewBillSession}
+                onSwitchSession={switchBillSession}
+                onCloseSession={closeBillSession}
+                onToggleHoldSession={toggleHoldSession}
+                onRenameSession={renameSession}
+                onDuplicateSession={duplicateBillSession}
+                onTransferItem={transferItem}
+                onClearCart={clearActiveCart}
                 onAddToCart={addToCart}
                 onCreateBill={createBill}
                 onCustomerChange={setCustomerId}
@@ -920,6 +1200,16 @@ function BillingDesk({
   tax,
   taxAmount,
   theme = 'dark',
+  billSessions,
+  activeSessionId,
+  onAddNewSession,
+  onSwitchSession,
+  onCloseSession,
+  onToggleHoldSession,
+  onRenameSession,
+  onDuplicateSession,
+  onTransferItem,
+  onClearCart,
   onAddToCart,
   onCreateBill,
   onCustomerChange,
@@ -958,6 +1248,16 @@ function BillingDesk({
   tax: string;
   taxAmount: number;
   theme?: 'dark' | 'light';
+  billSessions: BillSession[];
+  activeSessionId: string;
+  onAddNewSession: (customLabel?: string, initialCustomer?: any) => void;
+  onSwitchSession: (sessionId: string) => void;
+  onCloseSession: (sessionId: string) => void;
+  onToggleHoldSession: (sessionId: string) => void;
+  onRenameSession: (sessionId: string, newLabel: string, customTag?: string) => void;
+  onDuplicateSession: (sessionId: string) => void;
+  onTransferItem: (fromSessionId: string, toSessionId: string, itemId: string) => void;
+  onClearCart: () => void;
   onAddToCart: (item: any) => void;
   onCreateBill: () => void;
   onCustomerChange: (value: string) => void;
@@ -984,6 +1284,76 @@ function BillingDesk({
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
   const [cartQuery, setCartQuery] = useState('');
   const [mobileBillingTab, setMobileBillingTab] = useState<'products' | 'cart'>('products');
+
+  // Multi-Bill Modals State
+  const [isOverviewOpen, setIsOverviewOpen] = useState(false);
+  const [renamingSession, setRenamingSession] = useState<BillSession | null>(null);
+  const [renameLabelInput, setRenameLabelInput] = useState('');
+  const [renameTagInput, setRenameTagInput] = useState('');
+
+  const activeSession = useMemo(() => {
+    return billSessions.find((s) => s.id === activeSessionId) || billSessions[0];
+  }, [billSessions, activeSessionId]);
+
+  const heldCount = useMemo(() => {
+    return billSessions.filter((s) => s.isHeld).length;
+  }, [billSessions]);
+
+  const totalPipelineRevenue = useMemo(() => {
+    return billSessions.reduce((totalSum, session) => {
+      const sessSubtotal = (session.cart || []).reduce((sum, i) => sum + i.price * i.qty, 0);
+      const sessDiscount = Math.max(0, Number(session.discount || 0));
+      const sessTax = Math.max(0, Number(session.tax || 0));
+      return totalSum + Math.max(0, sessSubtotal - sessDiscount + sessTax);
+    }, 0);
+  }, [billSessions]);
+
+  // Global Cashier Keyboard Shortcuts (Alt+N, Alt+H, Alt+O, Alt+W, Alt+1..9)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'n') {
+        e.preventDefault();
+        onAddNewSession();
+      } else if (key === 'h') {
+        e.preventDefault();
+        onToggleHoldSession(activeSessionId);
+      } else if (key === 'o' || key === 'g') {
+        e.preventDefault();
+        setIsOverviewOpen((prev) => !prev);
+      } else if (key === 'w') {
+        e.preventDefault();
+        onCloseSession(activeSessionId);
+      } else {
+        const digit = parseInt(e.key, 10);
+        if (!isNaN(digit) && digit >= 1 && digit <= 9) {
+          const targetSession = billSessions[digit - 1];
+          if (targetSession) {
+            e.preventDefault();
+            onSwitchSession(targetSession.id);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [billSessions, activeSessionId, onAddNewSession, onSwitchSession, onCloseSession, onToggleHoldSession]);
+
+  const openRenameModal = (session: BillSession) => {
+    setRenamingSession(session);
+    setRenameLabelInput(session.label || '');
+    setRenameTagInput(session.customTag || '');
+  };
+
+  const saveRenameModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!renamingSession) return;
+    onRenameSession(renamingSession.id, renameLabelInput.trim() || renamingSession.label, renameTagInput.trim());
+    setRenamingSession(null);
+  };
 
   const displayedCustomers = useMemo(() => {
     const query = customerSearch.trim().toLowerCase();
@@ -1014,6 +1384,243 @@ function BillingDesk({
         : 'border-zinc-800 bg-black text-white'
     }`}>
       <div className="relative space-y-2.5">
+        {/* ========================================================================= */}
+        {/* MULTI-CUSTOMER CONCURRENT COUNTER BAR (TAB STRIP & QUICK ACTIONS) */}
+        {/* ========================================================================= */}
+        <div className={`rounded-sm p-2.5 border transition-all shadow-xs ${
+          isLight
+            ? 'border-zinc-200 bg-zinc-50/90 text-black'
+            : 'border-zinc-800 bg-zinc-950 text-white'
+        }`}>
+          {/* Top Bar: Title, Metrics, and Global Quick Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-zinc-200/80 dark:border-zinc-800/80">
+            <div className="flex items-center gap-2">
+              <div className={`flex h-7 w-7 items-center justify-center rounded-sm border ${
+                isLight ? 'border-zinc-300 bg-white text-black' : 'border-zinc-700 bg-zinc-900 text-white'
+              }`}>
+                <Layers className="h-4 w-4" />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[12px] font-black uppercase tracking-wider">Multi-Customer POS Counter</span>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
+                  isLight ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-800 text-zinc-300'
+                }`}>
+                  {billSessions.length} {billSessions.length === 1 ? 'Customer Lane' : 'Customer Lanes'}
+                </span>
+                {heldCount > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                    <Pause className="h-2.5 w-2.5" />
+                    {heldCount} on hold
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Right Action Tools */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Hold / Resume Current Active Bill */}
+              <button
+                type="button"
+                onClick={() => onToggleHoldSession(activeSessionId)}
+                className={`inline-flex items-center gap-1.5 h-7.5 rounded-sm border px-2.5 text-[11.5px] font-bold transition-all ${
+                  activeSession?.isHeld
+                    ? 'border-amber-500 bg-amber-500/20 text-amber-700 dark:text-amber-300 hover:bg-amber-500/30'
+                    : isLight
+                      ? 'border-zinc-300 bg-white text-zinc-700 hover:text-black hover:border-black'
+                      : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-white hover:border-zinc-500'
+                }`}
+                title="Park / Hold this customer's bill while they wait (Alt+H)"
+              >
+                {activeSession?.isHeld ? <Play className="h-3 w-3 fill-current" /> : <Pause className="h-3 w-3" />}
+                <span>{activeSession?.isHeld ? 'Resume Bill' : 'Hold / Park'}</span>
+                <span className="text-[9.5px] opacity-60 ml-0.5 font-mono">Alt+H</span>
+              </button>
+
+              {/* All Bills Overview Grid Modal Trigger */}
+              <button
+                type="button"
+                onClick={() => setIsOverviewOpen(true)}
+                className={`inline-flex items-center gap-1.5 h-7.5 rounded-sm border px-2.5 text-[11.5px] font-bold transition-all ${
+                  isLight
+                    ? 'border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100 hover:border-black'
+                    : 'border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-500'
+                }`}
+                title="View all active customer bills side-by-side (Alt+O)"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>All Bills ({billSessions.length})</span>
+                <span className="text-[9.5px] opacity-60 ml-0.5 font-mono">Alt+O</span>
+              </button>
+
+              {/* Clear Cart for Current Bill */}
+              {cart.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('Clear all items from this customer bill?')) {
+                      onClearCart();
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1 h-7.5 rounded-sm border px-2 text-[11px] font-bold transition-all ${
+                    isLight
+                      ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                      : 'border-red-900/50 bg-red-950/40 text-red-400 hover:bg-red-900/60'
+                  }`}
+                  title="Clear items in current bill"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  <span>Clear</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Customer Bill Lane Tabs (Horizontal Scrollable Strip) */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-zinc-400">
+            <div className="flex items-center gap-1.5 min-w-max">
+              {billSessions.map((session, index) => {
+                const isActive = session.id === activeSessionId;
+                const sessionItemCount = (session.cart || []).reduce((sum, item) => sum + item.qty, 0);
+                const sessionSubtotal = (session.cart || []).reduce((sum, item) => sum + item.price * item.qty, 0);
+                const sessionDiscount = Math.max(0, Number(session.discount || 0));
+                const sessionTax = Math.max(0, Number(session.tax || 0));
+                const sessionGrandTotal = Math.max(0, sessionSubtotal - sessionDiscount + sessionTax);
+                const customer = session.customerId === 'walk-in'
+                  ? null
+                  : data.customers.find((c: any) => String(c.id) === String(session.customerId));
+                const displayName = session.customTag || (customer ? customer.name : session.label || `Bill #${index + 1}`);
+
+                return (
+                  <div
+                    key={session.id}
+                    className={`group relative flex items-center gap-2 rounded-sm border px-2.5 py-1.5 text-[12px] font-bold transition-all select-none ${
+                      isActive
+                        ? isLight
+                          ? 'border-black bg-white text-black shadow-md ring-1 ring-black/10'
+                          : 'border-white bg-zinc-900 text-white shadow-md ring-1 ring-white/20'
+                        : isLight
+                          ? 'border-zinc-200 bg-white/70 text-zinc-700 hover:border-zinc-400 hover:bg-white'
+                          : 'border-zinc-800 bg-black/60 text-zinc-400 hover:border-zinc-600 hover:text-white'
+                    }`}
+                  >
+                    {/* Lane Number & Hotkey Pill */}
+                    <button
+                      type="button"
+                      onClick={() => onSwitchSession(session.id)}
+                      className="flex items-center gap-1.5 text-left outline-none"
+                    >
+                      <span className={`flex h-5 w-5 items-center justify-center rounded-xs text-[10.5px] font-black ${
+                        isActive
+                          ? isLight ? 'bg-black text-white' : 'bg-white text-black'
+                          : isLight ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-800 text-zinc-300'
+                      }`} title={`Alt+${index + 1}`}>
+                        {index + 1}
+                      </span>
+
+                      {/* Status Icon */}
+                      {session.isHeld ? (
+                        <span className="text-amber-500" title="Held / Parked">
+                          <Pause className="h-3 w-3 fill-current" />
+                        </span>
+                      ) : (
+                        <span className={isActive ? (isLight ? 'text-black' : 'text-emerald-400') : 'text-zinc-500'}>
+                          <ShoppingBag className="h-3 w-3" />
+                        </span>
+                      )}
+
+                      {/* Customer Name / Label */}
+                      <span className={`truncate max-w-[110px] sm:max-w-[140px] font-extrabold ${
+                        isActive ? (isLight ? 'text-black' : 'text-white') : ''
+                      }`}>
+                        {displayName}
+                      </span>
+
+                      {/* Items & Total Pill */}
+                      <span className={`inline-flex items-center gap-1 rounded-xs px-1.5 py-0.5 text-[10.5px] font-black ${
+                        isActive
+                          ? isLight ? 'bg-zinc-100 text-black' : 'bg-zinc-800 text-white'
+                          : isLight ? 'bg-zinc-100 text-zinc-600' : 'bg-zinc-900 text-zinc-400'
+                      }`}>
+                        <span>{sessionItemCount}</span>
+                        <span>•</span>
+                        <span>₹{formatMoney(sessionGrandTotal)}</span>
+                      </span>
+                    </button>
+
+                    {/* Quick Rename & Tag Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openRenameModal(session);
+                      }}
+                      className={`p-1 rounded-xs transition opacity-60 hover:opacity-100 ${
+                        isLight ? 'hover:bg-zinc-200 text-zinc-600' : 'hover:bg-zinc-800 text-zinc-300'
+                      }`}
+                      title="Rename or tag customer bill"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                    </button>
+
+                    {/* Close Session Tab Button */}
+                    {billSessions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCloseSession(session.id);
+                        }}
+                        className={`p-1 rounded-xs transition opacity-60 hover:opacity-100 hover:text-red-500 ${
+                          isLight ? 'hover:bg-red-50' : 'hover:bg-red-950'
+                        }`}
+                        title="Close customer bill tab (Alt+W if active)"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* "+ New Customer Bill" Button */}
+              <button
+                type="button"
+                onClick={() => onAddNewSession()}
+                className={`inline-flex items-center gap-1.5 h-8.5 rounded-sm border px-3 text-[12px] font-bold transition-all shadow-xs touch-manipulation active:scale-[0.98] ${
+                  isLight
+                    ? 'border-black bg-black text-white hover:bg-zinc-800 shadow-zinc-300/60'
+                    : 'border-white bg-white text-black hover:bg-zinc-200 shadow-black/60'
+                }`}
+                title="Open a new customer bill lane (Alt+N)"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.4]" />
+                <span>New Bill</span>
+                <span className={`text-[10px] font-mono px-1 py-0.2 rounded-xs ${
+                  isLight ? 'bg-zinc-800 text-zinc-200' : 'bg-zinc-200 text-zinc-800'
+                }`}>
+                  Alt+N
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Cashier Shortcuts Tips Bar */}
+          <div className={`mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[10.5px] font-semibold px-1 ${
+            isLight ? 'text-zinc-500' : 'text-zinc-400'
+          }`}>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <span>💡 <strong>Cashier Hotkeys:</strong></span>
+              <span><kbd className="px-1 py-0.5 rounded border border-current font-mono text-[9.5px]">Alt+1..9</kbd> Switch Lanes</span>
+              <span><kbd className="px-1 py-0.5 rounded border border-current font-mono text-[9.5px]">Alt+N</kbd> New Customer</span>
+              <span><kbd className="px-1 py-0.5 rounded border border-current font-mono text-[9.5px]">Alt+H</kbd> Hold/Park</span>
+              <span><kbd className="px-1 py-0.5 rounded border border-current font-mono text-[9.5px]">Alt+O</kbd> All Bills Grid</span>
+            </div>
+            <div>
+              <span>Current: <strong>{activeSession?.customTag || activeSession?.label}</strong> ({itemCount} items, ₹{formatMoney(grandTotal)})</span>
+            </div>
+          </div>
+        </div>
+
         {/* Mobile Phone Segment Control (< xl ONLY) */}
         <div className={`flex xl:hidden items-center justify-between gap-1 rounded-xl p-1 border shadow-sm transition-colors ${
           isLight
@@ -1085,19 +1692,6 @@ function BillingDesk({
                   <span className="text-[12px] font-bold uppercase tracking-wider">Customer Selection</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onOpenCallModal?.(selectedCustomer ? { name: selectedCustomer.name, phone: selectedCustomer.phone, role: 'Customer' } : null)}
-                    className={`inline-flex items-center gap-1.5 h-9.5 rounded-full border px-3.5 sm:px-4 text-[12.5px] font-bold transition-all shadow-xs active:scale-[0.97] touch-manipulation ${
-                      isLight
-                        ? 'border-emerald-600/80 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 hover:border-emerald-700'
-                        : 'border-emerald-700/80 bg-emerald-950/70 text-emerald-300 hover:bg-emerald-900 hover:border-emerald-500'
-                    }`}
-                    title="Open Web Phone & Calling Hub"
-                  >
-                    <PhoneCall className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                    <span>Web Dialer</span>
-                  </button>
                   <button
                     type="button"
                     onClick={onAddCustomer}
@@ -1319,8 +1913,23 @@ function BillingDesk({
                   isLight={isLight}
                   icon={ReceiptText}
                   title="Smart Invoice Composer"
-                  meta={selectedCustomer ? selectedCustomer.name : 'Walk-in'}
+                  meta={activeSession?.customTag || (selectedCustomer ? selectedCustomer.name : 'Walk-in')}
                 />
+                {selectedCustomer && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenCallModal?.({ name: selectedCustomer.name, phone: selectedCustomer.phone || '', role: 'Customer' })}
+                    className={`inline-flex items-center gap-1.5 h-8.5 rounded-full border px-3 text-[12px] font-bold transition-all shadow-xs active:scale-[0.97] shrink-0 touch-manipulation ${
+                      isLight
+                        ? 'border-emerald-600/80 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 hover:border-emerald-700'
+                        : 'border-emerald-700/80 bg-emerald-950/70 text-emerald-300 hover:bg-emerald-900 hover:border-emerald-500'
+                    }`}
+                    title={`Call ${selectedCustomer.name} via Web Dialer`}
+                  >
+                    <PhoneCall className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                    <span>Call {selectedCustomer.name.split(' ')[0]}</span>
+                  </button>
+                )}
                 {selectedCustomer?.phone && (
                   <ContactActionGroup
                     phone={selectedCustomer.phone}
@@ -1574,7 +2183,7 @@ function BillingDesk({
               </div>
             </div>
 
-            {/* Dedicated Standout GRAND TOTAL Bar (Harmonious theme styling) */}
+            {/* Dedicated Standout GRAND TOTAL Bar */}
             <div className={`mt-2 rounded-sm border p-3 flex items-center justify-between transition-all ${
               isLight
                 ? 'border-zinc-300 bg-zinc-100/90 text-black shadow-xs'
@@ -1639,49 +2248,6 @@ function BillingDesk({
               <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onShare} icon={MessageCircle} label="WhatsApp" />
               <IconAction isLight={isLight} disabled={!lastInvoice} onClick={onPrint} icon={Printer} label="Print" />
             </div>
-
-            {/* CREATIVE POS Live Utility & Quick Reference Bar (Utilizes bottom space purposefully) */}
-            <div className={`mt-2 rounded-sm border px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] ${
-              isLight ? 'border-zinc-200 bg-zinc-100/70 text-zinc-600' : 'border-zinc-800/80 bg-zinc-950/80 text-zinc-400'
-            }`}>
-              {/* Left Utilities */}
-              <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 font-semibold">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Auto-Inventory Sync Active
-                </span>
-                <span className="hidden sm:inline opacity-40">•</span>
-                <span className="hidden sm:inline font-medium">
-                  Payment: <strong className="font-bold uppercase text-current">{paymentMethod}</strong>
-                </span>
-              </div>
-
-              {/* Right Utilities */}
-              <div className="flex items-center gap-2 font-medium">
-                {lastInvoice ? (
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                    Last: #{lastInvoice.id ? String(lastInvoice.id).slice(-5) : 'Billed'} (₹{formatMoney(lastInvoice.total || 0)})
-                  </span>
-                ) : (
-                  <span className="opacity-75">
-                    Shortcut: <kbd className={`px-1.5 py-0.5 rounded border text-[10px] font-mono ${isLight ? 'bg-white border-zinc-300 text-black' : 'bg-black border-zinc-700 text-white'}`}>Ctrl+Enter</kbd>
-                  </span>
-                )}
-                {cart.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm('Clear all items from this bill?')) {
-                        cart.forEach((i) => onRemoveFromCart(i.id));
-                      }
-                    }}
-                    className="ml-1 text-red-500 hover:text-red-700 hover:underline font-bold transition text-[10.5px]"
-                  >
-                    Reset Cart
-                  </button>
-                )}
-              </div>
-            </div>
           </motion.section>
         </div>
 
@@ -1710,6 +2276,285 @@ function BillingDesk({
           </div>
         )}
       </div>
+
+      {/* ========================================================================= */}
+      {/* MULTI-BILL ALL-LANES OVERVIEW GRID MODAL */}
+      {/* ========================================================================= */}
+      {isOverviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6 backdrop-blur-md animate-in fade-in duration-150">
+          <div className={`relative flex flex-col w-full max-w-5xl max-h-[90vh] rounded-lg border shadow-2xl overflow-hidden ${
+            isLight ? 'border-zinc-300 bg-white text-black' : 'border-zinc-800 bg-zinc-950 text-white'
+          }`}>
+            {/* Modal Header */}
+            <div className={`flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b ${
+              isLight ? 'border-zinc-200 bg-zinc-50' : 'border-zinc-800 bg-zinc-900/80'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-md ${isLight ? 'bg-black text-white' : 'bg-white text-black'}`}>
+                  <LayoutGrid className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black tracking-tight">Concurrent Customer Lanes Overview</h3>
+                  <p className={`text-xs ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                    Active Customer Pipeline: <strong>₹{formatMoney(totalPipelineRevenue)}</strong> across {billSessions.length} open bill{billSessions.length === 1 ? '' : 's'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onAddNewSession();
+                    setIsOverviewOpen(false);
+                  }}
+                  className={`inline-flex items-center gap-1.5 h-9 rounded-sm border px-3 text-xs font-bold transition shadow-sm ${
+                    isLight
+                      ? 'border-black bg-black text-white hover:bg-zinc-800'
+                      : 'border-white bg-white text-black hover:bg-zinc-200'
+                  }`}
+                >
+                  <Plus className="h-3.5 w-3.5 stroke-[2.2]" />
+                  <span>New Customer Bill</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOverviewOpen(false)}
+                  className={`p-2 rounded-sm border transition ${
+                    isLight ? 'border-zinc-200 hover:bg-zinc-100 text-zinc-700' : 'border-zinc-800 hover:bg-zinc-800 text-zinc-300'
+                  }`}
+                  aria-label="Close overview"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: Responsive Grid of Customer Bills */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+              <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+                {billSessions.map((session, index) => {
+                  const isCurrentActive = session.id === activeSessionId;
+                  const sessionItemCount = (session.cart || []).reduce((sum, item) => sum + item.qty, 0);
+                  const sessionSubtotal = (session.cart || []).reduce((sum, item) => sum + item.price * item.qty, 0);
+                  const sessionDiscount = Math.max(0, Number(session.discount || 0));
+                  const sessionTax = Math.max(0, Number(session.tax || 0));
+                  const sessionGrandTotal = Math.max(0, sessionSubtotal - sessionDiscount + sessionTax);
+                  const customer = session.customerId === 'walk-in'
+                    ? null
+                    : data.customers.find((c: any) => String(c.id) === String(session.customerId));
+                  const displayName = session.customTag || (customer ? customer.name : session.label || `Bill #${index + 1}`);
+
+                  return (
+                    <div
+                      key={session.id}
+                      className={`relative flex flex-col justify-between rounded-lg border p-4 transition-all shadow-sm ${
+                        isCurrentActive
+                          ? isLight
+                            ? 'border-black bg-zinc-50/90 ring-2 ring-black shadow-md'
+                            : 'border-white bg-zinc-900 ring-2 ring-white shadow-md'
+                          : isLight
+                            ? 'border-zinc-200 bg-white hover:border-zinc-400 hover:shadow'
+                            : 'border-zinc-800 bg-black hover:border-zinc-700 hover:shadow'
+                      }`}
+                    >
+                      {/* Top Lane Header */}
+                      <div>
+                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-200 dark:border-zinc-800">
+                          <div className="flex items-center gap-2">
+                            <span className={`flex h-6 w-6 items-center justify-center rounded-sm text-xs font-black ${
+                              isCurrentActive
+                                ? isLight ? 'bg-black text-white' : 'bg-white text-black'
+                                : isLight ? 'bg-zinc-200 text-zinc-800' : 'bg-zinc-800 text-zinc-300'
+                            }`}>
+                              #{index + 1}
+                            </span>
+                            <div>
+                              <div className="text-sm font-black truncate max-w-[150px]">{displayName}</div>
+                              <div className={`text-[10.5px] ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                                {customer?.phone ? customer.phone : 'Walk-in customer'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Status Pill */}
+                          <div className="flex items-center gap-1">
+                            {session.isHeld ? (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                                <Pause className="h-2.5 w-2.5" />
+                                Held
+                              </span>
+                            ) : isCurrentActive ? (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                Active
+                              </span>
+                            ) : (
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
+                                isLight ? 'bg-zinc-100 text-zinc-600' : 'bg-zinc-900 text-zinc-400'
+                              }`}>
+                                Open
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Item List Preview */}
+                        <div className="mt-3 space-y-1.5 min-h-[90px] max-h-[140px] overflow-y-auto pr-1">
+                          {(session.cart || []).length === 0 ? (
+                            <div className={`py-4 text-center text-xs italic ${isLight ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                              No items added yet
+                            </div>
+                          ) : (
+                            (session.cart || []).slice(0, 4).map((i) => (
+                              <div key={i.id} className="flex items-center justify-between text-xs">
+                                <span className="truncate pr-2">{i.qty}× {i.name}</span>
+                                <span className="font-mono font-bold shrink-0">₹{formatMoney(i.price * i.qty)}</span>
+                              </div>
+                            ))
+                          )}
+                          {(session.cart || []).length > 4 && (
+                            <div className={`text-[11px] font-bold text-center pt-1 ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                              + {(session.cart || []).length - 4} more items...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Pricing Summary & Actions */}
+                      <div className="mt-3 pt-2.5 border-t border-zinc-200 dark:border-zinc-800">
+                        <div className="flex items-baseline justify-between mb-3">
+                          <span className={`text-xs font-bold uppercase tracking-wide ${isLight ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                            Grand Total ({sessionItemCount} pcs)
+                          </span>
+                          <span className="text-lg font-black">₹{formatMoney(sessionGrandTotal)}</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onSwitchSession(session.id);
+                              setIsOverviewOpen(false);
+                            }}
+                            className={`inline-flex items-center justify-center gap-1.5 h-8 rounded-sm text-xs font-bold transition ${
+                              isCurrentActive
+                                ? isLight
+                                  ? 'bg-black text-white'
+                                  : 'bg-white text-black'
+                                : isLight
+                                  ? 'border border-zinc-300 bg-white hover:bg-zinc-100 text-black'
+                                  : 'border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white'
+                            }`}
+                          >
+                            <Check className="h-3 w-3" />
+                            <span>{isCurrentActive ? 'Current Desk' : 'Switch To Bill'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onToggleHoldSession(session.id)}
+                            className={`inline-flex items-center justify-center gap-1.5 h-8 rounded-sm border text-xs font-bold transition ${
+                              session.isHeld
+                                ? 'border-amber-500 bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                                : isLight
+                                  ? 'border-zinc-200 bg-zinc-100 hover:bg-zinc-200 text-zinc-800'
+                                  : 'border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300'
+                            }`}
+                          >
+                            {session.isHeld ? <Play className="h-3 w-3 fill-current" /> : <Pause className="h-3 w-3" />}
+                            <span>{session.isHeld ? 'Resume' : 'Hold'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* QUICK RENAME & CUSTOM TAG MODAL */}
+      {/* ========================================================================= */}
+      {renamingSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-100">
+          <form
+            onSubmit={saveRenameModal}
+            className={`w-full max-w-md rounded-lg border p-5 shadow-2xl ${
+              isLight ? 'border-zinc-300 bg-white text-black' : 'border-zinc-800 bg-zinc-950 text-white'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <Edit3 className="h-4 w-4" />
+                <h4 className="text-sm font-bold uppercase tracking-wider">Rename Customer Bill Lane</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRenamingSession(null)}
+                className={`p-1 rounded-sm ${isLight ? 'hover:bg-zinc-100 text-zinc-500' : 'hover:bg-zinc-900 text-zinc-400'}`}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className={`block text-[11px] font-bold uppercase tracking-wide mb-1 ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                  Bill Title
+                </label>
+                <input
+                  type="text"
+                  value={renameLabelInput}
+                  onChange={(e) => setRenameLabelInput(e.target.value)}
+                  placeholder="e.g. Bill #1, Walk-in counter"
+                  className={`w-full h-9 rounded-sm border px-3 text-xs font-semibold outline-none transition ${
+                    isLight ? 'border-zinc-300 bg-white focus:border-black' : 'border-zinc-700 bg-black focus:border-white'
+                  }`}
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className={`block text-[11px] font-bold uppercase tracking-wide mb-1 ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                  Custom Customer Tag / Reference Note (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={renameTagInput}
+                  onChange={(e) => setRenameTagInput(e.target.value)}
+                  placeholder="e.g. Table 4, Blue Shirt Brother, Urgent delivery"
+                  className={`w-full h-9 rounded-sm border px-3 text-xs font-semibold outline-none transition ${
+                    isLight ? 'border-zinc-300 bg-white focus:border-black' : 'border-zinc-700 bg-black focus:border-white'
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setRenamingSession(null)}
+                className={`h-9 px-4 rounded-sm border text-xs font-bold transition ${
+                  isLight ? 'border-zinc-300 hover:bg-zinc-100' : 'border-zinc-800 hover:bg-zinc-900'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className={`h-9 px-4 rounded-sm text-xs font-bold transition ${
+                  isLight ? 'bg-black text-white hover:bg-zinc-800' : 'bg-white text-black hover:bg-zinc-200'
+                }`}
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

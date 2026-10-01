@@ -25,15 +25,16 @@ interface CosmicNavbarProps {
   onSectionChange: (section: BusinessSectionKey) => void;
   isLight?: boolean;
   theme?: 'dark' | 'light';
+  instanceId?: string;
 }
 
-export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionChange, theme }: CosmicNavbarProps) {
+export function CosmicNavbar({ activeSection, instanceId = 'desktop', isLight: propIsLight, onSectionChange, theme }: CosmicNavbarProps) {
   const isLight = propIsLight ?? theme === 'light';
 
   const navItems = useMemo<NavItem[]>(() => [
     { key: 'billing', label: 'Billing', desc: 'POS Checkout & Receipts', icon: HandCoins },
     { key: 'stock', label: 'Stock', desc: 'Inventory Control & Alerts', icon: Boxes },
-    { key: 'invoices', label: 'Invoice', desc: 'Billing History & PDFs', icon: ReceiptText },
+    { key: 'invoices', label: 'Invoices', desc: 'Billing History & PDFs', icon: ReceiptText },
     { key: 'customers', label: 'Customer', desc: 'Ledger & Digital Khata', icon: Users },
     { key: 'suppliers', label: 'Supplier', desc: 'Vendors & Reorders', icon: Truck },
     { key: 'marketing', label: 'Marketing', desc: 'AI Promo Posters', icon: Sparkles },
@@ -58,6 +59,7 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
             <NavButton
               key={item.key}
               item={item}
+              instanceId={instanceId}
               isActive={item.key === activeSection}
               onClick={() => onSectionChange(item.key)}
               isLight={isLight}
@@ -69,7 +71,19 @@ export function CosmicNavbar({ activeSection, isLight: propIsLight, onSectionCha
   );
 }
 
-function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; isLight?: boolean; item: NavItem; onClick: () => void }) {
+function NavButton({
+  instanceId,
+  isActive,
+  isLight,
+  item,
+  onClick,
+}: {
+  isActive: boolean;
+  isLight?: boolean;
+  item: NavItem;
+  onClick: () => void;
+  instanceId: string;
+}) {
   const Icon = item.icon;
 
   return (
@@ -78,18 +92,20 @@ function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; is
       onClick={onClick}
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.96 }}
-      className={`group relative flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-4 text-center transition border-0 ${
+      className={`group relative flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-4 text-center transition-all border ${
         isActive
-          ? 'text-white font-extrabold'
+          ? isLight
+            ? 'bg-black text-white border-black font-extrabold shadow-md'
+            : 'bg-zinc-800 text-white border-zinc-700 font-extrabold shadow-md shadow-white/5'
           : isLight
-            ? 'text-zinc-600 hover:text-black font-bold'
-            : 'text-zinc-400 hover:text-white font-bold'
+            ? 'border-transparent text-zinc-700 hover:text-black hover:bg-zinc-100 font-bold'
+            : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/60 font-bold'
       }`}
       aria-current={isActive ? 'page' : undefined}
     >
       {isActive ? (
         <motion.span
-          layoutId="business-suite-active-nav"
+          layoutId={`business-suite-active-nav-${instanceId}`}
           className={`absolute inset-0 rounded-full border ${
             isLight
               ? 'bg-black text-white border-black shadow-md'
@@ -107,7 +123,7 @@ function NavButton({ isActive, isLight, item, onClick }: { isActive: boolean; is
           isActive
             ? 'text-white'
             : isLight
-              ? 'text-zinc-600 group-hover:text-black'
+              ? 'text-zinc-700 group-hover:text-black'
               : 'text-zinc-400 group-hover:text-white'
         }`} />
         <span className="whitespace-nowrap text-[12.5px] font-extrabold tracking-tight">{item.label}</span>

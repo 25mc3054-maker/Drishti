@@ -1,38 +1,34 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import type { BusinessSectionKey, DashboardData, TabKey } from '@/components/enterprise/types';
 import { toast } from 'sonner';
 
-function LoadingSpinner() {
+// Core direct imports for instantaneous 0ms first-paint and elimination of blank screen delays
+import { Navbar } from '@/components/enterprise/Navbar';
+import { LeftMiniSidebar } from '@/components/enterprise/LeftMiniSidebar';
+import { HeroSection } from '@/components/enterprise/HeroSection';
+import { BusinessSuite } from '@/components/enterprise/BusinessSuite';
+import { MarqueeTicker } from '@/components/enterprise/MarqueeTicker';
+import { FirstTimeThemeSetup } from '@/components/enterprise/FirstTimeThemeSetup';
+
+function SectionLoadingSkeleton() {
   return (
-    <div className="flex items-center justify-center p-8">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+    <div className="w-full h-96 flex flex-col items-center justify-center gap-3 p-8">
+      <div className="h-9 w-9 animate-spin rounded-full border-2 border-blue-500/20 border-t-blue-500" />
+      <span className="text-xs text-zinc-400 font-medium animate-pulse">Loading workspace module...</span>
     </div>
   );
 }
 
-const AuthScreen = dynamic(() => import('@/components/enterprise/AuthScreen').then(mod => mod.AuthScreen), {
-  ssr: false,
-  loading: () => (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <LoadingSpinner />
-    </div>
-  ),
-});
-const Navbar = dynamic(() => import('@/components/enterprise/Navbar').then(mod => mod.Navbar), { ssr: false });
-const LeftMiniSidebar = dynamic(() => import('@/components/enterprise/LeftMiniSidebar').then(mod => mod.LeftMiniSidebar), { ssr: false });
-const HeroSection = dynamic(() => import('@/components/enterprise/HeroSection').then(mod => mod.HeroSection), { loading: () => <div className="h-[400px] w-full flex justify-center items-center"><LoadingSpinner /></div> });
-const MarqueeTicker = dynamic(() => import('@/components/enterprise/MarqueeTicker').then(mod => mod.MarqueeTicker), { ssr: false });
-const AIWorkspace = dynamic(() => import('@/components/enterprise/AIWorkspace').then(mod => mod.AIWorkspace), { loading: () => <LoadingSpinner /> });
-const BusinessSuite = dynamic(() => import('@/components/enterprise/BusinessSuite').then(mod => mod.BusinessSuite), { loading: () => <LoadingSpinner /> });
-const StorefrontPage = dynamic(() => import('@/components/enterprise/StorefrontPage').then(mod => mod.StorefrontPage), { loading: () => <LoadingSpinner /> });
-const InsightsPage = dynamic(() => import('@/components/enterprise/InsightsPage').then(mod => mod.InsightsPage), { loading: () => <LoadingSpinner /> });
-const SaaSAdminPage = dynamic(() => import('@/components/enterprise/SaaSAdminPage').then(mod => mod.SaaSAdminPage), { loading: () => <LoadingSpinner /> });
-const DatabaseManagementPage = dynamic(() => import('@/components/enterprise/DatabaseManagementPage').then(mod => mod.DatabaseManagementPage), { loading: () => <LoadingSpinner /> });
-const FirstTimeThemeSetup = dynamic(() => import('@/components/enterprise/FirstTimeThemeSetup').then(mod => mod.FirstTimeThemeSetup), { ssr: false });
+// On-demand lazy secondary tabs
+const AIWorkspace = dynamic(() => import('@/components/enterprise/AIWorkspace').then(mod => mod.AIWorkspace), { loading: () => <SectionLoadingSkeleton /> });
+const StorefrontPage = dynamic(() => import('@/components/enterprise/StorefrontPage').then(mod => mod.StorefrontPage), { loading: () => <SectionLoadingSkeleton /> });
+const InsightsPage = dynamic(() => import('@/components/enterprise/InsightsPage').then(mod => mod.InsightsPage), { loading: () => <SectionLoadingSkeleton /> });
+const SaaSAdminPage = dynamic(() => import('@/components/enterprise/SaaSAdminPage').then(mod => mod.SaaSAdminPage), { loading: () => <SectionLoadingSkeleton /> });
+const DatabaseManagementPage = dynamic(() => import('@/components/enterprise/DatabaseManagementPage').then(mod => mod.DatabaseManagementPage), { loading: () => <SectionLoadingSkeleton /> });
 const ThemeOnboardingModal = dynamic(() => import('@/components/enterprise/ThemeOnboardingModal').then(mod => mod.ThemeOnboardingModal), { ssr: false });
 
 const initialData: DashboardData = {
@@ -66,7 +62,7 @@ const getInitialTheme = (): 'dark' | 'light' => {
 
 export default function EasyTraderPlatform() {
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>('business-suite');
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [activeBusinessSection, setActiveBusinessSection] = useState<BusinessSectionKey>('billing');
   const [data, setData] = useState<DashboardData>(initialData);
   const [authUser, setAuthUser] = useState<any | null>(null);
@@ -74,21 +70,31 @@ export default function EasyTraderPlatform() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showThemeSetup, setShowThemeSetup] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [pendingTarget, setPendingTarget] = useState<{ tab: TabKey; section?: BusinessSectionKey } | null>(null);
+  const isLoadingDataRef = useRef(false);
 
-  // 1. Instant Mount Hydration for Landing Page, Theme, User & Data from LocalStorage
+  // 1. Instant Mount Hydration for Landing Page, Theme, User & Data from LocalStorage/SessionStorage
   useEffect(() => {
     setMounted(true);
     if (typeof window === 'undefined') return;
 
-    // Fast hydrate user & data from local cache if present for instant rendering
+    // Check cached user from sessionStorage or localStorage for 0ms instantaneous login state
     try {
-      const cachedUserStr = localStorage.getItem('drishti_cached_user') || localStorage.getItem('easytrader_user');
+      const cachedUserStr =
+        sessionStorage.getItem('drishti_session_user') ||
+        localStorage.getItem('drishti_cached_user') ||
+        localStorage.getItem('easytrader_user');
       if (cachedUserStr) {
-        const cachedUser = JSON.parse(cachedUserStr);
-        if (cachedUser && (cachedUser.id || cachedUser.email)) {
-          setAuthUser(cachedUser);
+        const sessionUser = JSON.parse(cachedUserStr);
+        if (sessionUser && (sessionUser.id || sessionUser.email || sessionUser.tenantId || sessionUser.mobile)) {
+          setAuthUser(sessionUser);
         }
       }
+    } catch {}
+
+    try {
       const cachedDataStr = localStorage.getItem('drishti_cached_dashboard_data');
       if (cachedDataStr) {
         const cachedData = JSON.parse(cachedDataStr);
@@ -98,27 +104,21 @@ export default function EasyTraderPlatform() {
       }
     } catch {}
 
-    // Check if user is opening for the very first time vs daily operations
+    // Check if user is a new user (first visit) vs an old/returning user
     const hasSeenOverview = localStorage.getItem('drishti_has_seen_overview');
-    const defaultLanding = localStorage.getItem('drishti_default_landing') || 'billing';
-
-    if (!hasSeenOverview) {
-      // First-time visitor: open Overview page for feature orientation
-      setActiveTab('overview');
+    if (hasSeenOverview) {
+      // Old user: Open directly to Billing Page
+      setActiveTab('business-suite');
+      setActiveBusinessSection('billing');
     } else {
-      // Daily returning shopkeeper: open directly in Billing POS for zero-friction speed
-      if (defaultLanding === 'overview') {
-        setActiveTab('overview');
-      } else {
-        setActiveTab('business-suite');
-        setActiveBusinessSection('billing');
-      }
+      // New user: Open Overview Page first
+      setActiveTab('overview');
     }
 
     const activeAcc = localStorage.getItem('drishti_active_account_id');
     const themeChosen = localStorage.getItem('drishti_theme_chosen');
     if (!themeChosen) {
-      setShowThemeSetup(true);
+      setShowThemeSetup(false);
     }
 
     let loadedTheme: 'dark' | 'light' | null = null;
@@ -126,26 +126,27 @@ export default function EasyTraderPlatform() {
     if (activeAcc) {
       const accTheme = localStorage.getItem(`drishti_theme_${activeAcc}`);
       if (accTheme === 'dark' || accTheme === 'light') {
-        loadedTheme = accTheme;
+        loadedTheme = accTheme as 'dark' | 'light';
       }
     }
 
     if (!loadedTheme) {
       const globTheme = localStorage.getItem('drishti_global_theme');
       if (globTheme === 'dark' || globTheme === 'light') {
-        loadedTheme = globTheme;
+        loadedTheme = globTheme as 'dark' | 'light';
       }
     }
 
     if (loadedTheme) {
       setTheme(loadedTheme);
-      if (loadedTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-      } else {
-        document.documentElement.classList.add('light');
-        document.documentElement.classList.remove('dark');
-      }
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(loadedTheme);
+      document.documentElement.setAttribute('data-theme', loadedTheme);
+    } else {
+      setTheme('dark');
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
     }
   }, []);
 
@@ -199,6 +200,8 @@ export default function EasyTraderPlatform() {
   };
 
   const loadData = async () => {
+    if (isLoadingDataRef.current) return data;
+    isLoadingDataRef.current = true;
     try {
       const [itemsRes, customersRes, invoicesRes, suppliersRes, expensesRes] = await Promise.all([
         fetch('/api/saas/items').then((response) => response.json()).catch(() => ({ items: [] })),
@@ -208,7 +211,7 @@ export default function EasyTraderPlatform() {
         fetch('/api/saas/expenses').then((response) => response.json()).catch(() => ({ expenses: [] })),
       ]);
 
-      const loaded = {
+      const loaded: DashboardData = {
         items: itemsRes?.items || [],
         customers: customersRes?.customers || [],
         invoices: invoicesRes?.invoices || [],
@@ -228,6 +231,8 @@ export default function EasyTraderPlatform() {
       return loaded;
     } catch {
       return initialData;
+    } finally {
+      isLoadingDataRef.current = false;
     }
   };
 
@@ -246,7 +251,7 @@ export default function EasyTraderPlatform() {
           authUser.themePreference;
 
         if (accountTheme === 'light' || accountTheme === 'dark') {
-          setTheme(accountTheme);
+          setTheme(accountTheme as 'dark' | 'light');
           localStorage.setItem('drishti_global_theme', accountTheme);
           if (authUser.id) localStorage.setItem(`drishti_theme_${authUser.id}`, accountTheme);
           if (authUser.email) localStorage.setItem(`drishti_theme_${authUser.email}`, accountTheme);
@@ -287,7 +292,7 @@ export default function EasyTraderPlatform() {
     });
   };
 
-  // Hydrate local cached user on mount & verify session silently in background
+  // Hydrate local cached user on mount & verify session against backend API
   useEffect(() => {
     let cancelled = false;
 
@@ -312,7 +317,7 @@ export default function EasyTraderPlatform() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
-      }, 4000);
+      }, 6000);
 
       try {
         const response = await fetch('/api/auth/session', { signal: controller.signal });
@@ -324,8 +329,11 @@ export default function EasyTraderPlatform() {
             const user = result.user;
             setAuthUser(user);
             if (typeof window !== 'undefined') {
+              sessionStorage.setItem('drishti_session_user', JSON.stringify(user));
+              sessionStorage.setItem('drishti_session_active', 'true');
               localStorage.setItem('drishti_cached_user', JSON.stringify(user));
               localStorage.setItem('easytrader_user', JSON.stringify(user));
+              localStorage.setItem('drishti_has_seen_overview', 'true');
             }
 
             const userKey = user.email || user.tenantId || user.id;
@@ -341,19 +349,8 @@ export default function EasyTraderPlatform() {
             return;
           }
         }
-
-        // Unauthenticated or missing session
-        setAuthUser(null);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('drishti_cached_user');
-          localStorage.removeItem('easytrader_user');
-          localStorage.removeItem('drishti_cached_dashboard_data');
-        }
-        setData(initialData);
       } catch (error: any) {
-        if (!cancelled && error?.name !== 'AbortError') {
-          // Preserve cached user on transient offline/network hiccups
-        }
+        // Keep cached state on transient network or dev timeouts
       } finally {
         clearTimeout(timeoutId);
       }
@@ -385,6 +382,23 @@ export default function EasyTraderPlatform() {
     };
   }, [authUser?.tenantId]);
 
+  const requireAuth = (
+    targetTab: TabKey = 'business-suite',
+    targetSection: BusinessSectionKey = 'billing',
+    mode: 'login' | 'register' = 'login'
+  ) => {
+    if (authUser) {
+      setActiveTab(targetTab);
+      if (targetTab === 'business-suite' && targetSection) {
+        setActiveBusinessSection(targetSection);
+      }
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      window.location.href = mode === 'register' ? '/register' : '/login';
+    }
+  };
+
   const handleAuthenticated = async (user: any) => {
     const userKey = user.email || user.tenantId || user.id;
     if (userKey) {
@@ -398,7 +412,12 @@ export default function EasyTraderPlatform() {
       setShowThemeOnboarding(true);
     }
     setAuthUser(user);
+    setShowAuthModal(false);
+
     if (typeof window !== 'undefined') {
+      sessionStorage.setItem('drishti_session_active', 'true');
+      sessionStorage.setItem('drishti_session_user', JSON.stringify(user));
+      localStorage.setItem('drishti_has_seen_overview', 'true');
       localStorage.setItem('drishti_cached_user', JSON.stringify(user));
       localStorage.setItem('easytrader_user', JSON.stringify(user));
     }
@@ -412,6 +431,8 @@ export default function EasyTraderPlatform() {
 
     if (accSavedTheme === 'light' || accSavedTheme === 'dark') {
       setTheme(accSavedTheme as 'dark' | 'light');
+    } else {
+      setTheme('dark');
     }
 
     if (typeof window !== 'undefined') {
@@ -422,25 +443,21 @@ export default function EasyTraderPlatform() {
       }
     }
 
-    const hasSeen = typeof window !== 'undefined' ? localStorage.getItem('drishti_has_seen_overview') : null;
-    const defaultLanding = (typeof window !== 'undefined' ? localStorage.getItem('drishti_default_landing') : null) || 'billing';
-
-    if (!hasSeen) {
-      setActiveTab('overview');
-    } else {
-      if (defaultLanding === 'overview') {
-        setActiveTab('overview');
-      } else {
-        setActiveTab('business-suite');
-        setActiveBusinessSection('billing');
-      }
+    // Direct transition to target (defaults straight to Billing POS)
+    const target = pendingTarget || { tab: 'business-suite', section: 'billing' };
+    setActiveTab(target.tab);
+    if (target.tab === 'business-suite' && target.section) {
+      setActiveBusinessSection(target.section);
     }
+    setPendingTarget(null);
 
     void loadData().then((nextData) => setData(nextData));
   };
 
   const logout = async () => {
     if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('drishti_session_active');
+      sessionStorage.removeItem('drishti_session_user');
       localStorage.removeItem('drishti_cached_user');
       localStorage.removeItem('easytrader_user');
       localStorage.removeItem('drishti_cached_dashboard_data');
@@ -448,48 +465,37 @@ export default function EasyTraderPlatform() {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     setAuthUser(null);
     setData(initialData);
-    setActiveTab('business-suite');
+    setActiveTab('overview');
   };
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
       const root = document.documentElement;
-      if (theme === 'dark') {
-        root.classList.add('dark');
-        root.classList.remove('light');
-      } else {
-        root.classList.add('light');
-        root.classList.remove('dark');
-      }
+      root.classList.remove('light', 'dark');
+      root.classList.add(theme);
+      root.setAttribute('data-theme', theme);
     }
   }, [theme]);
 
   const isLight = theme === 'light';
-
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (!authUser) {
-    return <AuthScreen onAuthenticated={handleAuthenticated} />;
-  }
+  const shellThemeClasses = {
+    dark: 'bg-black text-white',
+    light: 'bg-white text-black',
+  } as const;
 
   const handleTabSelect = (tab: TabKey) => {
     if (tab !== 'overview' && typeof window !== 'undefined') {
       localStorage.setItem('drishti_has_seen_overview', 'true');
     }
     setActiveTab(tab);
+    if (tab === 'business-suite') {
+      setActiveBusinessSection('billing');
+    }
     setIsSidebarOpen(false);
   };
 
   return (
-    <div className={`relative h-screen max-h-screen overflow-hidden flex flex-col font-sans transition-colors duration-200 ${
-      isLight ? 'bg-white text-black' : 'bg-black text-white'
-    }`}>
+    <div className={`relative h-screen max-h-screen overflow-hidden flex flex-col font-sans transition-all duration-300 ${shellThemeClasses[theme]}`}>
       {showThemeOnboarding && (
         <ThemeOnboardingModal
           onComplete={handleThemeOnboardingComplete}
@@ -507,18 +513,19 @@ export default function EasyTraderPlatform() {
         onThemeChange={handleThemeChange}
         onTabChange={handleTabSelect}
         onLogout={() => { void logout(); }}
+        onOpenAuthModal={(mode) => requireAuth('business-suite', 'billing', mode || 'login')}
         onProfileUpdate={(updatedUser) => {
           setAuthUser(updatedUser);
+          sessionStorage.setItem('drishti_session_user', JSON.stringify(updatedUser));
           localStorage.setItem('easytrader_user', JSON.stringify(updatedUser));
           localStorage.setItem('drishti_cached_user', JSON.stringify(updatedUser));
         }}
         profileUser={authUser}
-        shopName={authUser.shopName || `Tenant ${String(authUser.tenantId || '').slice(0, 8)}`}
+        shopName={authUser?.shopName || (authUser?.tenantId ? `Tenant ${String(authUser.tenantId).slice(0, 8)}` : undefined)}
       />
 
       {/* Main Workspace Layout with Left Mini Sidebar (VISIBLE ON ALL PAGES EXCEPT OVERVIEW) */}
       <div className="flex w-full flex-1 min-h-0 overflow-hidden">
-        {/* Left Mini Sidebar (Visible on all pages EXCEPT overview) */}
         <LeftMiniSidebar
           activeTab={activeTab}
           activeBusinessSection={activeBusinessSection}
@@ -527,6 +534,8 @@ export default function EasyTraderPlatform() {
             setIsSidebarOpen(false);
           }}
           isOpen={activeTab !== 'overview' && isSidebarOpen}
+          isAuthenticated={Boolean(authUser)}
+          onRequireAuth={() => requireAuth('business-suite', 'billing')}
           onTabChange={handleTabSelect}
           theme={theme}
         />
@@ -534,17 +543,51 @@ export default function EasyTraderPlatform() {
         {/* Main Content View */}
         <motion.main
           key={activeTab}
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, ease: 'easeOut' }}
-          className="flex-1 min-w-0 min-h-0 h-full overflow-y-auto px-1.5 pb-1 pt-1 md:px-3"
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="flex-1 min-w-0 min-h-0 h-full overflow-y-auto px-1.5 pb-1 pt-1 md:px-3 relative"
         >
+          {/* Transparent full-workspace click interceptor for unauthenticated visitors on billing/workspace */}
+          {!authUser && activeTab !== 'overview' && (
+            <div
+              className="absolute inset-0 z-40 cursor-pointer bg-transparent"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                requireAuth(activeTab, activeBusinessSection);
+              }}
+            />
+          )}
+
+          {/* Guest Preview Notice Badge on Workspace Pages */}
+          {!authUser && activeTab !== 'overview' && (
+            <div className="sticky top-0 z-30 mb-2 flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2 text-xs font-semibold text-zinc-300 backdrop-blur-md shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                <span><strong>Guest Preview Mode</strong> — Click anywhere on the billing desk to login or register your free shop workspace.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => requireAuth(activeTab, activeBusinessSection, 'login')}
+                className="rounded-lg bg-white px-3 py-1 text-black font-extrabold hover:bg-zinc-200 transition relative z-50"
+              >
+                Sign In / Register
+              </button>
+            </div>
+          )}
           {(() => {
             switch (activeTab) {
               case 'overview':
                 return (
                   <div className="space-y-7 mx-auto max-w-[1400px]">
-                    <HeroSection theme={theme} data={data} onNavigate={handleTabSelect} />
+                    <HeroSection
+                      theme={theme}
+                      data={data}
+                      isAuthenticated={Boolean(authUser)}
+                      onRequireAuth={() => requireAuth('business-suite', 'billing')}
+                      onNavigate={handleTabSelect}
+                    />
                     <MarqueeTicker />
                   </div>
                 );
@@ -577,6 +620,7 @@ export default function EasyTraderPlatform() {
         </motion.main>
       </div>
 
+
       {/* First-Time Theme Setup Modal (Only shown once on first visit) */}
       <FirstTimeThemeSetup
         isOpen={showThemeSetup}
@@ -587,4 +631,3 @@ export default function EasyTraderPlatform() {
     </div>
   );
 }
-

@@ -1,9 +1,29 @@
 "use client";
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Eye, EyeOff, Lock, Mail, Phone, ShieldCheck, Store, UserPlus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  AlertCircle,
+  ArrowRight,
+  Building2,
+  CheckCircle2,
+  CreditCard,
+  Eye,
+  EyeOff,
+  Globe2,
+  HelpCircle,
+  KeyRound,
+  LineChart,
+  Loader2,
+  Lock,
+  Mail,
+  Receipt,
+  User,
+  X,
+  Zap,
+} from 'lucide-react';
 import { signIn as nextAuthSignIn } from 'next-auth/react';
+import Link from 'next/link';
 
 type AuthUser = {
   id: string;
@@ -15,17 +35,61 @@ type AuthUser = {
   role: string;
 };
 
-type AuthScreenProps = {
-  onAuthenticated: (user: AuthUser) => void;
-};
-
 type Mode = 'login' | 'register' | 'forgot';
 
-export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
-  const [mode, setMode] = useState<Mode>('login');
+type AuthScreenProps = {
+  onAuthenticated?: (user: AuthUser) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  initialMode?: Mode;
+  isModal?: boolean;
+};
+
+const FEATURES = [
+  {
+    icon: Receipt,
+    title: "Simplify your billing",
+    desc: "End-to-end invoicing, automated GST billing, and QR payments",
+  },
+  {
+    icon: Zap,
+    title: "Streamline your payment process",
+    desc: "Faster payments with automated WhatsApp reminders and UPI collection",
+  },
+  {
+    icon: LineChart,
+    title: "Grow your business",
+    desc: "Real-time analytics, automated inventory forecasting, and customer ledgers",
+  },
+];
+
+const TRUSTED_COMPANIES = [
+  "IIFL",
+  "Hindustan Times",
+  "Interakt powered by Jio Haptik",
+  "The Hindu Tamil",
+  "OTT Play",
+];
+
+export function AuthScreen({
+  initialMode = 'register',
+  isModal = false,
+  isOpen = true,
+  onAuthenticated,
+  onClose,
+}: AuthScreenProps) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  
+  const [agreedToTerms, setAgreedToTerms] = useState(true);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [country, setCountry] = useState('India');
+  const [isChangingCountry, setIsChangingCountry] = useState(false);
+
+  useEffect(() => {
+    if (initialMode) setMode(initialMode);
+  }, [initialMode, isOpen]);
+
   const [form, setForm] = useState({
     name: '',
     shopName: '',
@@ -36,13 +100,23 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     securityAnswer: '',
   });
 
+  const [mobileCheck, setMobileCheck] = useState<{
+    status: 'idle' | 'checking' | 'exists' | 'not_found';
+    shopName?: string;
+    name?: string;
+  }>({ status: 'idle' });
+
   const securityQuestions = [
-    "What was the name of the bank where you opened your very first business checking account?",
-    "What was the street name of your business's first physical office or storefront?",
-    "What was the last name of your first boss or supervisor?",
-    "What was the first trade show or professional conference you ever attended?",
+    "What was the name of the bank where you opened your first business account?",
+    "What was the street name of your first storefront or office?",
+    "What was the last name of your first business mentor?",
+    "What was the first trade city where you expanded operations?",
   ];
-  const [status, setStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({ type: 'idle', message: '' });
+
+  const [status, setStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({
+    type: 'idle',
+    message: '',
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const switchMode = (newMode: Mode) => {
@@ -52,13 +126,53 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
   const updateForm = (key: keyof typeof form, value: string) => {
     if (key === 'mobile') {
-      // Restrict to digits only and max 10 digits
       const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
       setForm((current) => ({ ...current, mobile: digitsOnly }));
       return;
     }
     setForm((current) => ({ ...current, [key]: value }));
   };
+
+  // Real-time mobile account check
+  useEffect(() => {
+    const digits = form.mobile.replace(/\D/g, '');
+    if (digits.length === 10) {
+      let isCurrent = true;
+      setMobileCheck((prev) => ({ ...prev, status: 'checking' }));
+
+      fetch('/api/auth/check-mobile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile: digits }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (!isCurrent) return;
+          if (data.success && data.exists) {
+            setMobileCheck({
+              status: 'exists',
+              shopName: data.shopName,
+              name: data.name,
+            });
+          } else if (data.success && !data.exists) {
+            setMobileCheck({
+              status: 'not_found',
+            });
+          } else {
+            setMobileCheck({ status: 'idle' });
+          }
+        })
+        .catch(() => {
+          if (isCurrent) setMobileCheck({ status: 'idle' });
+        });
+
+      return () => {
+        isCurrent = false;
+      };
+    } else {
+      setMobileCheck({ status: 'idle' });
+    }
+  }, [form.mobile]);
 
   const submit = async (endpoint: string, payload: Record<string, any>) => {
     setIsLoading(true);
@@ -93,17 +207,38 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     }
 
     const result = await submit('/api/auth/login', { mobile: cleanedMobile, password: form.password });
-    if (result?.user) onAuthenticated(result.user);
+    if (result?.user) {
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('drishti_session_active', 'true');
+          sessionStorage.setItem('drishti_session_user', JSON.stringify(result.user));
+          localStorage.setItem('drishti_cached_user', JSON.stringify(result.user));
+          localStorage.setItem('easytrader_user', JSON.stringify(result.user));
+          localStorage.setItem('drishti_has_seen_overview', 'true');
+          const accId = result.user.id || result.user.email || result.user.tenantId;
+          if (accId) {
+            localStorage.setItem('drishti_active_account_id', accId);
+          }
+          if (result.user.themePreference) {
+            localStorage.setItem('drishti_global_theme', result.user.themePreference);
+            if (result.user.id) localStorage.setItem(`drishti_theme_${result.user.id}`, result.user.themePreference);
+            if (result.user.email) localStorage.setItem(`drishti_theme_${result.user.email}`, result.user.themePreference);
+          }
+        } catch {}
+      }
+      onAuthenticated?.(result.user);
+      if (typeof window !== 'undefined') window.location.href = '/';
+    }
   };
 
   const register = async () => {
-    if (!form.name.trim()) {
-      setStatus({ type: 'error', message: 'Please enter your full name.' });
+    if (!agreedToTerms) {
+      setStatus({ type: 'error', message: 'Please agree to the Terms of Service & Privacy Policy to proceed.' });
       return;
     }
 
     if (!form.shopName.trim()) {
-      setStatus({ type: 'error', message: 'Please enter your shop name.' });
+      setStatus({ type: 'error', message: 'Company Name is required.' });
       return;
     }
 
@@ -113,88 +248,105 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       return;
     }
 
-    if (!form.email.trim() || !form.email.includes('@')) {
-      setStatus({ type: 'error', message: 'Please enter a valid email address.' });
-      return;
-    }
-
     if (!form.password || form.password.length < 6) {
       setStatus({ type: 'error', message: 'Password must be at least 6 characters.' });
       return;
     }
 
-    if (!form.securityQuestion) {
-      setStatus({ type: 'error', message: 'Please select a security question.' });
-      return;
-    }
-
-    if (!form.securityAnswer.trim() || form.securityAnswer.trim().length < 3) {
-      setStatus({ type: 'error', message: 'Security answer must be at least 3 characters.' });
-      return;
-    }
-
     const result = await submit('/api/auth/register', {
-      ...form,
-      mobile: cleanedMobile,
-      name: form.name.trim(),
+      name: form.name.trim() || form.shopName.trim(),
       shopName: form.shopName.trim(),
-      email: form.email.trim(),
-      securityAnswer: form.securityAnswer.trim(),
+      mobile: cleanedMobile,
+      password: form.password,
+      securityQuestion: form.securityQuestion || "What was the name of the bank where you opened your first business account?",
+      securityAnswer: form.securityAnswer.trim() || "Default",
+      email: form.email.trim() || undefined,
     });
-    if (result?.user) onAuthenticated(result.user);
+
+    if (result?.user) {
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('drishti_session_active', 'true');
+          sessionStorage.setItem('drishti_session_user', JSON.stringify(result.user));
+          localStorage.setItem('drishti_cached_user', JSON.stringify(result.user));
+          localStorage.setItem('easytrader_user', JSON.stringify(result.user));
+          localStorage.setItem('drishti_has_seen_overview', 'true');
+          const accId = result.user.id || result.user.email || result.user.tenantId;
+          if (accId) {
+            localStorage.setItem('drishti_active_account_id', accId);
+          }
+          if (result.user.themePreference) {
+            localStorage.setItem('drishti_global_theme', result.user.themePreference);
+            if (result.user.id) localStorage.setItem(`drishti_theme_${result.user.id}`, result.user.themePreference);
+            if (result.user.email) localStorage.setItem(`drishti_theme_${result.user.email}`, result.user.themePreference);
+          }
+        } catch {}
+      }
+      onAuthenticated?.(result.user);
+      if (typeof window !== 'undefined') window.location.href = '/';
+    }
   };
 
-  const [securityQuestion, setSecurityQuestion] = useState('');
+  const [securityQuestion, setSecurityQuestion] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
 
   const getSecurityQuestion = async () => {
-    if (!form.email.trim() || !form.email.includes('@')) {
-      setStatus({ type: 'error', message: 'Please enter a valid email address.' });
+    if (!form.email.trim()) {
+      setStatus({ type: 'error', message: 'Enter your registered email address.' });
       return;
     }
     const result = await submit('/api/auth/forgot-password', { email: form.email.trim() });
     if (result?.securityQuestion) {
       setSecurityQuestion(result.securityQuestion);
+      setStatus({ type: 'idle', message: '' });
     }
   };
 
   const resetPassword = async () => {
     if (!form.securityAnswer.trim()) {
-      setStatus({ type: 'error', message: 'Please provide your security answer.' });
+      setStatus({ type: 'error', message: 'Security answer is required.' });
       return;
     }
     if (!newPassword || newPassword.length < 6) {
       setStatus({ type: 'error', message: 'New password must be at least 6 characters.' });
       return;
     }
+
     const result = await submit('/api/auth/reset-password', {
       email: form.email.trim(),
       securityAnswer: form.securityAnswer.trim(),
       newPassword,
     });
+
     if (result?.success) {
-      switchMode('login');
-      setStatus({ type: 'success', message: 'Password reset successfully! Please login with your new password.' });
+      setStatus({ type: 'success', message: 'Password reset successful! You can now log in.' });
+      setSecurityQuestion(null);
+      setNewPassword('');
+      setTimeout(() => switchMode('login'), 1500);
     }
   };
 
-  // Real OAuth 2.0 Provider Sign In Triggers
-  const handleRealOAuthSignIn = (provider: 'google' | 'apple' | 'microsoft') => {
-    setIsLoading(true);
-    setStatus({ type: 'idle', message: '' });
-
+  const handleOAuthLogin = (provider: 'google' | 'microsoft' | 'apple' | 'linkedin') => {
     if (provider === 'google') {
       void nextAuthSignIn('google', { callbackUrl: '/' });
-    } else if (provider === 'apple') {
-      void nextAuthSignIn('apple', { callbackUrl: '/' });
     } else if (provider === 'microsoft') {
       void nextAuthSignIn('azure-ad', { callbackUrl: '/' });
+    } else if (provider === 'apple') {
+      void nextAuthSignIn('apple', { callbackUrl: '/' });
+    } else if (provider === 'linkedin') {
+      void nextAuthSignIn('google', { callbackUrl: '/' });
     }
   };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (isLoading) return;
+
+    if (mode === 'login' && mobileCheck.status === 'not_found' && !form.password) {
+      switchMode('register');
+      return;
+    }
+
     if (mode === 'register') void register();
     else if (mode === 'login') void loginWithPassword();
     else if (mode === 'forgot') {
@@ -206,322 +358,589 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     }
   };
 
-  return (
-    <main suppressHydrationWarning className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white font-sans">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,156,42,0.18),transparent_28%),radial-gradient(circle_at_82%_16%,rgba(59,168,255,0.20),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_38%)]" />
-      <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-[1180px] gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-        <section>
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.28, ease: 'easeOut' }}
-            className="space-y-4"
-          >
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-md">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" /> EasyTrader Multi-Tenant SaaS Workspace
-            </span>
-            <h1 className="text-3xl font-black tracking-tight sm:text-4xl md:text-5xl leading-tight text-white">
-              Isolated Shop Workspaces with AI Intelligence.
-            </h1>
-            <p className="text-sm text-zinc-400 sm:text-base leading-relaxed">
-              Manage inventory, bills, customer ledgers, and AI marketing in your dedicated workspace.
-            </p>
-          </motion.div>
-        </section>
+  // ============================== LEFT HERO PANEL (ZOHO STYLE) ==============================
+  const leftPanel = (
+    <div className="flex h-full min-h-screen flex-col justify-between p-8 sm:p-14 lg:p-20 bg-[#f2faf6] dark:bg-[#07140e] border-r border-[#d5efe2] dark:border-zinc-800">
+      {/* Brand logo top left */}
+      <Link href="/" className="flex items-center gap-2.5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00c975] text-white font-black text-lg shadow-sm">
+          E
+        </div>
+        <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+          Easy<span className="font-light text-emerald-600 dark:text-emerald-400">Trader</span>
+        </span>
+        <span className="text-xs font-semibold text-zinc-400">| Billing</span>
+      </Link>
 
-        <motion.section
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.32, ease: 'easeOut' }}
-          className="rounded-3xl border border-zinc-800 bg-black/80 p-6 backdrop-blur-2xl sm:p-8 shadow-2xl shadow-black"
-        >
-          <div>
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight text-white">
-                  {mode === 'register' ? 'Create Account' : mode === 'login' ? 'Shopkeeper Login' : 'Password Recovery'}
-                </h2>
-                <p className="mt-1 text-xs text-zinc-400">
-                  {mode === 'register' ? 'Setup your shop account to continue' : mode === 'login' ? 'Login with registered 10-digit mobile & password' : 'Reset your account password'}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-900 p-1 border border-zinc-800">
-                <ModeButton active={mode === 'login'} label="Login" onClick={() => switchMode('login')} />
-                <ModeButton active={mode === 'register'} label="Register" onClick={() => switchMode('register')} />
-              </div>
-            </div>
+      {/* Main Headline & Features */}
+      <div className="my-auto py-10 max-w-lg space-y-10">
+        <div>
+          <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-white leading-[1.15]">
+            End-to-end billing solution for{' '}
+            <span className="text-[#00c975]">growing businesses.</span>
+          </h2>
+        </div>
 
-            <form suppressHydrationWarning onSubmit={handleSubmit} className="mt-6 space-y-4">
-              {mode === 'forgot' ? (
+        {/* Feature Highlights */}
+        <div className="space-y-6 pt-2">
+          {FEATURES.map((feat, index) => {
+            const Icon = feat.icon;
+            return (
+              <div key={index} className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-[#00c975] dark:bg-emerald-500/20">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+                    {feat.title}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                    {feat.desc}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Carousel indicator bars */}
+        <div className="flex items-center gap-2 pt-2">
+          <span className="h-1.5 w-10 rounded-full bg-[#00c975]" />
+          <span className="h-1.5 w-6 rounded-full bg-[#c2ebd5] dark:bg-zinc-700" />
+        </div>
+      </div>
+
+      {/* Trusted By section */}
+      <div className="border-t border-[#d5efe2] dark:border-zinc-800/80 pt-6">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+          TRUSTED BY
+        </p>
+        <p className="mt-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          {TRUSTED_COMPANIES.join(', ')}.
+        </p>
+      </div>
+    </div>
+  );
+
+  // ============================== RIGHT FORM PANEL (ZOHO STYLE) ==============================
+  const rightPanel = (
+    <div className="flex min-h-screen w-full flex-col justify-center px-6 py-12 sm:px-14 lg:px-24 bg-white dark:bg-black">
+      <div className="mx-auto w-full max-w-[460px]">
+        {/* Brand logo top (mobile/laptop) */}
+        <div className="mb-6 flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#00c975] text-white font-black text-sm">
+            E
+          </div>
+          <span className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white">
+            EasyTrader <span className="font-normal text-zinc-500">Billing</span>
+          </span>
+        </div>
+
+        {/* Header Title */}
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+          {mode === 'register'
+            ? "Let's get started"
+            : mode === 'login'
+            ? "Welcome back"
+            : "Reset Password"}
+        </h1>
+
+        <form suppressHydrationWarning onSubmit={handleSubmit} className="mt-7 space-y-4">
+          {mode === 'forgot' ? (
+            <>
+              {/* Email Address */}
+              <div className="relative rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 focus-within:border-black dark:focus-within:border-white transition">
+                <div className="flex items-center px-3.5 py-3">
+                  <Mail className="h-4 w-4 text-zinc-400 mr-2.5" />
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => updateForm('email', e.target.value)}
+                    placeholder="Email address"
+                    className="w-full bg-transparent text-sm font-normal text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none"
+                  />
+                </div>
+              </div>
+
+              {securityQuestion ? (
                 <>
-                  <AuthInput icon={Mail} placeholder="Registered Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
-                  {securityQuestion ? (
-                    <>
-                      <p className="text-[13px] text-zinc-300 font-medium">{securityQuestion}</p>
-                      <AuthInput
-                        icon={Lock}
-                        placeholder="Security answer"
+                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                    <p className="text-xs font-semibold text-zinc-500">Security Question:</p>
+                    <p className="mt-0.5 text-xs font-bold text-zinc-900 dark:text-white">{securityQuestion}</p>
+                  </div>
+                  <div className="relative rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 focus-within:border-black dark:focus-within:border-white transition">
+                    <div className="flex items-center px-3.5 py-3">
+                      <KeyRound className="h-4 w-4 text-zinc-400 mr-2.5" />
+                      <input
+                        type="text"
                         value={form.securityAnswer}
-                        onChange={(value) => updateForm('securityAnswer', value)}
+                        onChange={(e) => updateForm('securityAnswer', e.target.value)}
+                        placeholder="Security answer"
+                        className="w-full bg-transparent text-sm font-normal text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none"
                       />
-                      <AuthInput
-                        icon={Lock}
-                        placeholder="New Password (min 6 characters)"
+                    </div>
+                  </div>
+                  <div className="relative rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 focus-within:border-black dark:focus-within:border-white transition">
+                    <div className="flex items-center px-3.5 py-3">
+                      <Lock className="h-4 w-4 text-zinc-400 mr-2.5" />
+                      <input
                         type={showNewPassword ? 'text' : 'password'}
                         value={newPassword}
-                        onChange={setNewPassword}
-                        rightElement={
-                          <button
-                            type="button"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            className="text-zinc-500 hover:text-zinc-300 transition"
-                            tabIndex={-1}
-                          >
-                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        }
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="New Password (min 6 characters)"
+                        className="w-full bg-transparent text-sm font-normal text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none"
                       />
-                    </>
-                  ) : null}
-                </>
-              ) : null}
-
-              {mode === 'register' ? (
-                <>
-                  <AuthInput icon={UserPlus} placeholder="Full name" value={form.name} onChange={(value) => updateForm('name', value)} />
-                  <AuthInput icon={Store} placeholder="Shop name" value={form.shopName} onChange={(value) => updateForm('shopName', value)} />
-                  <AuthInput
-                    icon={Phone}
-                    placeholder="10-digit Mobile number"
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={10}
-                    value={form.mobile}
-                    onChange={(value) => updateForm('mobile', value)}
-                    rightElement={
-                      <span className={`text-[11px] font-semibold ${form.mobile.length === 10 ? 'text-emerald-400' : 'text-zinc-500'}`}>
-                        {form.mobile.length}/10
-                      </span>
-                    }
-                  />
-                  <AuthInput icon={Mail} placeholder="Email address" type="email" value={form.email} onChange={(value) => updateForm('email', value)} />
-                  <AuthInput
-                    icon={Lock}
-                    placeholder="Password (min 6 characters)"
-                    type={showPassword ? 'text' : 'password'}
-                    value={form.password}
-                    onChange={(value) => updateForm('password', value)}
-                    rightElement={
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-zinc-500 hover:text-zinc-300 transition"
-                        tabIndex={-1}
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                       >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    }
-                  />
-                  <div className="flex flex-col gap-3">
-                    <select
-                      suppressHydrationWarning
-                      value={form.securityQuestion}
-                      onChange={(e) => updateForm('securityQuestion', e.target.value)}
-                      className="w-full h-11 rounded-xl border border-zinc-800 bg-zinc-950 px-4 text-base md:text-sm text-white/70 transition focus-within:border-zinc-500 outline-none"
-                    >
-                      <option value="" disabled>Select a security question</option>
-                      {securityQuestions.map((q, i) => (
-                        <option key={i} value={q}>{q}</option>
-                      ))}
-                    </select>
-                    <AuthInput
-                      icon={Lock}
-                      placeholder="Security answer (min 3 characters)"
-                      value={form.securityAnswer}
-                      onChange={(value) => updateForm('securityAnswer', value)}
-                    />
-                  </div>
-                </>
-              ) : mode === 'login' ? (
-                <>
-                  <AuthInput
-                    icon={Phone}
-                    placeholder="10-digit Mobile number"
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={10}
-                    value={form.mobile}
-                    onChange={(value) => updateForm('mobile', value)}
-                    rightElement={
-                      <span className={`text-[11px] font-semibold ${form.mobile.length === 10 ? 'text-emerald-400' : 'text-zinc-500'}`}>
-                        {form.mobile.length}/10
-                      </span>
-                    }
-                  />
-                  <AuthInput
-                    icon={Lock}
-                    placeholder="Password (min 6 characters)"
-                    type={showPassword ? 'text' : 'password'}
-                    value={form.password}
-                    onChange={(value) => updateForm('password', value)}
-                    rightElement={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-zinc-500 hover:text-zinc-300 transition"
-                        tabIndex={-1}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    }
-                  />
-                  {mode === 'login' && (
-                    <div className="flex justify-between items-center text-xs mt-1">
-                      <span className="text-zinc-500">Only registered accounts can log in</span>
-                      <button
-                        type="button"
-                        onClick={() => switchMode('forgot')}
-                        suppressHydrationWarning
-                        className="text-zinc-400 hover:text-white transition touch-manipulation font-semibold"
-                      >
-                        Forgot Password?
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                  )}
+                  </div>
                 </>
               ) : null}
+            </>
+          ) : null}
 
-              {status.message ? (
-                <div className={`mt-4 rounded-xl border px-3.5 py-2.5 text-xs font-semibold ${status.type === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>
-                  {status.message}
-                </div>
-              ) : null}
-
-              <button
-                suppressHydrationWarning
-                type="submit"
-                disabled={isLoading}
-                className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-xl bg-white px-5 text-sm font-extrabold text-black shadow-lg transition hover:scale-[1.01] active:scale-[0.99] touch-manipulation disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {isLoading ? 'Please wait...' : mode === 'register' ? 'Create Shop Workspace' : mode === 'login' ? 'Login with Password' : securityQuestion ? 'Reset Password' : 'Get Security Question'}
-              </button>
-
-              {/* Divider */}
-              <div className="relative my-5 flex items-center justify-center">
-                <div className="w-full border-t border-zinc-800" />
-                <span className="absolute bg-black px-3 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                  Or Continue With
+          {mode === 'register' ? (
+            <>
+              {/* Floating label for Company Name */}
+              <div className="relative rounded-lg border border-zinc-800 dark:border-zinc-400 bg-white dark:bg-zinc-950 focus-within:border-[#00c975] transition">
+                <span className="absolute -top-2.5 left-3 bg-white dark:bg-black px-1.5 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
+                  <Building2 className="h-3 w-3" /> Company Name
                 </span>
+                <input
+                  type="text"
+                  value={form.shopName}
+                  onChange={(e) => updateForm('shopName', e.target.value)}
+                  placeholder="Enter your business name"
+                  className="w-full bg-transparent px-3.5 py-3.5 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none"
+                />
               </div>
 
-              {/* Real Official Provider OAuth Buttons */}
-              <div className="grid grid-cols-3 gap-2.5">
-                <button
-                  suppressHydrationWarning
-                  type="button"
-                  onClick={() => handleRealOAuthSignIn('google')}
-                  disabled={isLoading}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[12.5px] font-bold text-white transition hover:bg-zinc-900 hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98] touch-manipulation disabled:opacity-50"
-                  title="Sign in with Google (accounts.google.com)"
-                >
-                  <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"/>
-                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
-                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15s.7 5.3 1.9 7.7l3.7-2.9z"/>
-                    <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"/>
-                  </svg>
-                  <span>Google</span>
-                </button>
+              {/* Email Address */}
+              <div className="relative rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 focus-within:border-black dark:focus-within:border-white transition">
+                <div className="flex items-center px-3.5 py-3.5">
+                  <Mail className="h-4 w-4 text-zinc-400 mr-2.5" />
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => updateForm('email', e.target.value)}
+                    placeholder="Email address"
+                    className="w-full bg-transparent text-sm font-normal text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none"
+                  />
+                </div>
+              </div>
 
-                <button
-                  suppressHydrationWarning
-                  type="button"
-                  onClick={() => handleRealOAuthSignIn('apple')}
-                  disabled={isLoading}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[12.5px] font-bold text-white transition hover:bg-zinc-900 hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98] touch-manipulation disabled:opacity-50"
-                  title="Sign in with Apple (appleid.apple.com)"
-                >
-                  <svg className="h-4 w-4 fill-current shrink-0" viewBox="0 0 24 24">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.67-.82 1.13-1.96.99-3.1-.97.04-2.18.66-2.87 1.46-.62.72-1.16 1.88-1.01 3 .01 0 .04.01.07.01 1.08 0 2.15-.55 2.82-1.37z"/>
-                  </svg>
-                  <span>Apple</span>
-                </button>
+              {/* Phone Number with +91 */}
+              <div>
+                <div className="relative flex items-center rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 focus-within:border-black dark:focus-within:border-white transition">
+                  <div className="flex items-center gap-1.5 border-r border-zinc-200 dark:border-zinc-800 px-3.5 py-3.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                    <span className="text-sm">🇮🇳</span>
+                    <span>+91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={form.mobile}
+                    onChange={(e) => updateForm('mobile', e.target.value)}
+                    placeholder="Phone number"
+                    className="w-full bg-transparent px-3.5 py-3.5 text-sm font-normal text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none"
+                  />
+                  <div className="pr-3.5">
+                    {mobileCheck.status === 'checking' && (
+                      <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+                    )}
+                    {mobileCheck.status === 'exists' && (
+                      <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                        Registered
+                      </span>
+                    )}
+                    {mobileCheck.status === 'not_found' && (
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                        Available
+                      </span>
+                    )}
+                  </div>
+                </div>
 
+                {mobileCheck.status === 'exists' && (
+                  <div className="mt-2 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+                    <span>Account exists for <strong>{mobileCheck.shopName || mobileCheck.name}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => switchMode('login')}
+                      className="rounded bg-black dark:bg-white px-2 py-0.5 text-xs font-bold text-white dark:text-black"
+                    >
+                      Login
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Password */}
+              <div className="relative rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 focus-within:border-black dark:focus-within:border-white transition">
+                <div className="flex items-center px-3.5 py-3.5">
+                  <Lock className="h-4 w-4 text-zinc-400 mr-2.5" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={(e) => updateForm('password', e.target.value)}
+                    placeholder="Password"
+                    className="w-full bg-transparent text-sm font-normal text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Location / Country */}
+              <div className="relative rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3.5 py-3 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
+                  <Globe2 className="h-4 w-4 text-zinc-400" />
+                  <span>State / Country: <strong>{country}</strong></span>
+                </div>
                 <button
-                  suppressHydrationWarning
                   type="button"
-                  onClick={() => handleRealOAuthSignIn('microsoft')}
-                  disabled={isLoading}
-                  className="flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 text-[12.5px] font-bold text-white transition hover:bg-zinc-900 hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98] touch-manipulation disabled:opacity-50"
-                  title="Sign in with Microsoft (login.microsoftonline.com)"
+                  onClick={() => setIsChangingCountry(!isChangingCountry)}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                 >
-                  <svg className="h-4 w-4 shrink-0" viewBox="0 0 23 23">
-                    <path fill="#f35325" d="M1 1h10v10H1z"/>
-                    <path fill="#81bc06" d="M12 1h10v10H1z"/>
-                    <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-                    <path fill="#ffba08" d="M12 12h10v10H1z"/>
-                  </svg>
-                  <span>Microsoft</span>
+                  Change Country
                 </button>
               </div>
-            </form>
+
+              {isChangingCountry && (
+                <select
+                  value={country}
+                  onChange={(e) => {
+                    setCountry(e.target.value);
+                    setIsChangingCountry(false);
+                  }}
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-3.5 py-2.5 text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-white outline-none"
+                >
+                  <option value="India">India (GST Compliant)</option>
+                  <option value="United States">United States</option>
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="United Arab Emirates">United Arab Emirates</option>
+                  <option value="Singapore">Singapore</option>
+                </select>
+              )}
+
+              {/* Checkboxes */}
+              <div className="space-y-2.5 pt-2 text-[12px] text-zinc-600 dark:text-zinc-400 leading-normal">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={agreedToTerms}
+                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-[#00c975]"
+                  />
+                  <span>
+                    I agree to the{' '}
+                    <a href="#" className="text-[#00c975] hover:underline font-medium">
+                      Terms of Service
+                    </a>{' '}
+                    and{' '}
+                    <a href="#" className="text-[#00c975] hover:underline font-medium">
+                      Privacy Policy
+                    </a>
+                    .
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={marketingOptIn}
+                    onChange={(e) => setMarketingOptIn(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-[#00c975]"
+                  />
+                  <span>
+                    I would like to receive marketing communication from EasyTrader and regional partners for future product updates, services and events.
+                  </span>
+                </label>
+              </div>
+            </>
+          ) : mode === 'login' ? (
+            <>
+              {/* Phone number with auto-verification */}
+              <div>
+                <div className="relative flex items-center rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 focus-within:border-black dark:focus-within:border-white transition">
+                  <div className="flex items-center gap-1.5 border-r border-zinc-200 dark:border-zinc-800 px-3.5 py-3.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                    <span className="text-sm">🇮🇳</span>
+                    <span>+91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={form.mobile}
+                    onChange={(e) => updateForm('mobile', e.target.value)}
+                    placeholder="10-digit phone number"
+                    className="w-full bg-transparent px-3.5 py-3.5 text-sm font-normal text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none"
+                  />
+                  <div className="pr-3.5">
+                    {mobileCheck.status === 'checking' && (
+                      <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+                    )}
+                    {mobileCheck.status === 'exists' && (
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                        <CheckCircle2 className="h-3 w-3" /> Registered
+                      </span>
+                    )}
+                    {mobileCheck.status === 'not_found' && (
+                      <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                        Not Registered
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {mobileCheck.status === 'exists' && (
+                  <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-900 dark:text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>
+                      Account verified: <strong>{mobileCheck.shopName || mobileCheck.name}</strong>
+                    </span>
+                  </div>
+                )}
+
+                {mobileCheck.status === 'not_found' && (
+                  <div className="mt-2.5 rounded-xl border border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-amber-500/5 p-3.5 text-xs space-y-2 text-amber-950 dark:text-amber-200">
+                    <p className="font-bold text-amber-900 dark:text-amber-300">No account found with this number</p>
+                    <p className="text-[11.5px] text-zinc-600 dark:text-zinc-300">
+                      This phone number is not registered. Create a new account to get started.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => switchMode('register')}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black py-2 px-3 font-bold text-xs transition"
+                    >
+                      Go to Register <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Password */}
+              {mobileCheck.status !== 'not_found' && (
+                <div className="relative rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 focus-within:border-black dark:focus-within:border-white transition">
+                  <div className="flex items-center px-3.5 py-3.5">
+                    <Lock className="h-4 w-4 text-zinc-400 mr-2.5" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.password}
+                      onChange={(e) => updateForm('password', e.target.value)}
+                      placeholder="Password"
+                      className="w-full bg-transparent text-sm font-normal text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-zinc-500">
+                  {mobileCheck.status === 'exists' ? 'Ready to sign in' : 'Enter 10-digit number'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => switchMode('forgot')}
+                  className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {status.message && (
+            <div
+              className={`rounded-lg border px-3.5 py-2.5 text-xs font-semibold ${
+                status.type === 'error'
+                  ? 'border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300'
+                  : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300'
+              }`}
+            >
+              {status.message}
+            </div>
+          )}
+
+          {/* Primary CTA Button (Zoho green #00c975) */}
+          {mode === 'login' && mobileCheck.status === 'not_found' ? (
+            <button
+              type="button"
+              onClick={() => switchMode('register')}
+              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-black dark:bg-white text-white dark:text-black font-bold text-sm hover:opacity-90 transition active:scale-[0.99]"
+            >
+              Create your account
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="mt-5 flex h-12 w-full items-center justify-center rounded-lg bg-[#00c975] hover:bg-[#00b568] text-white font-bold text-sm shadow-sm transition active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Please wait...
+                </span>
+              ) : mode === 'register' ? (
+                'Create your account'
+              ) : mode === 'login' ? (
+                mobileCheck.status === 'exists' && mobileCheck.shopName
+                  ? `Sign in to ${mobileCheck.shopName}`
+                  : 'Sign in to your account'
+              ) : securityQuestion ? (
+                'Reset Password'
+              ) : (
+                'Find Security Question'
+              )}
+            </button>
+          )}
+        </form>
+
+        {/* Social Logins */}
+        <div className="mt-8">
+          <p className="text-xs text-zinc-500 text-left">or sign in using</p>
+
+          <div className="mt-3 grid grid-cols-5 gap-2.5">
+            {/* Google */}
+            <button
+              type="button"
+              onClick={() => handleOAuthLogin('google')}
+              title="Google"
+              className="flex h-11 items-center justify-center rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition"
+            >
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }}>
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+            </button>
+
+            {/* Microsoft */}
+            <button
+              type="button"
+              onClick={() => handleOAuthLogin('microsoft')}
+              title="Microsoft"
+              className="flex h-11 items-center justify-center rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition"
+            >
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 23 23" style={{ width: '20px', height: '20px' }}>
+                <rect fill="#F35325" x="1" y="1" width="10" height="10" />
+                <rect fill="#81BC06" x="12" y="1" width="10" height="10" />
+                <rect fill="#05A6F0" x="1" y="12" width="10" height="10" />
+                <rect fill="#FFBA08" x="12" y="12" width="10" height="10" />
+              </svg>
+            </button>
+
+            {/* LinkedIn */}
+            <button
+              type="button"
+              onClick={() => handleOAuthLogin('linkedin')}
+              title="LinkedIn"
+              className="flex h-11 items-center justify-center rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition"
+            >
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#0A66C2" style={{ width: '20px', height: '20px' }}>
+                <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76c.88 0 1.6-.72 1.6-1.6 0-.88-.72-1.6-1.6-1.6-.88 0-1.6.72-1.6 1.6 0 .88.72 1.6 1.6 1.6m1.4 9.74v-8.37H5.06v8.37h2.8z" />
+              </svg>
+            </button>
+
+            {/* Apple */}
+            <button
+              type="button"
+              onClick={() => handleOAuthLogin('apple')}
+              title="Apple"
+              className="flex h-11 items-center justify-center rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white transition"
+            >
+              <svg className="w-5 h-5 shrink-0 fill-current text-zinc-900 dark:text-white" viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }}>
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 1.01-2.85-.92.04-2.03.62-2.69 1.39-.58.67-1.09 1.74-1.02 2.78 1.03.08 2.08-.57 2.7-1.32z" />
+              </svg>
+            </button>
+
+            {/* X */}
+            <button
+              type="button"
+              onClick={() => handleOAuthLogin('google')}
+              title="X"
+              className="flex h-11 items-center justify-center rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white transition"
+            >
+              <svg className="w-4.5 h-4.5 shrink-0 fill-current text-zinc-900 dark:text-white" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </button>
           </div>
-        </motion.section>
+        </div>
+
+        {/* Footer Link */}
+        <div className="mt-8 text-center text-xs text-zinc-500">
+          {mode === 'register' ? (
+            <p>
+              Already have an account?{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className="text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+              >
+                Sign in
+              </button>
+            </p>
+          ) : (
+            <p>
+              Don&apos;t have an account?{' '}
+              <button
+                type="button"
+                onClick={() => switchMode('register')}
+                className="text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+              >
+                Sign up
+              </button>
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Full Page Screen Layout
+  return (
+    <main
+      suppressHydrationWarning
+      className="min-h-screen w-full font-sans antialiased grid lg:grid-cols-2"
+    >
+      <div className="hidden lg:block">
+        {leftPanel}
+      </div>
+      <div>
+        {rightPanel}
       </div>
     </main>
   );
 }
-
-function ModeButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
-  return (
-    <button
-      suppressHydrationWarning
-      type="button"
-      onClick={onClick}
-      className={`h-9 rounded-lg px-4 text-[12.5px] font-bold transition touch-manipulation ${
-        active ? 'bg-white text-black shadow-md' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function AuthInput({
-  icon: Icon,
-  onChange,
-  placeholder,
-  type = 'text',
-  value,
-  maxLength,
-  inputMode,
-  rightElement,
-}: {
-  icon: any;
-  onChange: (value: string) => void;
-  placeholder: string;
-  type?: string;
-  value: string;
-  maxLength?: number;
-  inputMode?: 'text' | 'numeric' | 'tel' | 'email' | 'url' | 'search' | 'none' | 'decimal';
-  rightElement?: React.ReactNode;
-}) {
-  return (
-    <label suppressHydrationWarning className="flex h-11 items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-4 text-zinc-400 transition focus-within:border-zinc-500 focus-within:text-white">
-      <Icon className="h-4 w-4 shrink-0 text-current" />
-      <input
-        suppressHydrationWarning
-        type={type}
-        value={value}
-        maxLength={maxLength}
-        inputMode={inputMode}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-transparent text-base md:text-sm text-white outline-none placeholder:text-zinc-500 font-sans font-medium"
-      />
-      {rightElement && <div className="shrink-0 flex items-center">{rightElement}</div>}
-    </label>
-  );
-}
-
-

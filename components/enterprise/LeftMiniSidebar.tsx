@@ -26,6 +26,8 @@ interface LeftMiniSidebarProps {
   onBusinessSectionChange?: (section: BusinessSectionKey) => void;
   isOpen: boolean;
   theme?: 'dark' | 'light';
+  isAuthenticated?: boolean;
+  onRequireAuth?: () => void;
 }
 
 const menuItems: { id: TabKey; label: string; icon: any }[] = [
@@ -51,7 +53,9 @@ export function LeftMiniSidebar({
   activeBusinessSection = 'billing',
   activeTab,
   isOpen,
+  isAuthenticated = false,
   onBusinessSectionChange,
+  onRequireAuth,
   onTabChange,
   theme = 'dark',
 }: LeftMiniSidebarProps) {
@@ -191,7 +195,7 @@ export function LeftMiniSidebar({
             <span className="truncate">Settings</span>
             {activeTab === 'settings' && (
               <motion.span
-                layoutId="mini-sidebar-indicator"
+                layoutId="mini-sidebar-settings-indicator"
                 className={`ml-auto h-2 w-2 rounded-full ${
                   isLight ? 'bg-black' : 'bg-white'
                 }`}
