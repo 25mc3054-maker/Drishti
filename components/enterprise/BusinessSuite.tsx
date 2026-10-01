@@ -31,6 +31,7 @@ import {
   Search,
   ShoppingBag,
   Sparkles,
+  Pencil,
   SplitSquareVertical,
   Tag,
   Trash2,
@@ -41,6 +42,7 @@ import {
   X,
 } from 'lucide-react';
 import { AddStockModal } from './AddStockModal';
+import { EditProductModal } from './EditProductModal';
 import { AddCustomerModal } from './AddCustomerModal';
 import { AddSupplierModal } from './AddSupplierModal';
 import { ExpensesManager } from './ExpensesManager';
@@ -117,6 +119,7 @@ export function BusinessSuite({
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [isAddingStock, setIsAddingStock] = useState(false);
   const [isAddingSupplier, setIsAddingSupplier] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [restockingItem, setRestockingItem] = useState<any | null>(null);
   const [restockQty, setRestockQty] = useState('');
   const [restockMode, setRestockMode] = useState<'add' | 'replace'>('add');
@@ -598,26 +601,9 @@ export function BusinessSuite({
         }));
       }
 
-      // AUTOMATIC POST-BILLING DISPATCH: BOTH INVOICE PDF & TEXT MESSAGE
-      try {
-        downloadInvoicePDF(result.invoice, { shopName: 'EasyTrader' });
-      } catch (err) {
-        console.error('PDF invoice download error:', err);
-      }
-
-      let textStatus = '';
-      try {
-        const textResult = await sendInvoiceTextMessage(result.invoice, { shopName: 'EasyTrader', channel: 'auto' });
-        if (textResult?.success) {
-          textStatus = ' & Text Message sent to customer';
-        }
-      } catch (err) {
-        console.error('SMS text dispatch error:', err);
-      }
-
       setBillingStatus({
         type: 'success',
-        message: `Bill #${String(result.invoice.id).slice(0, 8).toUpperCase()} created! PDF Invoice downloaded${textStatus}. Inventory updated.`,
+        message: `Bill #${String(result.invoice.id).slice(0, 8).toUpperCase()} created! Click WhatsApp Bill to send PDF invoice and text message to customer.`,
       });
 
       depletedItems.forEach((item: any) => {
@@ -640,72 +626,11 @@ export function BusinessSuite({
   const shareInvoiceOnWhatsApp = async (invoice: any) => {
     if (!invoice) return;
 
-    const customerPhone = invoice.customer?.phone ? String(invoice.customer.phone).replace(/\D/g, '') : '';
-    const customerName = invoice.customer?.name || 'Walk-in Customer';
-    const invoiceId = String(invoice.id).slice(0, 8).toUpperCase();
-    const formattedDate = formatDate(invoice.createdAt);
-    const paymentMethod = String(invoice.paymentMethod || 'cash').toUpperCase();
-
-    // 1. Build Itemized Text List
-    const itemsList = (invoice.items || []).map((item: any) => (
-      `• *${item.name || 'Item'}*\n  ${item.qty || 1} ${item.unit || 'pcs'} × ₹${formatMoney(Number(item.price || 0))} = ₹${formatMoney(Number(item.lineTotal || 0))}`
-    )).join('\n');
-
-    // 2. Build Full Structured Bill Message
-    const billText = [
-      `🧾 *INVOICE RECEIPT - EASYTRADER*`,
-      `────────────────────────`,
-      `📄 *Invoice No:* #${invoiceId}`,
-      `📅 *Date:* ${formattedDate}`,
-      `👤 *Customer:* ${customerName}${customerPhone ? ` (${customerPhone})` : ''}`,
-      `💳 *Payment Method:* ${paymentMethod}`,
-      `────────────────────────`,
-      `📦 *ITEMS PURCHASED:*`,
-      itemsList,
-      `────────────────────────`,
-      `Subtotal: ₹${formatMoney(Number(invoice.subtotal || 0))}`,
-      Number(invoice.discount || 0) > 0 ? `Discount: -₹${formatMoney(Number(invoice.discount || 0))}` : '',
-      Number(invoice.tax || 0) > 0 ? `Tax (GST): +₹${formatMoney(Number(invoice.tax || 0))}` : '',
-      `------------------------`,
-      `💰 *TOTAL PAID:* ₹${formatMoney(Number(invoice.total || 0))}`,
-      invoice.notes ? `📝 *Notes:* ${invoice.notes}` : '',
-      `────────────────────────`,
-      `✨ *Thank you for shopping with us!*`,
-    ].filter(Boolean).join('\n');
-
-    // 3. Prepare Invoice Text/Document File
-    const fileName = `EasyTrader_Invoice_${customerName.replace(/\s+/g, '_')}_${invoiceId}.txt`;
-    const invoiceBlob = new Blob([billText], { type: 'text/plain;charset=utf-8' });
-
-    // 4. Try Web Share API (Mobile Phones) for attaching document file + text together
-    if (typeof navigator !== 'undefined' && (navigator as any).share && (navigator as any).canShare) {
-      try {
-        const invoiceFile = new File([invoiceBlob], fileName, { type: 'text/plain' });
-        if ((navigator as any).canShare({ files: [invoiceFile] })) {
-          await (navigator as any).share({
-            title: `Invoice #${invoiceId}`,
-            text: billText,
-            files: [invoiceFile],
-          });
-          return;
-        }
-      } catch (err: any) {
-        // Fall back to wa.me if share canceled or unhandled
-      }
+    try {
+      await sendInvoiceTextMessage(invoice, { shopName: 'EasyTrader', channel: 'whatsapp' });
+    } catch (err) {
+      console.error('WhatsApp message dispatch error:', err);
     }
-
-    // 5. Fallback for Desktop/Web Browsers: Trigger invoice file download & open WhatsApp web
-    const blobUrl = URL.createObjectURL(invoiceBlob);
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.href = blobUrl;
-    downloadAnchor.download = fileName;
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    document.body.removeChild(downloadAnchor);
-    URL.revokeObjectURL(blobUrl);
-
-    const phoneParam = customerPhone ? `91${customerPhone.slice(-10)}` : '';
-    window.open(`https://wa.me/${phoneParam}?text=${encodeURIComponent(billText)}`, '_blank', 'noopener,noreferrer');
   };
 
   const shareLastBill = () => {
@@ -1042,6 +967,7 @@ export function BusinessSuite({
                 onAddSupplier={() => setIsAddingSupplier(true)}
                 onDeleteCustomer={deleteCustomer}
                 onDeleteStock={deleteStockItem}
+                onEditStock={(item) => setEditingProduct(item)}
                 onDeleteSupplier={deleteSupplier}
                 onQuickRestock={(item) => {
                   setRestockingItem(item);
@@ -1079,6 +1005,19 @@ export function BusinessSuite({
                 if (newCustomer?.id) {
                   setCustomerId(String(newCustomer.id));
                 }
+              }}
+              theme={theme}
+              isLight={isLight}
+            />
+          )}
+          {editingProduct && (
+            <EditProductModal
+              product={editingProduct}
+              suppliers={data.suppliers}
+              onClose={() => setEditingProduct(null)}
+              onUpdate={() => {
+                onDataRefresh?.();
+                setEditingProduct(null);
               }}
               theme={theme}
               isLight={isLight}
@@ -2645,6 +2584,7 @@ function ModuleGallery({
   onMarketingFormChange,
   onDeleteSupplier,
   onDeleteStock,
+  onEditStock,
   onPlaceSupplierOrder,
   onShareInvoice,
   onSendTextInvoice,
@@ -2679,6 +2619,7 @@ function ModuleGallery({
   onMarketingFormChange: (form: MarketingForm) => void;
   onDeleteSupplier: (supplierId: string) => void;
   onDeleteStock: (itemId: string) => void;
+  onEditStock?: (item: any) => void;
   onPlaceSupplierOrder: (item: any, supplier?: any) => void;
   onSharePromo: () => void;
   onSyncGoogleBusiness: () => void;
@@ -2866,12 +2807,43 @@ function ModuleGallery({
                       <span className={`font-bold ${isLight ? 'text-zinc-800' : 'text-zinc-200'}`}>
                         {Number(item.qty || 0)} in stock
                       </span>
-                      <span>•</span>
-                      <span className="truncate">{item.supplierName || item.category || 'General'}</span>
+                      {item.category && (
+                        <>
+                          <span>•</span>
+                          <span className="truncate">{item.category}</span>
+                        </>
+                      )}
+                      {item.supplierName && (
+                        <>
+                          <span>•</span>
+                          <span className={`truncate font-semibold ${isLight ? 'text-zinc-700' : 'text-zinc-300'}`}>
+                            Supplier: {item.supplierName}
+                          </span>
+                        </>
+                      )}
+                      {!item.category && !item.supplierName && (
+                        <>
+                          <span>•</span>
+                          <span className="truncate">General</span>
+                        </>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => onEditStock?.(item)}
+                      className={`inline-flex items-center gap-1 rounded-sm px-2.5 py-1 text-[11.5px] font-bold transition border ${
+                        isLight
+                          ? 'border-zinc-300 bg-zinc-100 text-black hover:bg-zinc-200'
+                          : 'border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800'
+                      }`}
+                      title="Edit Product Details"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span>Edit</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => onQuickRestock?.(item)}
@@ -2999,42 +2971,29 @@ function ModuleGallery({
                     </span>
                     <button
                       type="button"
-                      onClick={() => onDownloadInvoice(invoice)}
-                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
-                        isLight
-                          ? 'bg-black text-white hover:bg-zinc-800'
-                          : 'bg-white text-black hover:bg-zinc-200'
-                      }`}
-                      title="Download PDF Tax Invoice"
-                    >
-                      <FileText className="h-3.5 w-3.5 text-current" />
-                      <span>PDF Invoice</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onSendTextInvoice?.(invoice)}
-                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
-                        isLight
-                          ? 'bg-blue-600 text-white hover:bg-blue-700'
-                          : 'bg-blue-500 text-black hover:bg-blue-400 font-bold'
-                      }`}
-                      title="Send SMS text message to customer"
-                    >
-                      <MessageSquare className="h-3.5 w-3.5 text-current" />
-                      <span>SMS Text</span>
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => onShareInvoice?.(invoice)}
                       className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
                         isLight
                           ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                           : 'bg-emerald-500 text-black hover:bg-emerald-400 font-bold'
                       }`}
-                      title="Share invoice breakdown via WhatsApp"
+                      title="Send bill text message & download PDF invoice on WhatsApp"
                     >
                       <MessageCircle className="h-3.5 w-3.5 text-current" />
-                      <span>WhatsApp</span>
+                      <span>WhatsApp Bill</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDownloadInvoice(invoice)}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-bold transition border-0 ${
+                        isLight
+                          ? 'bg-black text-white hover:bg-zinc-800'
+                          : 'bg-white text-black hover:bg-zinc-200'
+                      }`}
+                      title="Print or download PDF Tax Invoice"
+                    >
+                      <Printer className="h-3.5 w-3.5 text-current" />
+                      <span>Print</span>
                     </button>
                   </div>
                 </div>

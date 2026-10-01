@@ -53,7 +53,8 @@ export function CosmicNavbar({ activeSection, instanceId = 'desktop', isLight: p
             : 'border-zinc-800 bg-zinc-950 text-white shadow-black/80'
         }`}
       >
-        <div className="flex w-full items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none scroll-smooth py-0.5 px-0.5 lg:overflow-visible">
+        {/* Touch-Scrollable Chips Track on Phone, Centered Floating Dock Capsule on Laptop */}
+        <div className="flex w-full items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none no-scrollbar scroll-smooth py-0.5 px-0.5 lg:overflow-visible [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
           {navItems.map((item) => (
             <NavButton
               key={item.key}

@@ -29,6 +29,7 @@ const StorefrontPage = dynamic(() => import('@/components/enterprise/StorefrontP
 const InsightsPage = dynamic(() => import('@/components/enterprise/InsightsPage').then(mod => mod.InsightsPage), { loading: () => <SectionLoadingSkeleton /> });
 const SaaSAdminPage = dynamic(() => import('@/components/enterprise/SaaSAdminPage').then(mod => mod.SaaSAdminPage), { loading: () => <SectionLoadingSkeleton /> });
 const DatabaseManagementPage = dynamic(() => import('@/components/enterprise/DatabaseManagementPage').then(mod => mod.DatabaseManagementPage), { loading: () => <SectionLoadingSkeleton /> });
+const ThemeOnboardingModal = dynamic(() => import('@/components/enterprise/ThemeOnboardingModal').then(mod => mod.ThemeOnboardingModal), { ssr: false });
 
 const initialData: DashboardData = {
   items: [],
@@ -41,12 +42,31 @@ const initialData: DashboardData = {
   storefront: null,
 };
 
+const getInitialTheme = (): 'dark' | 'light' => {
+  if (typeof window === 'undefined') return 'dark';
+  try {
+    const cachedUserStr = localStorage.getItem('easytrader_user');
+    if (cachedUserStr) {
+      const cachedUser = JSON.parse(cachedUserStr);
+      const userKey = cachedUser.email || cachedUser.tenantId || cachedUser.id;
+      if (userKey) {
+        const accountTheme = localStorage.getItem(`easytrader_theme_${userKey}`);
+        if (accountTheme === 'dark' || accountTheme === 'light') return accountTheme;
+      }
+    }
+    const storedTheme = localStorage.getItem('easytrader_theme') || localStorage.getItem('vite-ui-theme');
+    if (storedTheme === 'dark' || storedTheme === 'light') return storedTheme;
+  } catch {}
+  return 'dark';
+};
+
 export default function EasyTraderPlatform() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [activeBusinessSection, setActiveBusinessSection] = useState<BusinessSectionKey>('billing');
   const [data, setData] = useState<DashboardData>(initialData);
   const [authUser, setAuthUser] = useState<any | null>(null);
+  const [showThemeOnboarding, setShowThemeOnboarding] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showThemeSetup, setShowThemeSetup] = useState(false);
@@ -136,6 +156,49 @@ export default function EasyTraderPlatform() {
     }
   }, []);
 
+  const handleThemeChange = (newTheme: 'dark' | 'light') => {
+    setTheme(newTheme);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('easytrader_theme', newTheme);
+        localStorage.setItem('vite-ui-theme', newTheme);
+        localStorage.setItem('drishti_global_theme', newTheme);
+        if (authUser) {
+          const userKey = authUser.email || authUser.tenantId || authUser.id;
+          if (userKey) {
+            localStorage.setItem(`easytrader_theme_${userKey}`, newTheme);
+            localStorage.setItem(`drishti_theme_${userKey}`, newTheme);
+          }
+        }
+      } catch {}
+    }
+
+    if (authUser) {
+      fetch('/api/saas/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: newTheme }),
+      }).catch(() => {});
+
+      fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ themePreference: newTheme }),
+      })
+        .then((res) => res.json())
+        .then((result) => {
+          if (result?.success && result?.user) {
+            setAuthUser(result.user);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('drishti_cached_user', JSON.stringify(result.user));
+              localStorage.setItem('easytrader_user', JSON.stringify(result.user));
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  };
+
   const loadData = async () => {
     if (isLoadingDataRef.current) return data;
     isLoadingDataRef.current = true;
@@ -196,43 +259,10 @@ export default function EasyTraderPlatform() {
       }
     }
   }, [authUser?.id, authUser?.email, authUser?.themePreference]);
-
-  // 3. User Theme Switcher Handler (Persists locally & syncs with backend profile)
-  const handleThemeChange = (newTheme: 'dark' | 'light') => {
-    setTheme(newTheme);
-
+  const handleThemeOnboardingComplete = () => {
+    setShowThemeOnboarding(false);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('drishti_global_theme', newTheme);
-      if (authUser?.id) localStorage.setItem(`drishti_theme_${authUser.id}`, newTheme);
-      if (authUser?.email) localStorage.setItem(`drishti_theme_${authUser.email}`, newTheme);
-      if (authUser?.id || authUser?.email) {
-        localStorage.setItem('drishti_active_account_id', authUser.id || authUser.email);
-      }
-    }
-
-    if (authUser) {
-      fetch('/api/auth/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ themePreference: newTheme }),
-      })
-        .then((res) => res.json())
-        .then((result) => {
-          if (result?.success && result?.user) {
-            setAuthUser(result.user);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('drishti_cached_user', JSON.stringify(result.user));
-              localStorage.setItem('easytrader_user', JSON.stringify(result.user));
-            }
-          }
-        })
-        .catch(() => {});
-
-      const themeLabel = newTheme === 'light' ? 'Light' : 'Dark';
-      toast.success(`${themeLabel} Theme saved to your account`, {
-        description: `Saved for ${authUser.shopName || authUser.name || authUser.email}`,
-        icon: newTheme === 'light' ? '☀️' : '🌙',
-      });
+      localStorage.setItem('theme_onboarding_complete', 'true');
     }
   };
 
@@ -266,6 +296,23 @@ export default function EasyTraderPlatform() {
   useEffect(() => {
     let cancelled = false;
 
+    // 1. Instant local hydration (prevents SSR mismatch & ensures 0ms response)
+    try {
+      const cached = localStorage.getItem('easytrader_user') || localStorage.getItem('drishti_cached_user');
+      if (cached) {
+        const user = JSON.parse(cached);
+        setAuthUser(user);
+        const userKey = user.email || user.tenantId || user.id;
+        if (userKey) {
+          const accountTheme = localStorage.getItem(`easytrader_theme_${userKey}`);
+          if (accountTheme === 'dark' || accountTheme === 'light') {
+            setTheme(accountTheme);
+          }
+        }
+      }
+    } catch {}
+
+    // 2. Background session check & cloud theme restoration
     const checkSession = async () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
@@ -279,17 +326,26 @@ export default function EasyTraderPlatform() {
         if (response.ok) {
           const result = await response.json();
           if (result?.success && result?.user) {
-            setAuthUser(result.user);
+            const user = result.user;
+            setAuthUser(user);
             if (typeof window !== 'undefined') {
-              sessionStorage.setItem('drishti_session_user', JSON.stringify(result.user));
+              sessionStorage.setItem('drishti_session_user', JSON.stringify(user));
               sessionStorage.setItem('drishti_session_active', 'true');
-              localStorage.setItem('drishti_cached_user', JSON.stringify(result.user));
-              localStorage.setItem('easytrader_user', JSON.stringify(result.user));
+              localStorage.setItem('drishti_cached_user', JSON.stringify(user));
+              localStorage.setItem('easytrader_user', JSON.stringify(user));
               localStorage.setItem('drishti_has_seen_overview', 'true');
             }
-            void loadData().then((nextData) => {
-              if (!cancelled) setData(nextData);
-            });
+
+            const userKey = user.email || user.tenantId || user.id;
+            if (userKey) {
+              const accountTheme = localStorage.getItem(`easytrader_theme_${userKey}`);
+              if (accountTheme === 'dark' || accountTheme === 'light') {
+                setTheme(accountTheme);
+              }
+            }
+
+            const nextData = await loadData();
+            if (!cancelled) setData(nextData);
             return;
           }
         }
@@ -344,6 +400,17 @@ export default function EasyTraderPlatform() {
   };
 
   const handleAuthenticated = async (user: any) => {
+    const userKey = user.email || user.tenantId || user.id;
+    if (userKey) {
+      const accountTheme = localStorage.getItem(`easytrader_theme_${userKey}`);
+      if (accountTheme === 'dark' || accountTheme === 'light') {
+        setTheme(accountTheme);
+      }
+    }
+    const themeOnboardingComplete = localStorage.getItem('theme_onboarding_complete');
+    if (!themeOnboardingComplete) {
+      setShowThemeOnboarding(true);
+    }
     setAuthUser(user);
     setShowAuthModal(false);
 
@@ -403,9 +470,10 @@ export default function EasyTraderPlatform() {
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
-      document.documentElement.classList.remove('light', 'dark');
-      document.documentElement.classList.add(theme);
-      document.documentElement.setAttribute('data-theme', theme);
+      const root = document.documentElement;
+      root.classList.remove('light', 'dark');
+      root.classList.add(theme);
+      root.setAttribute('data-theme', theme);
     }
   }, [theme]);
 
@@ -428,6 +496,12 @@ export default function EasyTraderPlatform() {
 
   return (
     <div className={`relative h-screen max-h-screen overflow-hidden flex flex-col font-sans transition-all duration-300 ${shellThemeClasses[theme]}`}>
+      {showThemeOnboarding && (
+        <ThemeOnboardingModal
+          onComplete={handleThemeOnboardingComplete}
+          onThemeSelect={handleThemeChange}
+        />
+      )}
       {/* Top Navigation Bar */}
       <Navbar
         activeTab={activeTab}

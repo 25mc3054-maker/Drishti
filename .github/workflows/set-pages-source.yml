@@ -26,9 +26,17 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             core.info(`Setting pages source for ${owner}/${repo} to gh-pages`);
-            await github.request('PUT /repos/{owner}/{repo}/pages', {
-              owner,
-              repo,
-              source: { branch: 'gh-pages', path: '/' }
-            });
+            try {
+              await github.request('PUT /repos/{owner}/{repo}/pages', {
+                owner,
+                repo,
+                source: { branch: 'gh-pages', path: '/' }
+              });
+            } catch (error) {
+              if (error.status === 403) {
+                core.warning('Skipping Pages source update because this token lacks administration:write permission.');
+                return;
+              }
+              throw error;
+            }
             core.info('Pages source updated to gh-pages');

@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 export type AppTheme = 'dark' | 'light';
 
+export type Theme = AppTheme;
+
 type ThemeProviderProps = {
   children: React.ReactNode;
   defaultTheme?: AppTheme;
@@ -31,17 +33,22 @@ export function ThemeProvider({
   const [theme, setTheme] = useState<AppTheme>(defaultTheme);
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem(storageKey) as AppTheme | null;
-    if (storedTheme === 'light' || storedTheme === 'dark') {
-      setTheme(storedTheme);
-    } else {
+    try {
+      const storedTheme = (localStorage.getItem(storageKey) ||
+        localStorage.getItem('easytrader_theme') ||
+        localStorage.getItem('vite-ui-theme')) as AppTheme | null;
+      if (storedTheme === 'light' || storedTheme === 'dark') {
+        setTheme(storedTheme);
+      } else {
+        setTheme('dark');
+      }
+    } catch {
       setTheme('dark');
     }
   }, [storageKey]);
 
   useEffect(() => {
     const root = window.document.documentElement;
-
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
     root.setAttribute('data-theme', theme);
@@ -49,9 +56,15 @@ export function ThemeProvider({
 
   const value = {
     theme,
-    setTheme: (theme: AppTheme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
+    setTheme: (newTheme: AppTheme) => {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(storageKey, newTheme);
+          localStorage.setItem('easytrader_theme', newTheme);
+          localStorage.setItem('vite-ui-theme', newTheme);
+        } catch {}
+      }
+      setTheme(newTheme);
     },
   };
 

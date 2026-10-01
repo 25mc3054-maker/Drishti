@@ -1,3 +1,5 @@
+import { generateInvoicePDF } from './invoice-pdf';
+
 export interface SendTextOptions {
   shopName?: string;
   channel?: 'sms' | 'whatsapp' | 'auto';
@@ -83,49 +85,68 @@ export async function sendInvoiceTextMessage(
   const textMessage = buildInvoiceTextMessage(invoice, shopName);
   const rawPhone = invoice.customer?.phone ? String(invoice.customer.phone).replace(/\D/g, '') : '';
   const phoneTenDigits = rawPhone.slice(-10);
+  const formattedPhone = phoneTenDigits ? `91${phoneTenDigits}` : '';
 
-  // 1. Send via Backend API endpoint (records delivery log in database)
+  // 1. Record delivery log in database API endpoint asynchronously
   try {
-    await fetch('/api/saas/invoices/send-text', {
+    fetch('/api/saas/invoices/send-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         invoiceId: invoice.id,
-        phone: phoneTenDigits ? `91${phoneTenDigits}` : '',
+        phone: formattedPhone,
         message: textMessage,
       }),
-    });
+    }).catch(() => {});
   } catch {}
 
-  // 2. Client-side Native Launchers for direct delivery to customer:
   const channel = options.channel || 'auto';
 
+  // 2. Direct SMS Launcher
   if (channel === 'sms' && typeof window !== 'undefined') {
-    if (phoneTenDigits) {
-      const smsUrl = `sms:+91${phoneTenDigits}?body=${encodeURIComponent(textMessage)}`;
-      window.open(smsUrl, '_blank');
-      return { success: true, channelSent: 'sms', message: `SMS app launched for +91${phoneTenDigits}` };
-    }
+    const smsUrl = formattedPhone
+      ? `sms:+${formattedPhone}?body=${encodeURIComponent(textMessage)}`
+      : `sms:?body=${encodeURIComponent(textMessage)}`;
+    window.open(smsUrl, '_blank');
+    return { success: true, channelSent: 'sms', message: 'SMS app launched.' };
   }
 
-  if (channel === 'whatsapp' || channel === 'auto') {
-    if (typeof navigator !== 'undefined' && (navigator as any).share) {
+  // 3. Direct WhatsApp Launcher with In-Memory PDF Invoice File Attachment
+  if (typeof window !== 'undefined') {
+    // Generate PDF in-memory (no local disk download)
+    let pdfFile: File | null = null;
+    try {
+      const pdfDoc = generateInvoicePDF(invoice, { shopName });
+      const pdfBlob = pdfDoc.output('blob');
+      const invoiceIdStr = String(invoice.id || 'INV').slice(0, 8).toUpperCase();
+      pdfFile = new File([pdfBlob], `Invoice_${invoiceIdStr}.pdf`, { type: 'application/pdf' });
+    } catch (err) {
+      console.error('In-memory PDF generation error:', err);
+    }
+
+    // Try System Share API (attaches PDF file + text message together)
+    if (typeof navigator !== 'undefined' && (navigator as any).share && pdfFile && (navigator as any).canShare) {
       try {
-        await (navigator as any).share({
-          title: `Invoice Receipt - ${shopName}`,
-          text: textMessage,
-        });
-        return { success: true, channelSent: 'share_api', message: 'Invoice shared via system share menu.' };
-      } catch (err: any) {
-        // Fallback to direct link
+        if ((navigator as any).canShare({ files: [pdfFile] })) {
+          await (navigator as any).share({
+            title: `Invoice #${String(invoice.id || '').slice(0, 8).toUpperCase()}`,
+            text: textMessage,
+            files: [pdfFile],
+          });
+          return { success: true, channelSent: 'share_api', message: 'Invoice PDF and text shared via WhatsApp/system menu.' };
+        }
+      } catch (err) {
+        // Fall back if cancelled
       }
     }
 
-    if (phoneTenDigits && typeof window !== 'undefined') {
-      const whatsappUrl = `https://wa.me/91${phoneTenDigits}?text=${encodeURIComponent(textMessage)}`;
-      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-      return { success: true, channelSent: 'whatsapp', message: `WhatsApp launched for +91${phoneTenDigits}` };
-    }
+    // Fallback to direct WhatsApp link with pre-filled text message
+    const whatsappUrl = formattedPhone
+      ? `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(textMessage)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(textMessage)}`;
+
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    return { success: true, channelSent: 'whatsapp', message: `WhatsApp opened for ${formattedPhone || 'customer'}` };
   }
 
   return { success: true, channelSent: 'text', message: 'Invoice text message generated successfully.' };

@@ -76,29 +76,29 @@ export function AddCustomerModal({
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border p-5 sm:p-6 shadow-2xl transition-colors ${
-          isLight ? 'border-zinc-200 bg-white text-black' : 'border-zinc-800 bg-[#0A0C0F] text-white'
+        className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-none border p-5 sm:p-6 shadow-2xl transition-colors ${
+          isLight ? 'border-zinc-200 bg-white text-black' : 'border-zinc-800 bg-[#000000] text-white'
         }`}
       >
-        <div className={`flex items-center justify-between border-b pb-3 ${
+        <div className={`flex items-center justify-between border-b pb-4 ${
           isLight ? 'border-zinc-200' : 'border-zinc-800'
         }`}>
-          <h2 className={`flex items-center gap-3 text-xl font-bold ${
-            isLight ? 'text-black' : 'text-white'
-          }`}>
-            <UserPlus className={`h-5 w-5 ${isLight ? 'text-black' : 'text-white'}`} />
+          <h2 className={`text-lg font-bold uppercase tracking-wider ${
+            isLight ? '!text-black' : '!text-white'
+          }`} style={{ color: isLight ? '#000000' : '#ffffff' }}>
             Add New Customer
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className={`rounded-full p-2 transition ${
+            className={`rounded-none p-1.5 transition border ${
               isLight
-                ? 'text-zinc-400 hover:bg-zinc-100 hover:text-black'
-                : 'text-white/50 hover:bg-white/10 hover:text-white'
+                ? 'border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-black hover:border-zinc-300'
+                : 'border-transparent text-zinc-400 hover:bg-zinc-800 hover:text-white hover:border-zinc-700'
             }`}
+            aria-label="Close modal"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
